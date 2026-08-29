@@ -1,11 +1,12 @@
 .trigger {
-  position: absolute; z-index: 8; top: 104px; right: 22px; display: grid; place-items: center;
-  width: 80px; height: 72px; color: #dffaff; cursor: pointer; border: 3px solid #06111f;
+  position: absolute; z-index: 8; top: 104px; right: 22px; display: grid; grid-template-columns: 28px 1fr 20px; place-items: center;
+  gap: 5px; width: 112px; height: 54px; padding: 0 9px; color: #dffaff; cursor: pointer; border: 3px solid #06111f;
   outline: 2px solid #4eddf3; background: #0b5272; box-shadow: 5px 5px 0 #020911, inset 0 0 0 2px #73e8f7;
   text-transform: uppercase;
 }
 .trigger svg { width: 25px; }
-.trigger span { font-size: 8px; letter-spacing: .1em; }
+.trigger span { font-size: 12px; letter-spacing: .13em; }
+.trigger small { display: grid; place-items: center; width: 18px; height: 18px; color: #071521; border: 1px solid #071521; background: #8cecf7; font-size: 9px; }
 .trigger:hover { background: #12769a; transform: translate(-1px, -1px); }
 
 .panel {
@@ -71,7 +72,7 @@
 @keyframes pulse { 50% { box-shadow: 0 0 0 5px #f4ce55, 0 0 24px #48ddf2, 3px 3px 0 #020814; } }
 
 @media (max-width: 760px) {
-  .trigger { top: 82px; right: 12px; width: 62px; height: 58px; }
+  .trigger { top: 82px; right: 12px; width: 92px; height: 50px; grid-template-columns: 23px 1fr 17px; padding: 0 6px; }
   .panel { inset: 56px 8px 12px; grid-template-rows: 50px minmax(0, 1fr) 49px; border-width: 4px; outline-width: 2px; }
   .topbar { grid-template-columns: 48px 1fr 40px; gap: 5px; }
   .maskLogo { width: 37px; height: 37px; margin-left: 5px; }

@@ -11,6 +11,8 @@ export type SuitConfig = {
   visualScale?: number;
   /** Corrects exporter-local skinned pivots after bounds normalization. */
   visualOffsetX?: number;
+  /** Rest-pose correction used when an asset ships in a rigid T-pose. */
+  rigPreset?: 't-pose';
   traversal: 'spider' | 'ironman';
 };
 
@@ -20,7 +22,7 @@ export const SUITS: readonly SuitConfig[] = [
   { id: 'miles', name: 'Miles Morales', universe: 'Earth-1610', model: '/assets/suits/miles.glb', modelYaw: Math.PI, traversal: 'spider' },
   { id: 'miguel', name: 'Spider-Man 2099', universe: 'Nueva York', model: '/assets/suits/miguel-2099.glb', modelYaw: Math.PI, traversal: 'spider' },
   { id: 'original', name: 'Webbed Suit', universe: 'The Original', model: '/assets/suits/original.glb', modelYaw: Math.PI, traversal: 'spider' },
-  { id: 'ps4', name: 'PS4 Suit', universe: 'Insomniac', model: '/assets/suits/ps4.glb', modelYaw: Math.PI * .5, visualOffsetX: -1.48, traversal: 'spider' },
+  { id: 'ps4', name: 'PS4 Suit', universe: 'Insomniac', model: '/assets/suits/ps4.glb', modelYaw: Math.PI * .5, visualOffsetX: -1.48, rigPreset: 't-pose', traversal: 'spider' },
   { id: 'symbiote', name: 'Symbiote', universe: 'Black Suit', model: '/assets/suits/symbiote.glb', modelYaw: Math.PI, traversal: 'spider' },
   { id: 'ironman', name: 'Iron Man', universe: 'Mark 85', model: '/assets/suits/ironman.glb', modelYaw: Math.PI, traversal: 'ironman' },
 ] as const;

@@ -173,12 +173,23 @@ const targetRotation = new THREE.Quaternion();
 
 export type ProceduralPose = 'idle' | 'run' | 'jump' | 'swing' | 'wall' | 'crawl' | 'dive' | 'zip' | 'hover' | 'fly';
 
-export function animateRigBones(bones: readonly RigBone[], state: ProceduralPose, elapsed: number, delta: number) {
+export function animateRigBones(
+  bones: readonly RigBone[],
+  state: ProceduralPose,
+  elapsed: number,
+  delta: number,
+  rigPreset?: SuitConfig['rigPreset'],
+) {
   const stride = Math.sin(elapsed * 9.5);
   const breathe = Math.sin(elapsed * 2.4);
   for (const entry of bones) {
     let x = 0;
     let z = 0;
+    if (rigPreset === 't-pose') {
+      if (entry.role === 'leftArm') z = -1.05;
+      if (entry.role === 'rightArm') z = 1.05;
+      if (entry.role === 'leftForeArm' || entry.role === 'rightForeArm') x = -.12;
+    }
     if (state === 'run') {
       if (entry.role === 'leftUpLeg') x = stride * .68;
       if (entry.role === 'rightUpLeg') x = -stride * .68;
@@ -220,9 +231,7 @@ export function animateRigBones(bones: readonly RigBone[], state: ProceduralPose
       if (entry.role === 'leftForeArm' || entry.role === 'rightForeArm') x = .2;
       if (entry.role === 'leftUpLeg' || entry.role === 'rightUpLeg') x = state === 'fly' ? -.12 : .04;
       if (entry.role === 'chest' || entry.role === 'spine2') x = state === 'fly' ? .22 : breathe * .012;
-    } else if (entry.role === 'chest' || entry.role === 'spine2') {
-      x = breathe * .018;
-    }
+    } else if (entry.role === 'chest' || entry.role === 'spine2') x = breathe * .018;
     deltaRotation.setFromAxisAngle(AXIS_X, x);
     targetRotation.copy(entry.base).multiply(deltaRotation);
     if (z) {

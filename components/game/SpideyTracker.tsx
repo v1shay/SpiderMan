@@ -215,9 +215,10 @@ export function SpideyTracker({ open, current, loaded, onClose, onOpen, onTravel
 
   if (!open) {
     return (
-      <button className={styles.trigger} type="button" onClick={onOpen} aria-label="Open Spidey Tracker">
+      <button className={styles.trigger} type="button" onClick={onOpen} aria-label="Open Maps">
         <MapIcon aria-hidden="true" />
-        <span>Tracker</span>
+        <span>Maps</span>
+        <small>M</small>
       </button>
     );
   }

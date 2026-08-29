@@ -872,7 +872,8 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(function SpiderGam
       avatar.root.position.copy(player.position);
       avatar.root.rotation.y = damp(avatar.root.rotation.y, context.animation.bodyYaw, 13, delta);
       avatar.root.rotation.z = damp(avatar.root.rotation.z, context.animation.bodyRoll, 8, delta);
-      const isIronMan = getSuit(props.suitId).traversal === 'ironman';
+      const activeSuit = getSuit(props.suitId);
+      const isIronMan = activeSuit.traversal === 'ironman';
       const ironPitch = ironFlightMode === 'cruise' ? -.72 : ironFlightMode === 'freefall' ? context.animation.bodyPitch : 0;
       avatar.root.rotation.x = damp(avatar.root.rotation.x, isIronMan ? ironPitch : context.animation.bodyPitch, 8, delta);
       const mode = context.animation.state;
@@ -889,7 +890,7 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(function SpiderGam
                   : mode === 'run' ? 'run'
                     : mode === 'idle' || mode === 'land' || mode === 'perch' ? 'idle' : 'jump';
       renderer.domElement.dataset.animationState = mode;
-      if (!setAnimation(pose)) animateRigBones(avatar.bones, pose, elapsed, delta);
+      if (!setAnimation(pose)) animateRigBones(avatar.bones, pose, elapsed, delta, activeSuit.rigPreset);
       const repulsorActive = isIronMan && (ironFlightMode === 'hover' || ironFlightMode === 'cruise');
       for (const glow of avatar.repulsors) {
         glow.visible = repulsorActive;

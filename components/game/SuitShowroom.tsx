@@ -22,6 +22,7 @@ type DisplaySuit = {
   light: THREE.PointLight;
   mixer: THREE.AnimationMixer | null;
   bones: RigBone[];
+  rigPreset?: 't-pose';
   label: HTMLButtonElement;
 };
 
@@ -173,7 +174,7 @@ export default function SuitShowroom({ selected, onSelect, onConfirm, onStatus }
             mixer = new THREE.AnimationMixer(gltf.scene);
             mixer.clipAction(idle).play();
           }
-          displays.push({ id: suit.id, holder, baseX, ring, light, mixer, bones: collectRigBones(gltf.scene), label });
+          displays.push({ id: suit.id, holder, baseX, ring, light, mixer, bones: collectRigBones(gltf.scene), rigPreset: suit.rigPreset, label });
         }));
         if (!disposed) onStatusRef.current('All eight heroes online', 100);
       } catch (error) {
@@ -207,7 +208,7 @@ export default function SuitShowroom({ selected, onSelect, onConfirm, onStatus }
       elapsed += delta;
       for (const display of displays) {
         display.mixer?.update(delta);
-        if (!display.mixer) animateRigBones(display.bones, 'idle', elapsed + display.baseX, delta);
+        if (!display.mixer) animateRigBones(display.bones, 'idle', elapsed + display.baseX, delta, display.rigPreset);
         const active = display.id === selectedRef.current;
         const hot = active || display.id === hovered;
         const scale = active ? 1.045 : display.id === hovered ? 1.02 : .94;

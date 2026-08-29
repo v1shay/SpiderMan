@@ -28,7 +28,7 @@ export default function Home() {
   useEffect(() => { void import('@/lib/analytics').then(({ trackVisit }) => trackVisit()); }, []);
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
-      if (event.code === 'Escape' && phase === 'game') setTrackerOpen((open) => !open);
+      if ((event.code === 'Escape' || event.code === 'KeyM') && phase === 'game') setTrackerOpen((open) => !open);
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
@@ -114,6 +114,7 @@ export default function Home() {
             {activeSuit.traversal === 'ironman' && <div><kbd>F</kbd><span>Hover / free fall</span></div>}
             <div><kbd>Shift</kbd><span>{activeSuit.traversal === 'ironman' ? 'Descend' : 'Dive'}</span></div>
             {activeSuit.traversal === 'spider' && <div><kbd>Q</kbd><span>Wall crawl</span></div>}
+            <div><kbd>M</kbd><span>Maps</span></div>
             <Rotate3d aria-hidden="true" />
           </aside>
 
