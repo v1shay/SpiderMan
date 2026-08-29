@@ -16,7 +16,7 @@ type Props = {
 type DisplaySuit = {
   id: SuitId;
   holder: THREE.Group;
-  baseZ: number;
+  baseX: number;
   ring: THREE.Mesh<THREE.RingGeometry, THREE.MeshBasicMaterial>;
   light: THREE.PointLight;
   mixer: THREE.AnimationMixer | null;
@@ -44,8 +44,8 @@ export default function SuitShowroom({ selected, onSelect, onStatus }: Props) {
     scene.background = new THREE.Color('#01040a');
     scene.fog = new THREE.Fog('#01040a', 13, 42);
     const camera = new THREE.PerspectiveCamera(52, 1, .05, 140);
-    camera.position.set(10.7, 2.82, 0);
-    camera.lookAt(2.65, 1.08, 0);
+    camera.position.set(0, 2.95, 13.2);
+    camera.lookAt(0, 1.08, 1.35);
     const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
     renderer.outputColorSpace = THREE.SRGBColorSpace;
@@ -62,14 +62,14 @@ export default function SuitShowroom({ selected, onSelect, onStatus }: Props) {
 
     scene.add(new THREE.HemisphereLight('#79bde8', '#16080e', 1.55));
     const key = new THREE.SpotLight('#c6eaff', 34, 42, Math.PI / 4, .52, 1.35);
-    key.position.set(10, 8, 6);
-    key.target.position.set(3, 1, 0);
+    key.position.set(-7, 8, 9);
+    key.target.position.set(0, 1, 2);
     key.castShadow = true;
     key.shadow.mapSize.set(1024, 1024);
     scene.add(key, key.target);
     const redRim = new THREE.SpotLight('#ff244a', 26, 38, Math.PI / 4, .58, 1.4);
-    redRim.position.set(-2, 7, -6);
-    redRim.target.position.set(3, 1, 0);
+    redRim.position.set(8, 7, -2);
+    redRim.target.position.set(0, 1, 2);
     scene.add(redRim, redRim.target);
 
     const loader = new GLTFLoader();
@@ -106,7 +106,7 @@ export default function SuitShowroom({ selected, onSelect, onStatus }: Props) {
         // source Y 2.345. Scale and offset it to world Y 0 for the lineup.
         const towerScale = 9.5;
         towerRoot.scale.setScalar(towerScale);
-        towerRoot.position.set(-3.04, -2.345 * towerScale, 0);
+        towerRoot.position.set(-3.04, -2.345 * towerScale, .18);
         scene.add(towerRoot);
 
         await Promise.all(SUITS.map(async (suit, index) => {
@@ -118,9 +118,9 @@ export default function SuitShowroom({ selected, onSelect, onStatus }: Props) {
           prepareMaterials(gltf.scene, renderer, 'character');
           normalizeSuit(gltf.scene, suit, 2.1);
           const holder = new THREE.Group();
-          const baseZ = (index - (SUITS.length - 1) / 2) * .8;
-          holder.position.set(3.1 - Math.abs(baseZ) * .025, .035, baseZ);
-          holder.rotation.y = Math.PI * 1.5;
+          const baseX = (index - (SUITS.length - 1) / 2) * .9;
+          holder.position.set(baseX, .035, 3.48);
+          holder.rotation.y = Math.PI;
           holder.add(gltf.scene);
           holder.userData.suitId = suit.id;
           scene.add(holder);
@@ -134,10 +134,10 @@ export default function SuitShowroom({ selected, onSelect, onStatus }: Props) {
           const ringMaterial = new THREE.MeshBasicMaterial({ color: '#244d60', transparent: true, opacity: .42, side: THREE.DoubleSide });
           const ring = new THREE.Mesh(new THREE.RingGeometry(.62, .72, 48), ringMaterial);
           ring.rotation.x = -Math.PI / 2;
-          ring.position.set(holder.position.x, .04, baseZ);
+          ring.position.set(baseX, .04, holder.position.z);
           scene.add(ring);
           const light = new THREE.PointLight('#52cfff', 4, 5, 1.8);
-          light.position.set(holder.position.x + .25, 2.35, baseZ);
+          light.position.set(baseX, 2.35, holder.position.z + .25);
           scene.add(light);
 
           const label = document.createElement('button');
@@ -154,7 +154,7 @@ export default function SuitShowroom({ selected, onSelect, onStatus }: Props) {
             mixer = new THREE.AnimationMixer(gltf.scene);
             mixer.clipAction(idle).play();
           }
-          displays.push({ id: suit.id, holder, baseZ, ring, light, mixer, bones: collectRigBones(gltf.scene), rigPreset: suit.rigPreset, label });
+          displays.push({ id: suit.id, holder, baseX, ring, light, mixer, bones: collectRigBones(gltf.scene), rigPreset: suit.rigPreset, label });
         }));
         if (!disposed) onStatusRef.current('All seven heroes online', 100);
       } catch (error) {
@@ -186,13 +186,13 @@ export default function SuitShowroom({ selected, onSelect, onStatus }: Props) {
       elapsed += delta;
       for (const display of displays) {
         display.mixer?.update(delta);
-        if (!display.mixer) animateRigBones(display.bones, 'idle', elapsed + display.baseZ, delta, display.rigPreset);
+        if (!display.mixer) animateRigBones(display.bones, 'idle', elapsed + display.baseX, delta, display.rigPreset);
         const active = display.id === selectedRef.current;
         const hot = active || display.id === hovered;
         const scale = active ? 1.045 : display.id === hovered ? 1.02 : .94;
         display.holder.scale.lerp(new THREE.Vector3(scale, scale, scale), 1 - Math.exp(-9 * delta));
-        display.holder.position.x = THREE.MathUtils.damp(display.holder.position.x, active ? 3.58 : 3.1 - Math.abs(display.baseZ) * .025, 8, delta);
-        display.holder.position.z = THREE.MathUtils.damp(display.holder.position.z, display.baseZ, 8, delta);
+        display.holder.position.x = THREE.MathUtils.damp(display.holder.position.x, display.baseX, 8, delta);
+        display.holder.position.z = THREE.MathUtils.damp(display.holder.position.z, active ? 3.9 : 3.48, 8, delta);
         display.ring.material.color.set(active ? '#ff2747' : hot ? '#6de8ff' : '#244d60');
         display.ring.material.opacity = active ? .95 : hot ? .72 : .35;
         display.ring.scale.setScalar(active ? 1.18 + Math.sin(elapsed * 4) * .025 : 1);
@@ -204,8 +204,8 @@ export default function SuitShowroom({ selected, onSelect, onStatus }: Props) {
         display.label.classList.toggle('is-selected', active);
         display.label.classList.toggle('is-hovered', display.id === hovered);
       }
-      camera.position.z = THREE.MathUtils.damp(camera.position.z, pointer.x * .3, 3, delta);
-      camera.lookAt(2.65, 1.08, camera.position.z * .16);
+      camera.position.x = THREE.MathUtils.damp(camera.position.x, pointer.x * .3, 3, delta);
+      camera.lookAt(camera.position.x * .16, 1.08, 1.35);
       renderer.render(scene, camera);
     };
     tick();
