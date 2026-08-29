@@ -18,7 +18,7 @@ export default function Home() {
   const [progress, setProgress] = useState(0);
   const [trackerOpen, setTrackerOpen] = useState(false);
   const [loadedDistricts, setLoadedDistricts] = useState<Set<DistrictId>>(() => new Set());
-  const [currentDistrict, setCurrentDistrict] = useState<DistrictId>('new-york-buildings');
+  const [currentDistrict, setCurrentDistrict] = useState<DistrictId>('backstreet');
   const [hud, setHud] = useState<GameHud>({ speed: 0, altitude: 0, fps: 60, swinging: false });
   const [showroomStatus, setShowroomStatus] = useState({ message: 'Opening Avengers warehouse', progress: 0 });
   const gameRef = useRef<SpiderGameHandle>(null);

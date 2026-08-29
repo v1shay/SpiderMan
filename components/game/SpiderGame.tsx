@@ -38,7 +38,11 @@ type AvatarRig = {
 };
 
 const GROUND_Y = .12;
-const districtSpawnZ = (district: DistrictConfig) => district.position[2] + district.targetWidth * .43;
+const districtSpawn = (district: DistrictConfig) => {
+  const local = new THREE.Vector3(district.spawn?.[0] ?? 0, 0, district.spawn?.[1] ?? 0)
+    .applyAxisAngle(new THREE.Vector3(0, 1, 0), district.rotation ?? 0);
+  return new THREE.Vector3(district.position[0] + local.x, GROUND_Y, district.position[2] + local.z);
+};
 const cameraCollisionBox = new THREE.Box3();
 const cameraCollisionHit = new THREE.Vector3();
 const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value));
@@ -51,7 +55,7 @@ function seeded(index: number) {
 
 function addSky(scene: THREE.Scene) {
   const sky = new THREE.Mesh(
-    new THREE.SphereGeometry(2600, 32, 18),
+    new THREE.SphereGeometry(9000, 32, 18),
     new THREE.ShaderMaterial({
       side: THREE.BackSide,
       uniforms: { topColor: { value: new THREE.Color('#06162b') }, bottomColor: { value: new THREE.Color('#ca4053') } },
@@ -177,14 +181,18 @@ function addCityGrid(scene: THREE.Scene) {
   mesh.count = instance;
   mesh.instanceMatrix.needsUpdate = true;
   if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
-  scene.add(mesh);
+  if (instance > 0) scene.add(mesh);
   sidewalk.count = instance;
   sidewalk.instanceMatrix.needsUpdate = true;
-  scene.add(sidewalk);
-  anchors.push(mesh);
+  if (instance > 0) {
+    scene.add(sidewalk);
+    anchors.push(mesh);
+  }
+
+  const worldSize = Math.max(7200, ...DISTRICTS.map((district) => district.targetWidth * 1.2));
 
   const asphalt = new THREE.Mesh(
-    new THREE.PlaneGeometry(2300, 2300),
+    new THREE.PlaneGeometry(worldSize, worldSize),
     new THREE.MeshStandardMaterial({ map: createAsphaltTexture(), color: '#c6ccd1', roughness: .98, metalness: .01 }),
   );
   asphalt.rotation.x = -Math.PI / 2;
@@ -192,21 +200,25 @@ function addCityGrid(scene: THREE.Scene) {
   asphalt.name = 'New York asphalt';
   scene.add(asphalt);
 
-  const lineMaterial = new THREE.MeshBasicMaterial({ color: '#b79b52', transparent: true, opacity: .5 });
-  const lines = new THREE.Group();
-  for (let lane = -12; lane <= 12; lane += 1) {
-    const coordinate = lane * spacing;
-    const vertical = new THREE.Mesh(new THREE.PlaneGeometry(.22, 2300), lineMaterial);
-    vertical.rotation.x = -Math.PI / 2;
-    vertical.position.set(coordinate, .018, 0);
-    lines.add(vertical);
-    const horizontal = new THREE.Mesh(new THREE.PlaneGeometry(2300, .22), lineMaterial);
-    horizontal.rotation.x = -Math.PI / 2;
-    horizontal.position.set(0, .019, coordinate);
-    lines.add(horizontal);
+  // The imported city includes its own roads. Only draw the synthetic grid
+  // markings when synthetic buildings were actually needed around a district.
+  if (instance > 0) {
+    const lineMaterial = new THREE.MeshBasicMaterial({ color: '#b79b52', transparent: true, opacity: .5 });
+    const lines = new THREE.Group();
+    for (let lane = -12; lane <= 12; lane += 1) {
+      const coordinate = lane * spacing;
+      const vertical = new THREE.Mesh(new THREE.PlaneGeometry(.22, worldSize), lineMaterial);
+      vertical.rotation.x = -Math.PI / 2;
+      vertical.position.set(coordinate, .018, 0);
+      lines.add(vertical);
+      const horizontal = new THREE.Mesh(new THREE.PlaneGeometry(worldSize, .22), lineMaterial);
+      horizontal.rotation.x = -Math.PI / 2;
+      horizontal.position.set(0, .019, coordinate);
+      lines.add(horizontal);
+    }
+    lines.name = 'Manhattan street markings';
+    scene.add(lines);
   }
-  lines.name = 'Manhattan street markings';
-  scene.add(lines);
   return { colliders, anchors };
 }
 
@@ -272,9 +284,9 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(function SpiderGam
     let frameId = 0;
     let ready = false;
     const scene = new THREE.Scene();
-    scene.fog = new THREE.FogExp2('#07101b', .00072);
+    scene.fog = new THREE.FogExp2('#07101b', .00024);
     addSky(scene);
-    const camera = new THREE.PerspectiveCamera(66, 1, .08, 4200);
+    const camera = new THREE.PerspectiveCamera(66, 1, .08, 12000);
     const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.25));
     renderer.outputColorSpace = THREE.SRGBColorSpace;
@@ -309,15 +321,16 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(function SpiderGam
     const loader = new GLTFLoader();
     loader.setMeshoptDecoder(MeshoptDecoder);
     const keys = new Set<string>();
-    const initialDistrict = getDistrict('new-york-buildings');
-    const player = { position: new THREE.Vector3(initialDistrict.position[0], GROUND_Y, districtSpawnZ(initialDistrict)), velocity: new THREE.Vector3(), facing: 0, grounded: true };
+    const initialDistrict = getDistrict('backstreet');
+    const initialSpawn = districtSpawn(initialDistrict);
+    const player = { position: initialSpawn.clone(), velocity: new THREE.Vector3(), facing: 0, grounded: true };
     const traversal = createTraversalState(player.position, player.velocity);
     traversal.grounded = true;
     traversal.mode = 'idle';
     let cameraYaw = 0;
     let cameraPitch = .08;
     let avatar: AvatarRig | null = null;
-    let currentDistrict: DistrictId = 'new-york-buildings';
+    let currentDistrict: DistrictId = 'backstreet';
     let hudAccumulator = 0;
     let fpsAccumulator = 0;
     let fpsFrames = 0;
@@ -579,7 +592,7 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(function SpiderGam
       void loadDistrict(district).then(() => {
         if (disposed) return;
         currentDistrict = id;
-        player.position.set(district.position[0], GROUND_Y, districtSpawnZ(district));
+        player.position.copy(districtSpawn(district));
         player.velocity.set(0, 0, 0);
         player.grounded = true;
         setTraversalKinematics(traversal, player.position, player.velocity);
@@ -725,9 +738,15 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(function SpiderGam
       pointerPressed = false;
       pointerReleased = false;
 
-      if (player.position.y < -20 || Math.abs(player.position.x) > 1250 || Math.abs(player.position.z) > 1250) {
+      const activeDistrict = getDistrict(currentDistrict);
+      const worldRadius = activeDistrict.targetWidth * .62;
+      const outsideWorld = Math.hypot(
+        player.position.x - activeDistrict.position[0],
+        player.position.z - activeDistrict.position[2],
+      ) > worldRadius;
+      if (player.position.y < -20 || outsideWorld) {
         const home = getDistrict(currentDistrict);
-        player.position.set(home.position[0], GROUND_Y, districtSpawnZ(home));
+        player.position.copy(districtSpawn(home));
         player.velocity.set(0, 0, 0);
         player.grounded = true;
         setTraversalKinematics(traversal, player.position, player.velocity);
@@ -804,20 +823,20 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(function SpiderGam
     const setup = async () => {
       try {
         callbacksRef.current.onStatus('Booting connected New York grid', 2);
-        camera.position.set(initialDistrict.position[0], 3.8, districtSpawnZ(initialDistrict) + 10);
-        camera.lookAt(initialDistrict.position[0], 1.4, districtSpawnZ(initialDistrict));
+        camera.position.copy(initialSpawn).add(new THREE.Vector3(0, 3.68, 10));
+        camera.lookAt(initialSpawn.x, 1.4, initialSpawn.z);
         tick();
-        await Promise.all([loadAvatar(), loadDistrict(getDistrict('new-york-buildings'))]);
+        await Promise.all([loadAvatar(), loadDistrict(initialDistrict)]);
         if (disposed) return;
-        player.position.set(initialDistrict.position[0], GROUND_Y, districtSpawnZ(initialDistrict));
+        player.position.copy(initialSpawn);
         player.velocity.set(0, 0, 0);
         player.grounded = true;
         setTraversalKinematics(traversal, player.position, player.velocity);
         traversal.grounded = true;
         traversal.mode = 'idle';
         ready = true;
-        callbacksRef.current.onDistrictChange('new-york-buildings');
-        callbacksRef.current.onStatus("Hell's Kitchen route online", 100);
+        callbacksRef.current.onDistrictChange('backstreet');
+        callbacksRef.current.onStatus('Full-scale New York route online', 100);
         callbacksRef.current.onReady();
       } catch (error) {
         console.error('[game] unable to start New York', error);

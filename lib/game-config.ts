@@ -42,6 +42,8 @@ export type DistrictConfig = {
   subtitle: string;
   model: string;
   position: [number, number, number];
+  /** Local X/Z offset for a verified street-level spawn. */
+  spawn?: [number, number];
   targetWidth: number;
   /** Authored source-space Y coordinate of the walkable street/floor. */
   sourceGroundY: number;
@@ -50,17 +52,14 @@ export type DistrictConfig = {
   map: [number, number];
 };
 
-/** Measured placements for each supplied city asset on one connected grid. */
+/**
+ * The supplied full-city scan is the traversal world. Its original 15.5 km
+ * footprint was previously normalized to 520 units, which reduced even the
+ * tallest buildings to roughly 15 units. At 6000 units the same geometry has
+ * believable 40–175 unit buildings and several kilometres of swing space.
+ */
 export const DISTRICTS: readonly DistrictConfig[] = [
-  { id: 'times-square', name: 'Times Square', subtitle: 'The Crossroads', model: '/assets/districts/times-square.glb', position: [250, 0, -360], targetWidth: 190, sourceGroundY: 0, rotation: -.16, accent: 'red', map: [49, 43] },
-  { id: 'street-city', name: 'Midtown', subtitle: 'Street City', model: '/assets/districts/street-city.glb', position: [-330, 0, -170], targetWidth: 230, sourceGroundY: .011032, rotation: Math.PI * .5, accent: 'blue', map: [38, 36] },
-  { id: 'new-york-buildings', name: "Hell's Kitchen", subtitle: 'West Side', model: '/assets/districts/new-york-buildings.glb', position: [0, 0, -160], targetWidth: 260, sourceGroundY: 0, rotation: -Math.PI * .35, accent: 'green', map: [60, 36] },
-  { id: 'manhattan', name: 'Manhattan', subtitle: 'Central Grid', model: '/assets/districts/manhattan.glb', position: [0, 0, -520], targetWidth: 340, sourceGroundY: 0, rotation: Math.PI * .5, accent: 'blue', map: [49, 23] },
-  { id: 'manhattan-bridge', name: 'Manhattan Bridge', subtitle: 'East River', model: '/assets/districts/manhattan-bridge.glb', position: [500, 0, -510], targetWidth: 380, sourceGroundY: 0, rotation: -Math.PI * .1, accent: 'red', map: [72, 29] },
-  { id: 'city-night', name: 'Brooklyn Night', subtitle: 'Neon Borough', model: '/assets/districts/city-night.glb', position: [-500, 0, -510], targetWidth: 360, sourceGroundY: .257082, rotation: Math.PI * .72, accent: 'green', map: [25, 28] },
-  { id: 'downtown', name: 'Downtown', subtitle: 'Financial District', model: '/assets/districts/downtown.glb', position: [-500, 0, 460], targetWidth: 520, sourceGroundY: 0, rotation: Math.PI * .05, accent: 'red', map: [29, 73] },
-  { id: 'uptown', name: 'Uptown', subtitle: 'Upper Manhattan', model: '/assets/districts/uptown.glb', position: [500, 0, 460], targetWidth: 520, sourceGroundY: 0, rotation: Math.PI * 1.03, accent: 'blue', map: [69, 72] },
-  { id: 'backstreet', name: 'Backstreet', subtitle: 'Warehouse Row', model: '/assets/districts/backstreet.glb', position: [0, 0, 330], targetWidth: 220, sourceGroundY: 15.629665, rotation: Math.PI, accent: 'green', map: [49, 62] },
+  { id: 'backstreet', name: 'New York City', subtitle: 'Full-Scale Manhattan', model: '/assets/districts/downtown.glb', position: [0, 0, 0], spawn: [0, 0], targetWidth: 6000, sourceGroundY: 29.92676, rotation: 0, accent: 'green', map: [49, 52] },
 ] as const;
 
 export const getDistrict = (id: DistrictId) => DISTRICTS.find((district) => district.id === id) ?? DISTRICTS[0];
