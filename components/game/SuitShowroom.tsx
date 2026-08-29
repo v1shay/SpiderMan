@@ -10,7 +10,6 @@ import { animateRigBones, collectRigBones, normalizeSuit, poseOnlyClips, prepare
 type Props = {
   selected: SuitId;
   onSelect: (id: SuitId) => void;
-  onConfirm: () => void;
   onStatus: (message: string, progress: number) => void;
 };
 
@@ -26,15 +25,13 @@ type DisplaySuit = {
   label: HTMLButtonElement;
 };
 
-export default function SuitShowroom({ selected, onSelect, onConfirm, onStatus }: Props) {
+export default function SuitShowroom({ selected, onSelect, onStatus }: Props) {
   const mountRef = useRef<HTMLDivElement>(null);
   const selectedRef = useRef(selected);
   const onSelectRef = useRef(onSelect);
-  const onConfirmRef = useRef(onConfirm);
   const onStatusRef = useRef(onStatus);
   useEffect(() => { selectedRef.current = selected; }, [selected]);
   useEffect(() => { onSelectRef.current = onSelect; }, [onSelect]);
-  useEffect(() => { onConfirmRef.current = onConfirm; }, [onConfirm]);
   useEffect(() => { onStatusRef.current = onStatus; }, [onStatus]);
 
   useEffect(() => {
@@ -163,9 +160,8 @@ export default function SuitShowroom({ selected, onSelect, onConfirm, onStatus }
           label.type = 'button';
           label.className = 'showroom-suit-label';
           label.textContent = suit.name;
-          label.setAttribute('aria-label', `Select ${suit.name}; double-click to enter`);
+          label.setAttribute('aria-label', `Select ${suit.name}`);
           label.addEventListener('click', () => onSelectRef.current(suit.id));
-          label.addEventListener('dblclick', () => onConfirmRef.current());
           labels.appendChild(label);
 
           let mixer: THREE.AnimationMixer | null = null;
@@ -176,7 +172,7 @@ export default function SuitShowroom({ selected, onSelect, onConfirm, onStatus }
           }
           displays.push({ id: suit.id, holder, baseX, ring, light, mixer, bones: collectRigBones(gltf.scene), rigPreset: suit.rigPreset, label });
         }));
-        if (!disposed) onStatusRef.current('All eight heroes online', 100);
+        if (!disposed) onStatusRef.current('All seven heroes online', 100);
       } catch (error) {
         console.error('[showroom] unable to assemble warehouse', error);
         onStatusRef.current('Warehouse recovery lighting active', 100);
@@ -193,10 +189,8 @@ export default function SuitShowroom({ selected, onSelect, onConfirm, onStatus }
       renderer.domElement.style.cursor = hovered ? 'pointer' : 'crosshair';
     };
     const choosePointer = () => { if (hovered) onSelectRef.current(hovered); };
-    const confirmPointer = () => { if (hovered && hovered === selectedRef.current) onConfirmRef.current(); };
     renderer.domElement.addEventListener('pointermove', readPointer);
     renderer.domElement.addEventListener('pointerdown', choosePointer);
-    renderer.domElement.addEventListener('dblclick', confirmPointer);
 
     let lastFrame = performance.now();
     let elapsed = 0;
@@ -238,7 +232,6 @@ export default function SuitShowroom({ selected, onSelect, onConfirm, onStatus }
       observer.disconnect();
       renderer.domElement.removeEventListener('pointermove', readPointer);
       renderer.domElement.removeEventListener('pointerdown', choosePointer);
-      renderer.domElement.removeEventListener('dblclick', confirmPointer);
       scene.traverse((object) => {
         if (!(object instanceof THREE.Mesh)) return;
         object.geometry.dispose();

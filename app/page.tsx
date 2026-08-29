@@ -1,8 +1,8 @@
 'use client';
 
-import { Activity, Gauge, Move3d, Navigation, Radio, Rotate3d } from 'lucide-react';
-import { lazy, Suspense, useEffect, useRef, useState } from 'react';
-import type { GameHud, SpiderGameHandle } from '@/components/game/SpiderGame';
+import { Activity, Gauge, Map, Move3d, Navigation, Play, Radio, Rotate3d } from 'lucide-react';
+import { lazy, Suspense, useEffect, useState } from 'react';
+import type { GameHud } from '@/components/game/SpiderGame';
 import { SpideyTracker } from '@/components/game/SpideyTracker';
 import SuitShowroom from '@/components/game/SuitShowroom';
 import { DISTRICTS, SUITS, type DistrictId, type SuitId } from '@/lib/game-config';
@@ -13,15 +13,15 @@ type Phase = 'select' | 'loading' | 'game';
 
 export default function Home() {
   const [selected, setSelected] = useState<SuitId>('advanced');
+  const [selectedMap, setSelectedMap] = useState<DistrictId>('new-york-city');
   const [phase, setPhase] = useState<Phase>('select');
   const [status, setStatus] = useState('Waiting for suit selection');
   const [progress, setProgress] = useState(0);
   const [trackerOpen, setTrackerOpen] = useState(false);
   const [loadedDistricts, setLoadedDistricts] = useState<Set<DistrictId>>(() => new Set());
-  const [currentDistrict, setCurrentDistrict] = useState<DistrictId>('backstreet');
+  const [currentDistrict, setCurrentDistrict] = useState<DistrictId>('new-york-city');
   const [hud, setHud] = useState<GameHud>({ speed: 0, altitude: 0, fps: 60, swinging: false });
   const [, setShowroomStatus] = useState({ message: 'Opening warehouse', progress: 0 });
-  const gameRef = useRef<SpiderGameHandle>(null);
   const activeSuit = SUITS.find((suit) => suit.id === selected) ?? SUITS[0];
   const activeDistrict = DISTRICTS.find((district) => district.id === currentDistrict) ?? DISTRICTS[0];
 
@@ -36,14 +36,19 @@ export default function Home() {
 
   const enterCity = () => {
     setLoadedDistricts(new Set());
-    setStatus(`Preparing ${activeSuit.name}`);
+    setCurrentDistrict(selectedMap);
+    setStatus(`Preparing ${activeSuit.name} for ${DISTRICTS.find((item) => item.id === selectedMap)?.name ?? 'New York'}`);
     setProgress(1);
     setPhase('loading');
   };
 
   const travelTo = (district: DistrictId) => {
-    setStatus(`Checkpoint selected: ${DISTRICTS.find((item) => item.id === district)?.name ?? 'City'}`);
-    gameRef.current?.travelTo(district);
+    setSelectedMap(district);
+    setCurrentDistrict(district);
+    setLoadedDistricts(new Set());
+    setStatus(`Opening ${DISTRICTS.find((item) => item.id === district)?.name ?? 'City'}`);
+    setProgress(1);
+    setPhase('loading');
     setTrackerOpen(false);
   };
 
@@ -53,13 +58,38 @@ export default function Home() {
         <SuitShowroom
           selected={selected}
           onSelect={setSelected}
-          onConfirm={enterCity}
           onStatus={(message, nextProgress) => setShowroomStatus({ message, progress: Math.round(nextProgress) })}
         />
         <div className="warehouse-vignette" aria-hidden="true" />
         <header className="launch-header">
           <div className="brand-lockup" aria-label="SpiderMan"><span className="brand-title">SpiderMan</span></div>
         </header>
+        <section className="selector-shell" aria-label="Game setup">
+          <div className="launch-actions">
+            <fieldset className="map-picker">
+              <legend className="map-picker-label"><Map aria-hidden="true" /> Maps</legend>
+              <div className="map-toggle-row">
+                {DISTRICTS.map((district) => (
+                  <button
+                    key={district.id}
+                    type="button"
+                    className="map-toggle"
+                    data-accent={district.accent}
+                    data-selected={district.id === selectedMap}
+                    aria-pressed={district.id === selectedMap}
+                    onClick={() => setSelectedMap(district.id)}
+                  >
+                    <strong>{district.name}</strong>
+                    <small>{district.subtitle}</small>
+                  </button>
+                ))}
+              </div>
+            </fieldset>
+            <button className="enter-city" type="button" onClick={enterCity}>
+              <Play aria-hidden="true" /> Start Game
+            </button>
+          </div>
+        </section>
       </main>
     );
   }
@@ -68,8 +98,9 @@ export default function Home() {
     <main className="game-shell">
       <Suspense fallback={null}>
         <SpiderGame
-          ref={gameRef}
+          key={`${selected}:${selectedMap}`}
           suitId={selected}
+          districtId={selectedMap}
           onReady={() => setPhase('game')}
           onStatus={(message, nextProgress) => { setStatus(message); setProgress(Math.round(nextProgress)); }}
           onHud={setHud}

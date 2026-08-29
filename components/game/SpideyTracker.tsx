@@ -20,15 +20,8 @@ type Props = {
 const OPEN_FREE_MAP_STYLE = 'https://tiles.openfreemap.org/styles/liberty';
 
 const DISTRICT_COORDINATES: Record<DistrictId, [number, number]> = {
-  'times-square': [-73.9855, 40.758],
-  'street-city': [-73.9972, 40.7535],
-  'new-york-buildings': [-73.9922, 40.7664],
-  manhattan: [-73.9712, 40.7831],
-  'manhattan-bridge': [-73.9903, 40.7075],
-  'city-night': [-73.9578, 40.6918],
-  downtown: [-74.0084, 40.7076],
-  uptown: [-73.9496, 40.8171],
-  backstreet: [-73.9966, 40.7218],
+  'new-york-city': [-73.9855, 40.758],
+  'new-york-blvd': [-73.9712, 40.7831],
 };
 
 /** Convert OpenFreeMap's no-token OpenMapTiles style into the tracker palette before map creation. */
@@ -141,7 +134,7 @@ export function SpideyTracker({ open, current, loaded, onClose, onOpen, onTravel
         const map = new maplibregl.Map({
           container: containerRef.current,
           style: createTrackerStyle(sourceStyle),
-          center: DISTRICT_COORDINATES['times-square'],
+          center: DISTRICT_COORDINATES['new-york-city'],
           zoom: 11.35,
           bearing: -24,
           pitch: 34,

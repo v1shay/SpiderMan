@@ -4,7 +4,7 @@ import { forwardRef, useEffect, useImperativeHandle, useRef } from 'react';
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.js';
-import { DISTRICTS, getDistrict, getSuit, type DistrictConfig, type DistrictId, type SuitId } from '@/lib/game-config';
+import { getDistrict, getSuit, type DistrictConfig, type DistrictId, type SuitId } from '@/lib/game-config';
 import {
   createTraversalState,
   runTraversalPhysicsSelfTests,
@@ -13,13 +13,14 @@ import {
   type TraversalContext,
   type WebAnchorCandidate,
 } from '@/lib/traversal-physics';
-import { animateRigBones, collectRigBones, normalizeSuit, poseOnlyClips, prepareMaterials, type ProceduralPose, type RigBone } from '@/lib/three-assets';
+import { animateRigBones, collectRigBones, normalizeSuit, poseOnlyClips, prepareMaterials, retargetMixamoClips, type ProceduralPose, type RigBone } from '@/lib/three-assets';
 
 export type GameHud = { speed: number; altitude: number; fps: number; swinging: boolean };
 export type SpiderGameHandle = { travelTo: (id: DistrictId) => void };
 
 type Props = {
   suitId: SuitId;
+  districtId: DistrictId;
   onReady: () => void;
   onStatus: (message: string, progress: number) => void;
   onHud: (hud: GameHud) => void;
@@ -39,6 +40,8 @@ type AvatarRig = {
 
 type CollisionMetadata = {
   sourceWidth: number;
+  sourceGroundY?: number;
+  sourceBounds?: [number, number, number, number, number, number];
   colliders: [number, number, number, number, number, number][];
 };
 
@@ -108,49 +111,26 @@ function addSky(scene: THREE.Scene) {
   scene.add(sky);
 }
 
-function createWindowTexture() {
-  const canvas = document.createElement('canvas');
-  canvas.width = 128;
-  canvas.height = 256;
-  const context = canvas.getContext('2d');
-  if (context) {
-    context.fillStyle = '#101b27';
-    context.fillRect(0, 0, 128, 256);
-    for (let row = 0; row < 14; row += 1) {
-      for (let column = 0; column < 7; column += 1) {
-        const lit = seeded(row * 17 + column * 31) > .43;
-        context.fillStyle = lit ? (seeded(row * 41 + column) > .7 ? '#ffbd69' : '#74b7ce') : '#162938';
-        context.fillRect(6 + column * 18, 7 + row * 18, 10, 9);
-      }
-    }
-  }
-  const texture = new THREE.CanvasTexture(canvas);
-  texture.colorSpace = THREE.SRGBColorSpace;
-  texture.magFilter = THREE.NearestFilter;
-  texture.minFilter = THREE.LinearMipmapLinearFilter;
-  return texture;
-}
-
 function createAsphaltTexture() {
   const canvas = document.createElement('canvas');
   canvas.width = 512;
   canvas.height = 512;
   const context = canvas.getContext('2d');
   if (context) {
-    context.fillStyle = '#151a20';
+    context.fillStyle = '#30363d';
     context.fillRect(0, 0, 512, 512);
     for (let index = 0; index < 9000; index += 1) {
-      const shade = 20 + Math.floor(seeded(index + 900) * 28);
+      const shade = 38 + Math.floor(seeded(index + 900) * 32);
       context.fillStyle = `rgba(${shade},${shade + 2},${shade + 4},${.08 + seeded(index + 77) * .18})`;
       const size = 1 + Math.floor(seeded(index + 101) * 3);
       context.fillRect(seeded(index + 33) * 512, seeded(index + 61) * 512, size, size);
     }
-    context.strokeStyle = 'rgba(4,7,10,.5)';
-    context.lineWidth = 2;
-    for (let crack = 0; crack < 14; crack += 1) {
+    context.strokeStyle = 'rgba(12,16,20,.14)';
+    context.lineWidth = 1;
+    for (let crack = 0; crack < 4; crack += 1) {
       context.beginPath();
       context.moveTo(seeded(crack + 400) * 512, seeded(crack + 500) * 512);
-      for (let segment = 0; segment < 5; segment += 1) {
+      for (let segment = 0; segment < 3; segment += 1) {
         context.lineTo(seeded(crack * 17 + segment + 600) * 512, seeded(crack * 23 + segment + 700) * 512);
       }
       context.stroke();
@@ -164,180 +144,16 @@ function createAsphaltTexture() {
   return texture;
 }
 
-function createConcreteTexture() {
-  const canvas = document.createElement('canvas');
-  canvas.width = 256;
-  canvas.height = 256;
-  const context = canvas.getContext('2d');
-  if (context) {
-    context.fillStyle = '#69727a';
-    context.fillRect(0, 0, 256, 256);
-    context.strokeStyle = 'rgba(25,31,37,.52)';
-    context.lineWidth = 2;
-    for (let tile = 0; tile <= 8; tile += 1) {
-      context.beginPath();
-      context.moveTo(tile * 32, 0);
-      context.lineTo(tile * 32, 256);
-      context.stroke();
-      context.beginPath();
-      context.moveTo(0, tile * 32);
-      context.lineTo(256, tile * 32);
-      context.stroke();
-    }
-    for (let speck = 0; speck < 1300; speck += 1) {
-      const shade = 88 + Math.floor(seeded(speck + 2200) * 54);
-      context.fillStyle = `rgba(${shade},${shade + 3},${shade + 5},.28)`;
-      context.fillRect(seeded(speck + 2300) * 256, seeded(speck + 2500) * 256, 1.4, 1.4);
-    }
-  }
-  const texture = new THREE.CanvasTexture(canvas);
-  texture.colorSpace = THREE.SRGBColorSpace;
-  texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
-  texture.repeat.set(5, 5);
-  texture.anisotropy = 4;
-  return texture;
-}
-
-function addCityGrid(scene: THREE.Scene) {
-  const root = new THREE.Group();
-  root.name = 'Collision-authored Manhattan';
-  scene.add(root);
-  const colliders: THREE.Box3[] = [];
-  const anchors: THREE.Object3D[] = [];
-  const geometry = new THREE.BoxGeometry(1, 1, 1);
-  const windowTexture = createWindowTexture();
-  const material = new THREE.MeshStandardMaterial({
-    map: windowTexture,
-    emissiveMap: windowTexture,
-    color: '#9db0bc',
-    vertexColors: true,
-    roughness: .78,
-    metalness: .08,
-    emissive: '#8ac4d7',
-    emissiveIntensity: .5,
-  });
-  const gridRadius = 15;
-  const spacing = 96;
-  const blockCount = (gridRadius * 2 + 1) ** 2;
-  const worldSize = spacing * (gridRadius * 2 + 2);
-  const mesh = new THREE.InstancedMesh(geometry, material, (gridRadius * 2 + 1) ** 2);
-  mesh.name = 'Manhattan building grid';
-  mesh.castShadow = true;
-  mesh.receiveShadow = true;
-  const matrix = new THREE.Matrix4();
-  const color = new THREE.Color();
-  let instance = 0;
-  const sidewalk = new THREE.InstancedMesh(
-    geometry,
-    new THREE.MeshStandardMaterial({ map: createConcreteTexture(), color: '#aeb7be', roughness: .94, metalness: .02 }),
-    blockCount,
+function addAuthoredMapFloor(root: THREE.Group, width: number, depth: number, name: string) {
+  const floor = new THREE.Mesh(
+    new THREE.BoxGeometry(width + 12, .28, depth + 12),
+    new THREE.MeshBasicMaterial({ map: createAsphaltTexture(), color: '#d7dce0' }),
   );
-  sidewalk.name = 'Raised Manhattan sidewalks';
-  sidewalk.receiveShadow = true;
-
-  const roofGeometry = new THREE.BoxGeometry(1, 1, 1);
-  const roof = new THREE.InstancedMesh(
-    roofGeometry,
-    new THREE.MeshStandardMaterial({ color: '#242d35', roughness: .82, metalness: .25 }),
-    blockCount,
-  );
-  roof.name = 'Manhattan rooftop structures';
-  roof.castShadow = true;
-  roof.receiveShadow = true;
-
-  for (let gx = -gridRadius; gx <= gridRadius; gx += 1) {
-    for (let gz = -gridRadius; gz <= gridRadius; gz += 1) {
-      const x = (gx + .5) * spacing;
-      const z = (gz + .5) * spacing;
-      const index = (gx + gridRadius + 1) * 67 + gz + gridRadius;
-      const width = 58 + seeded(index) * 10;
-      const depth = 58 + seeded(index + 3) * 10;
-      const height = 48 + seeded(index + 8) * 205 + (Math.abs(gx) < 4 && Math.abs(gz) < 4 ? 54 : 0);
-      matrix.compose(new THREE.Vector3(x, GROUND_Y + height / 2, z), new THREE.Quaternion(), new THREE.Vector3(width, height, depth));
-      mesh.setMatrixAt(instance, matrix);
-      color.setHSL(.54 + seeded(index + 23) * .1, .18, .34 + seeded(index + 29) * .18);
-      mesh.setColorAt(instance, color);
-      colliders.push(new THREE.Box3(
-        new THREE.Vector3(x - width / 2, GROUND_Y, z - depth / 2),
-        new THREE.Vector3(x + width / 2, GROUND_Y + height + 2.6, z + depth / 2),
-      ));
-      matrix.compose(new THREE.Vector3(x, .06, z), new THREE.Quaternion(), new THREE.Vector3(width + 7.5, .12, depth + 7.5));
-      sidewalk.setMatrixAt(instance, matrix);
-      const roofWidth = 9 + seeded(index + 41) * 13;
-      const roofDepth = 8 + seeded(index + 47) * 12;
-      const roofHeight = 1.2 + seeded(index + 53) * 1.4;
-      matrix.compose(
-        new THREE.Vector3(x + (seeded(index + 59) - .5) * 14, GROUND_Y + height + roofHeight / 2, z + (seeded(index + 61) - .5) * 14),
-        new THREE.Quaternion(),
-        new THREE.Vector3(roofWidth, roofHeight, roofDepth),
-      );
-      roof.setMatrixAt(instance, matrix);
-      instance += 1;
-    }
-  }
-  mesh.count = instance;
-  mesh.instanceMatrix.needsUpdate = true;
-  if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
-  if (instance > 0) root.add(mesh);
-  sidewalk.count = instance;
-  sidewalk.instanceMatrix.needsUpdate = true;
-  roof.count = instance;
-  roof.instanceMatrix.needsUpdate = true;
-  if (instance > 0) {
-    root.add(sidewalk, roof);
-    anchors.push(mesh);
-  }
-
-  const asphalt = new THREE.Mesh(
-    new THREE.BoxGeometry(worldSize, .24, worldSize),
-    new THREE.MeshStandardMaterial({ map: createAsphaltTexture(), color: '#9ea5ac', roughness: .96, metalness: .035 }),
-  );
-  asphalt.position.y = -.12;
-  asphalt.receiveShadow = true;
-  asphalt.name = 'Solid New York asphalt slab';
-  root.add(asphalt);
-
-  const laneMaterial = new THREE.MeshStandardMaterial({ color: '#dbc96d', emissive: '#5a4919', emissiveIntensity: .16, roughness: .72 });
-  const streetMarkings = new THREE.Group();
-  streetMarkings.name = 'Painted Manhattan lanes';
-  for (let lane = -gridRadius; lane <= gridRadius + 1; lane += 1) {
-    const coordinate = lane * spacing;
-    const isAvenue = lane % 4 === 0;
-    for (const offset of isAvenue ? [-1.15, 1.15] : [0]) {
-      const vertical = new THREE.Mesh(new THREE.BoxGeometry(isAvenue ? .2 : .12, .025, worldSize), laneMaterial);
-      vertical.position.set(coordinate + offset, .016, 0);
-      streetMarkings.add(vertical);
-      const horizontal = new THREE.Mesh(new THREE.BoxGeometry(worldSize, .025, isAvenue ? .2 : .12), laneMaterial);
-      horizontal.position.set(0, .017, coordinate + offset);
-      streetMarkings.add(horizontal);
-    }
-  }
-  root.add(streetMarkings);
-
-  const crosswalkMaterial = new THREE.MeshStandardMaterial({ color: '#d9dde0', roughness: .76, metalness: .02 });
-  const crosswalks = new THREE.InstancedMesh(new THREE.BoxGeometry(1, .026, 1), crosswalkMaterial, 9 * 32);
-  crosswalks.name = 'Central crosswalks';
-  let crosswalkIndex = 0;
-  for (const ix of [-2, 0, 2]) {
-    for (const iz of [-2, 0, 2]) {
-      const centerX = ix * spacing;
-      const centerZ = iz * spacing;
-      for (let stripe = -3; stripe <= 3; stripe += 1) {
-        matrix.compose(new THREE.Vector3(centerX + stripe * 2.1, .022, centerZ - 10.5), new THREE.Quaternion(), new THREE.Vector3(1.15, 1, 7));
-        crosswalks.setMatrixAt(crosswalkIndex++, matrix);
-        matrix.compose(new THREE.Vector3(centerX + stripe * 2.1, .022, centerZ + 10.5), new THREE.Quaternion(), new THREE.Vector3(1.15, 1, 7));
-        crosswalks.setMatrixAt(crosswalkIndex++, matrix);
-        matrix.compose(new THREE.Vector3(centerX - 10.5, .022, centerZ + stripe * 2.1), new THREE.Quaternion(), new THREE.Vector3(7, 1, 1.15));
-        crosswalks.setMatrixAt(crosswalkIndex++, matrix);
-        matrix.compose(new THREE.Vector3(centerX + 10.5, .022, centerZ + stripe * 2.1), new THREE.Quaternion(), new THREE.Vector3(7, 1, 1.15));
-        crosswalks.setMatrixAt(crosswalkIndex++, matrix);
-      }
-    }
-  }
-  crosswalks.count = crosswalkIndex;
-  crosswalks.instanceMatrix.needsUpdate = true;
-  root.add(crosswalks);
-  return { colliders, anchors, root };
+  floor.position.y = -.16;
+  floor.receiveShadow = true;
+  floor.name = `${name} solid gameplay floor`;
+  root.add(floor);
+  return floor;
 }
 
 function addLandmarkColliders(
@@ -438,7 +254,7 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(function SpiderGam
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     renderer.toneMappingExposure = 1.12;
-    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.enabled = false;
     renderer.shadowMap.type = THREE.PCFShadowMap;
     renderer.domElement.className = 'game-canvas';
     renderer.domElement.tabIndex = 0;
@@ -451,7 +267,7 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(function SpiderGam
     scene.add(new THREE.HemisphereLight('#a3d4ff', '#2b1516', 1.35));
     const sun = new THREE.DirectionalLight('#ffd4bc', 1.85);
     sun.position.set(-180, 360, 170);
-    sun.castShadow = true;
+    sun.castShadow = false;
     sun.shadow.mapSize.set(1024, 1024);
     sun.shadow.camera.left = -150;
     sun.shadow.camera.right = 150;
@@ -459,11 +275,9 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(function SpiderGam
     sun.shadow.camera.bottom = -150;
     scene.add(sun);
 
-    const city = addCityGrid(scene);
     const worldColliders: THREE.Box3[] = [];
     const spatialColliders = new Map<string, THREE.Box3[]>();
-    let indexedColliderCount = city.colliders.length;
-    for (const collider of city.colliders) addSpatialCollider(spatialColliders, collider);
+    let indexedColliderCount = 0;
     const nearbyColliders = (position: { x: number; y: number; z: number }, radius = 42) => {
       const result = new Set<THREE.Box3>(worldColliders);
       const minX = Math.floor((position.x - radius) / COLLIDER_CELL_SIZE);
@@ -479,29 +293,41 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(function SpiderGam
     };
     const safeSpawn = (district: DistrictConfig) => {
       const desired = districtSpawn(district);
-      const isSafe = (point: THREE.Vector3) => !nearbyColliders(point, 4).some((collider) => (
-        point.x > collider.min.x - .8 && point.x < collider.max.x + .8
-        && point.z > collider.min.z - .8 && point.z < collider.max.z + .8
-        && collider.max.y > GROUND_Y
-      ));
-      if (isSafe(desired)) return desired;
-      for (let radius = 4; radius <= 80; radius += 4) {
-        for (let step = 0; step < 16; step += 1) {
-          const angle = step / 16 * Math.PI * 2;
+      const clearance = (point: THREE.Vector3) => {
+        let nearest = 42;
+        for (const collider of nearbyColliders(point, 42)) {
+          if (collider.max.y <= GROUND_Y) continue;
+          const dx = Math.max(collider.min.x - point.x, 0, point.x - collider.max.x);
+          const dz = Math.max(collider.min.z - point.z, 0, point.z - collider.max.z);
+          if (dx === 0 && dz === 0) return -1;
+          nearest = Math.min(nearest, Math.hypot(dx, dz));
+        }
+        return nearest;
+      };
+      let best = desired;
+      let bestScore = clearance(desired);
+      for (let radius = 8; radius <= 240; radius += 8) {
+        for (let step = 0; step < 32; step += 1) {
+          const angle = step / 32 * Math.PI * 2;
           const candidate = desired.clone().add(new THREE.Vector3(Math.cos(angle) * radius, 0, Math.sin(angle) * radius));
-          if (isSafe(candidate)) return candidate;
+          const candidateClearance = clearance(candidate);
+          const score = candidateClearance - radius * .006;
+          if (candidateClearance >= 0 && score > bestScore) {
+            best = candidate;
+            bestScore = score;
+          }
         }
       }
-      return desired;
+      return best;
     };
-    const anchorTargets = city.anchors;
+    const anchorTargets: THREE.Object3D[] = [];
     const loadedDistricts = new Set<DistrictId>();
     const districtPromises = new Map<DistrictId, Promise<THREE.Group>>();
     const districtModelPromises = new Map<string, Promise<THREE.Group>>();
     const loader = new GLTFLoader();
     loader.setMeshoptDecoder(MeshoptDecoder);
     const keys = new Set<string>();
-    const initialDistrict = getDistrict('backstreet');
+    const initialDistrict = getDistrict(props.districtId);
     const initialSpawn = districtSpawn(initialDistrict);
     const player = { position: initialSpawn.clone(), velocity: new THREE.Vector3(), facing: 0, grounded: true };
     const traversal = createTraversalState(player.position, player.velocity);
@@ -510,7 +336,7 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(function SpiderGam
     let cameraYaw = 0;
     let cameraPitch = .08;
     let avatar: AvatarRig | null = null;
-    let currentDistrict: DistrictId = 'backstreet';
+    let currentDistrict: DistrictId = props.districtId;
     let hudAccumulator = 0;
     let fpsAccumulator = 0;
     let fpsFrames = 0;
@@ -563,23 +389,13 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(function SpiderGam
     const loadDistrict = (config: DistrictConfig, report = true) => {
       const existing = districtPromises.get(config.id);
       if (existing) return existing;
-      if (config.model === 'procedural-city') {
-        const promise = Promise.resolve(city.root).then((root) => {
-          loadedDistricts.add(config.id);
-          notifyLoaded();
-          if (report) callbacksRef.current.onStatus(`${config.name} online`, 100);
-          return root;
-        });
-        districtPromises.set(config.id, promise);
-        return promise;
-      }
       let modelPromise = districtModelPromises.get(config.model);
       if (!modelPromise) modelPromise = (async () => {
         if (report) callbacksRef.current.onStatus(`Opening route to ${config.name}`, loadedDistricts.size ? 84 : 28);
         const gltf = await loadModel<{ scene: THREE.Group }>(config.model, config.name, loadedDistricts.size ? 84 : 28, loadedDistricts.size ? 98 : 78, report);
         if (disposed) throw new Error('Game disposed');
         const model = gltf.scene;
-        prepareMaterials(model, renderer, 'environment');
+        prepareMaterials(model, renderer, 'baked');
         model.updateWorldMatrix(true, true);
         let box = new THREE.Box3().setFromObject(model);
         const sourceSize = box.getSize(new THREE.Vector3());
@@ -600,23 +416,43 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(function SpiderGam
         root.add(model);
         scene.add(root);
         root.updateWorldMatrix(true, true);
+        addAuthoredMapFloor(root, size.x, size.z, config.name);
         let detailedColliderCount = 0;
         if (config.collisionData) {
           const response = await fetch(config.collisionData);
           if (!response.ok) throw new Error(`Collision data unavailable: ${response.status}`);
           const metadata = await response.json() as CollisionMetadata;
           const collisionScale = config.targetWidth / metadata.sourceWidth;
+          const proxyGeometry = new THREE.BoxGeometry(1, 1, 1);
+          const proxyMaterial = new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false });
+          proxyMaterial.colorWrite = false;
+          const proxy = new THREE.InstancedMesh(proxyGeometry, proxyMaterial, metadata.colliders.length);
+          proxy.name = `${config.name} collision and web anchors`;
+          const matrix = new THREE.Matrix4();
+          const center = new THREE.Vector3();
+          const colliderSize = new THREE.Vector3();
+          let proxyIndex = 0;
           for (const sourceCollider of metadata.colliders) {
             const collider = transformSourceCollider(sourceCollider, collisionScale, model.position, config);
             addSpatialCollider(spatialColliders, collider);
+            collider.getCenter(center);
+            collider.getSize(colliderSize);
+            matrix.compose(center, new THREE.Quaternion(), colliderSize);
+            proxy.setMatrixAt(proxyIndex, matrix);
+            proxyIndex += 1;
             indexedColliderCount += 1;
             detailedColliderCount += 1;
           }
+          proxy.count = proxyIndex;
+          proxy.instanceMatrix.needsUpdate = true;
+          proxy.frustumCulled = false;
+          scene.add(proxy);
+          anchorTargets.push(proxy);
         }
         model.traverse((object) => {
           if (!(object instanceof THREE.Mesh)) return;
           const positionCount = object.geometry.getAttribute('position')?.count ?? 0;
-          if (positionCount > 0 && positionCount < 180_000) anchorTargets.push(object);
+          if (!config.collisionData && positionCount > 0 && positionCount < 180_000) anchorTargets.push(object);
           if (config.collisionData) return;
           if (positionCount <= 0 || positionCount >= 180_000) return;
           const meshBox = new THREE.Box3().setFromObject(object);
@@ -667,10 +503,14 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(function SpiderGam
       root.position.copy(player.position);
       scene.add(root);
 
-      // Use only clips authored for this skeleton. Cross-file retargeting warped
-      // Miles/PS4 hands and rest poses; the shared procedural rig drives models
-      // without compatible embedded clips.
-      const clips = poseOnlyClips(gltf.animations);
+      let clips = poseOnlyClips(gltf.animations);
+      if (suit.id === 'ps4') {
+        callbacksRef.current.onStatus('Calibrating PS4 animation rig', 43);
+        const library = await loadModel<{ scene: THREE.Group; animations: THREE.AnimationClip[] }>(
+          '/assets/suits/advanced.glb', 'PS4 animation library', 43, 58, false,
+        );
+        clips = retargetMixamoClips(library.animations, library.scene, gltf.scene);
+      }
       const mixer = clips.length ? new THREE.AnimationMixer(gltf.scene) : null;
       const actions = new Map<string, THREE.AnimationAction>();
       if (mixer) {
@@ -1073,10 +913,6 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(function SpiderGam
       camera.lookAt(target);
       sun.position.set(player.position.x - 180, player.position.y + 360, player.position.z + 170);
 
-      for (const district of DISTRICTS) {
-        if (loadedDistricts.has(district.id) || districtPromises.has(district.id)) continue;
-        if (Math.hypot(player.position.x - district.position[0], player.position.z - district.position[2]) < 280) void loadDistrict(district, false).catch(() => undefined);
-      }
       hudAccumulator += delta;
       fpsAccumulator += delta;
       fpsFrames += 1;
@@ -1087,7 +923,7 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(function SpiderGam
         if (!performanceScaled && elapsedTime > 4 && measuredFps < 46) {
           performanceScaled = true;
           renderer.shadowMap.enabled = false;
-          renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1));
+          renderer.setPixelRatio(Math.min(window.devicePixelRatio, .82));
           renderer.domElement.dataset.performanceMode = 'latency';
           resize();
         }
@@ -1122,8 +958,8 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(function SpiderGam
         traversal.grounded = true;
         traversal.mode = 'idle';
         ready = true;
-        callbacksRef.current.onDistrictChange('backstreet');
-        callbacksRef.current.onStatus('Full-scale city route online', 100);
+        callbacksRef.current.onDistrictChange(initialDistrict.id);
+        callbacksRef.current.onStatus(`${initialDistrict.name} route online`, 100);
         callbacksRef.current.onReady();
       } catch (error) {
         console.error('[game] unable to start SpiderMan city', error);
@@ -1154,7 +990,7 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(function SpiderGam
       renderer.domElement.remove();
       travelRef.current = () => undefined;
     };
-  }, [props.suitId]);
+  }, [props.districtId, props.suitId]);
 
   return <div ref={mountRef} className="game-mount" />;
 });

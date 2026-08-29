@@ -80,7 +80,7 @@ export function prepareMaterials(root: THREE.Object3D, renderer: THREE.WebGLRend
       }
       const baked = new THREE.MeshBasicMaterial({
         map: standard.map ?? null,
-        color: (standard.color ?? new THREE.Color('white')).clone().multiplyScalar(.64),
+        color: (standard.color ?? new THREE.Color('white')).clone().multiplyScalar(.88),
         transparent: standard.transparent,
         opacity: standard.opacity,
         alphaTest: standard.alphaTest,
@@ -132,14 +132,20 @@ function isMixamoRig(root: THREE.Object3D) {
   return mixamo;
 }
 
-export function retargetMixamoClips(source: readonly THREE.AnimationClip[], target: THREE.Object3D) {
-  if (!isMixamoRig(target)) return [];
-  const byRole = new Map<string, string>();
-  target.traverse((object) => {
-    if (!(object instanceof THREE.Bone)) return;
-    const role = boneRole(object.name);
-    if (role && !byRole.has(role)) byRole.set(role, object.name);
+export function retargetMixamoClips(source: readonly THREE.AnimationClip[], sourceRig: THREE.Object3D, targetRig: THREE.Object3D) {
+  if (!isMixamoRig(sourceRig) || !isMixamoRig(targetRig)) return [];
+  const sourceBones = new Map<string, THREE.Bone>();
+  const targetBones = new Map<string, THREE.Bone>();
+  sourceRig.traverse((object) => {
+    if (object instanceof THREE.Bone) sourceBones.set(stripBoneName(object.name), object);
   });
+  targetRig.traverse((object) => {
+    if (object instanceof THREE.Bone) targetBones.set(stripBoneName(object.name), object);
+  });
+  const sourceRestInverse = new THREE.Quaternion();
+  const animated = new THREE.Quaternion();
+  const delta = new THREE.Quaternion();
+  const retargeted = new THREE.Quaternion();
   return source.map((clip) => {
     const tracks = clip.tracks.flatMap((track) => {
       const dot = track.name.lastIndexOf('.');
@@ -147,15 +153,21 @@ export function retargetMixamoClips(source: readonly THREE.AnimationClip[], targ
       const sourceNode = track.name.slice(0, dot);
       const property = track.name.slice(dot + 1);
       if (property !== 'quaternion') return [];
-      const role = boneRole(sourceNode);
-      const targetNode = byRole.get(role);
-      if (!targetNode) return [];
+      const sourceBone = sourceBones.get(stripBoneName(sourceNode));
+      const targetBone = targetBones.get(stripBoneName(sourceNode));
+      if (!sourceBone || !targetBone) return [];
       const cloned = track.clone();
-      cloned.name = `${targetNode}.${property}`;
+      cloned.name = `${targetBone.name}.${property}`;
+      sourceRestInverse.copy(sourceBone.quaternion).invert();
+      for (let offset = 0; offset < cloned.values.length; offset += 4) {
+        animated.fromArray(cloned.values, offset);
+        delta.copy(sourceRestInverse).multiply(animated);
+        retargeted.copy(targetBone.quaternion).multiply(delta).normalize().toArray(cloned.values, offset);
+      }
       return [cloned];
     });
-    return new THREE.AnimationClip(clip.name, clip.duration, tracks);
-  }).filter((clip) => clip.duration > .1 && clip.tracks.length > 4);
+    return new THREE.AnimationClip(clip.name, Math.max(.35, clip.duration), tracks);
+  }).filter((clip) => clip.tracks.length > 4);
 }
 
 export function poseOnlyClips(source: readonly THREE.AnimationClip[]) {

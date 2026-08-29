@@ -1,4 +1,4 @@
-export type SuitId = 'advanced' | 'classic' | 'miles' | 'miguel' | 'original' | 'ps4' | 'symbiote' | 'ironman';
+export type SuitId = 'advanced' | 'classic' | 'miles' | 'miguel' | 'ps4' | 'symbiote' | 'ironman';
 
 export type SuitConfig = {
   id: SuitId;
@@ -21,22 +21,12 @@ export const SUITS: readonly SuitConfig[] = [
   { id: 'classic', name: 'Classic', universe: 'Amazing Era', model: '/assets/suits/classic.glb', modelYaw: Math.PI, traversal: 'spider' },
   { id: 'miles', name: 'Miles Morales', universe: 'Earth-1610', model: '/assets/suits/miles.glb', modelYaw: Math.PI, traversal: 'spider' },
   { id: 'miguel', name: 'Spider-Man 2099', universe: 'Nueva York', model: '/assets/suits/miguel-2099.glb', modelYaw: Math.PI, traversal: 'spider' },
-  { id: 'original', name: 'Webbed Suit', universe: 'The Original', model: '/assets/suits/original.glb', modelYaw: Math.PI, traversal: 'spider' },
-  { id: 'ps4', name: 'PS4 Suit', universe: 'Insomniac', model: '/assets/suits/ps4.glb', modelYaw: Math.PI * .5, visualOffsetX: -1.48, rigPreset: 't-pose', traversal: 'spider' },
+  { id: 'ps4', name: 'PS4 Suit', universe: 'Insomniac', model: '/assets/suits/ps4.glb', modelYaw: Math.PI * .5, rigPreset: 't-pose', traversal: 'spider' },
   { id: 'symbiote', name: 'Symbiote', universe: 'Black Suit', model: '/assets/suits/symbiote.glb', modelYaw: Math.PI, traversal: 'spider' },
   { id: 'ironman', name: 'Iron Man', universe: 'Mark 85', model: '/assets/suits/ironman.glb', modelYaw: Math.PI, traversal: 'ironman' },
 ] as const;
 
-export type DistrictId =
-  | 'times-square'
-  | 'street-city'
-  | 'new-york-buildings'
-  | 'manhattan'
-  | 'manhattan-bridge'
-  | 'city-night'
-  | 'downtown'
-  | 'uptown'
-  | 'backstreet';
+export type DistrictId = 'new-york-city' | 'new-york-blvd';
 
 export type DistrictConfig = {
   id: DistrictId;
@@ -55,13 +45,17 @@ export type DistrictConfig = {
   map: [number, number];
 };
 
-/** The collision-authored city uses one mesh/collider source of truth. */
 export const DISTRICTS: readonly DistrictConfig[] = [
-  { id: 'backstreet', name: 'Central Avenue', subtitle: 'Main Spawn', model: 'procedural-city', position: [0, 0, 0], spawn: [0, 0], targetWidth: 3000, sourceGroundY: 0, rotation: 0, accent: 'green', map: [49, 52] },
-  { id: 'street-city', name: 'West Village', subtitle: 'Checkpoint West', model: 'procedural-city', position: [0, 0, 0], spawn: [-480, 288], targetWidth: 3000, sourceGroundY: 0, rotation: 0, accent: 'blue', map: [38, 57] },
-  { id: 'times-square', name: 'East Midtown', subtitle: 'Checkpoint East', model: 'procedural-city', position: [0, 0, 0], spawn: [480, -288], targetWidth: 3000, sourceGroundY: 0, rotation: 0, accent: 'red', map: [62, 46] },
-  { id: 'uptown', name: 'North End', subtitle: 'Checkpoint North', model: 'procedural-city', position: [0, 0, 0], spawn: [192, -576], targetWidth: 3000, sourceGroundY: 0, rotation: 0, accent: 'blue', map: [52, 31] },
-  { id: 'downtown', name: 'South End', subtitle: 'Checkpoint South', model: 'procedural-city', position: [0, 0, 0], spawn: [-192, 576], targetWidth: 3000, sourceGroundY: 0, rotation: 0, accent: 'red', map: [46, 70] },
+  {
+    id: 'new-york-city', name: 'New York City', subtitle: 'City Core',
+    model: '/assets/districts/new-york-city-2026.glb', collisionData: '/assets/districts/new-york-city-2026-collisions.json',
+    position: [0, 0, 0], spawn: [0, 0], targetWidth: 1200, sourceGroundY: 0, rotation: 0, accent: 'red', map: [47, 52],
+  },
+  {
+    id: 'new-york-blvd', name: 'New York BLVD', subtitle: 'Boulevard Scan',
+    model: '/assets/districts/new-york-blvd.glb', collisionData: '/assets/districts/new-york-blvd-collisions.json',
+    position: [0, 0, 0], spawn: [0, 0], targetWidth: 1200, sourceGroundY: 74, rotation: 0, accent: 'blue', map: [55, 47],
+  },
 ] as const;
 
 export const getDistrict = (id: DistrictId) => DISTRICTS.find((district) => district.id === id) ?? DISTRICTS[0];
