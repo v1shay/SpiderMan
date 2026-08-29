@@ -1,10 +1,10 @@
 'use client';
 
-import Image from 'next/image';
 import { Activity, Gauge, Move3d, Navigation, Radio, Rotate3d } from 'lucide-react';
 import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import type { GameHud, SpiderGameHandle } from '@/components/game/SpiderGame';
 import { SpideyTracker } from '@/components/game/SpideyTracker';
+import SuitShowroom from '@/components/game/SuitShowroom';
 import { DISTRICTS, SUITS, type DistrictId, type SuitId } from '@/lib/game-config';
 
 const SpiderGame = lazy(() => import('@/components/game/SpiderGame'));
@@ -20,6 +20,7 @@ export default function Home() {
   const [loadedDistricts, setLoadedDistricts] = useState<Set<DistrictId>>(() => new Set());
   const [currentDistrict, setCurrentDistrict] = useState<DistrictId>('times-square');
   const [hud, setHud] = useState<GameHud>({ speed: 0, altitude: 0, fps: 60, swinging: false });
+  const [showroomStatus, setShowroomStatus] = useState({ message: 'Opening abandoned warehouse', progress: 0 });
   const gameRef = useRef<SpiderGameHandle>(null);
   const activeSuit = SUITS.find((suit) => suit.id === selected) ?? SUITS[0];
   const activeDistrict = DISTRICTS.find((district) => district.id === currentDistrict) ?? DISTRICTS[0];
@@ -49,32 +50,38 @@ export default function Home() {
   if (phase === 'select') {
     return (
       <main className="launch-screen">
-        <div className="city-haze" aria-hidden="true" />
+        <SuitShowroom
+          selected={selected}
+          onSelect={setSelected}
+          onStatus={(message, nextProgress) => setShowroomStatus({ message, progress: Math.round(nextProgress) })}
+        />
+        <div className="warehouse-vignette" aria-hidden="true" />
         <header className="launch-header">
           <div className="brand-lockup" aria-label="New York Spider-Man"><span className="brand-kicker">Spider-Man</span><span className="brand-title">New York</span></div>
-          <div className="system-ready"><span /> Systems ready</div>
+          <div className="system-ready"><span /> {showroomStatus.message} · {showroomStatus.progress}%</div>
         </header>
 
         <section className="selector-shell" aria-labelledby="select-heading">
           <div className="selector-heading">
-            <div><p className="eyebrow">Suit archive // 05 found</p><h1 id="select-heading">Choose your Spider-Man</h1></div>
-            <p className="selector-copy">Every hero moves differently. Pick a suit, enter Manhattan, and own the skyline.</p>
+            <div><p className="eyebrow">Underground suit archive // 07 online</p><h1 id="select-heading">Choose your Spider-Man</h1></div>
+            <p className="selector-copy">Move across the lineup and click a real suit model to select it.</p>
           </div>
-          <ul className="suit-grid" aria-label="Available Spider-Man suits">
+          <ul className="suit-roster" aria-label="Available Spider-Man suits">
             {SUITS.map((suit, index) => (
               <li key={suit.id}>
-                <button className={`suit-card ${selected === suit.id ? 'is-selected' : ''}`} onClick={() => setSelected(suit.id)} type="button" aria-pressed={selected === suit.id}>
-                  <span className="card-index">0{index + 1}</span>
-                  <span className="portrait-wrap"><Image src={suit.image} alt={`${suit.name} suit`} fill sizes="(max-width: 700px) 70vw, 20vw" priority={index < 3} /></span>
-                  <span className="card-scan" aria-hidden="true" />
-                  <span className="suit-meta"><strong>{suit.name}</strong><small>{suit.universe}</small></span>
+                <button className={`suit-chip ${selected === suit.id ? 'is-selected' : ''}`} onClick={() => setSelected(suit.id)} type="button" aria-pressed={selected === suit.id}>
+                  <span>0{index + 1}</span>
+                  <strong>{suit.name}</strong>
+                  <small>{suit.universe}</small>
                 </button>
               </li>
             ))}
           </ul>
           <footer className="selector-footer">
             <div className="selection-readout"><span>Selected suit</span><strong>{activeSuit.name}</strong></div>
-            <button className="enter-city" type="button" onClick={enterCity}>Enter New York <span aria-hidden="true">→</span></button>
+            <button className="enter-city" type="button" onClick={enterCity} disabled={showroomStatus.progress < 100}>
+              {showroomStatus.progress < 100 ? 'Assembling suits' : 'Enter New York'} <span aria-hidden="true">→</span>
+            </button>
           </footer>
         </section>
         <p className="build-mark">NYC // Build 01.08.28</p>
@@ -126,7 +133,7 @@ export default function Home() {
           <aside className="controls-card">
             <div><kbd>WASD</kbd><span>Move</span></div>
             <div><kbd>↑ ↓ ← →</kbd><span>Look</span></div>
-            <div><kbd>Space</kbd><span>Hold to swing</span></div>
+            <div><kbd>Space</kbd><span>Jump / hold to swing</span></div>
             <div><kbd>Click</kbd><span>Web to pointer</span></div>
             <Rotate3d aria-hidden="true" />
           </aside>

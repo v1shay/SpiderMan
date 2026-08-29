@@ -1,11 +1,24 @@
-export type SuitId = 'advanced' | 'classic' | 'miles' | 'miguel' | 'original';
+export type SuitId = 'advanced' | 'classic' | 'miles' | 'miguel' | 'original' | 'ps4' | 'symbiote';
 
-export const SUITS = [
-  { id: 'advanced', name: 'Advanced', universe: 'Earth-616', image: '/assets/previews/spiderman_rigged.png', model: '/assets/suits/advanced.glb' },
-  { id: 'classic', name: 'Classic', universe: 'Amazing Era', image: '/assets/previews/spiderman_classic_textured_rigged.png', model: '/assets/suits/classic.glb' },
-  { id: 'miles', name: 'Miles Morales', universe: 'Earth-1610', image: '/assets/previews/miles_morales_spiderman_rigged.png', model: '/assets/suits/miles.glb' },
-  { id: 'miguel', name: 'Spider-Man 2099', universe: 'Nueva York', image: '/assets/previews/miguel_ohara_spiderman_2099_rigged_textured.png', model: '/assets/suits/miguel-2099.glb' },
-  { id: 'original', name: 'Webbed Suit', universe: 'The Original', image: '/assets/previews/spiderman_original.png', model: '/assets/suits/original.glb' },
+export type SuitConfig = {
+  id: SuitId;
+  name: string;
+  universe: string;
+  model: string;
+  /** Rotation that makes the imported model face Three.js -Z. */
+  modelYaw: number;
+  /** Corrects exporters whose skinned bind-pose bounds disagree with rendered bounds. */
+  visualScale?: number;
+};
+
+export const SUITS: readonly SuitConfig[] = [
+  { id: 'advanced', name: 'Advanced', universe: 'Earth-616', model: '/assets/suits/advanced.glb', modelYaw: Math.PI },
+  { id: 'classic', name: 'Classic', universe: 'Amazing Era', model: '/assets/suits/classic.glb', modelYaw: Math.PI },
+  { id: 'miles', name: 'Miles Morales', universe: 'Earth-1610', model: '/assets/suits/miles.glb', modelYaw: Math.PI },
+  { id: 'miguel', name: 'Spider-Man 2099', universe: 'Nueva York', model: '/assets/suits/miguel-2099.glb', modelYaw: Math.PI },
+  { id: 'original', name: 'Webbed Suit', universe: 'The Original', model: '/assets/suits/original.glb', modelYaw: Math.PI },
+  { id: 'ps4', name: 'PS4 Suit', universe: 'Insomniac', model: '/assets/suits/ps4.glb', modelYaw: Math.PI, visualScale: .68 },
+  { id: 'symbiote', name: 'Symbiote', universe: 'Black Suit', model: '/assets/suits/symbiote.glb', modelYaw: Math.PI },
 ] as const;
 
 export type DistrictId =
@@ -16,7 +29,8 @@ export type DistrictId =
   | 'manhattan-bridge'
   | 'city-night'
   | 'downtown'
-  | 'uptown';
+  | 'uptown'
+  | 'backstreet';
 
 export type DistrictConfig = {
   id: DistrictId;
@@ -30,15 +44,17 @@ export type DistrictConfig = {
   map: [number, number];
 };
 
+/** Measured placements for each supplied city asset on one connected grid. */
 export const DISTRICTS: readonly DistrictConfig[] = [
-  { id: 'times-square', name: 'Times Square', subtitle: 'The Crossroads', model: '/assets/districts/times-square.glb', position: [0, 0, -180], targetWidth: 430, accent: 'red', map: [49, 47] },
-  { id: 'street-city', name: 'Midtown', subtitle: 'Street City', model: '/assets/districts/street-city.glb', position: [-470, 0, -70], targetWidth: 430, rotation: Math.PI * .5, accent: 'blue', map: [40, 39] },
-  { id: 'new-york-buildings', name: "Hell's Kitchen", subtitle: 'West Side', model: '/assets/districts/new-york-buildings.glb', position: [440, 0, -90], targetWidth: 380, rotation: -Math.PI * .35, accent: 'green', map: [56, 38] },
-  { id: 'manhattan', name: 'Manhattan', subtitle: 'Central Grid', model: '/assets/districts/manhattan.glb', position: [0, 0, -610], targetWidth: 610, rotation: Math.PI * .5, accent: 'blue', map: [49, 27] },
-  { id: 'manhattan-bridge', name: 'Manhattan Bridge', subtitle: 'East River', model: '/assets/districts/manhattan-bridge.glb', position: [620, 0, -570], targetWidth: 650, rotation: -Math.PI * .1, accent: 'red', map: [71, 30] },
-  { id: 'city-night', name: 'Brooklyn Night', subtitle: 'Neon Borough', model: '/assets/districts/city-night.glb', position: [-630, 0, -610], targetWidth: 520, rotation: Math.PI * .72, accent: 'green', map: [26, 26] },
-  { id: 'downtown', name: 'Downtown', subtitle: 'Financial District', model: '/assets/districts/downtown.glb', position: [-580, 0, 580], targetWidth: 1050, rotation: Math.PI * .05, accent: 'red', map: [34, 68] },
-  { id: 'uptown', name: 'Uptown', subtitle: 'Upper Manhattan', model: '/assets/districts/uptown.glb', position: [590, 0, 590], targetWidth: 1050, rotation: Math.PI * 1.03, accent: 'blue', map: [65, 70] },
+  { id: 'times-square', name: 'Times Square', subtitle: 'The Crossroads', model: '/assets/districts/times-square.glb', position: [205, 0, -310], targetWidth: 190, rotation: -.16, accent: 'red', map: [49, 43] },
+  { id: 'street-city', name: 'Midtown', subtitle: 'Street City', model: '/assets/districts/street-city.glb', position: [-330, 0, -170], targetWidth: 230, rotation: Math.PI * .5, accent: 'blue', map: [38, 36] },
+  { id: 'new-york-buildings', name: "Hell's Kitchen", subtitle: 'West Side', model: '/assets/districts/new-york-buildings.glb', position: [330, 0, -170], targetWidth: 230, rotation: -Math.PI * .35, accent: 'green', map: [60, 36] },
+  { id: 'manhattan', name: 'Manhattan', subtitle: 'Central Grid', model: '/assets/districts/manhattan.glb', position: [0, 0, -520], targetWidth: 340, rotation: Math.PI * .5, accent: 'blue', map: [49, 23] },
+  { id: 'manhattan-bridge', name: 'Manhattan Bridge', subtitle: 'East River', model: '/assets/districts/manhattan-bridge.glb', position: [500, 0, -510], targetWidth: 380, rotation: -Math.PI * .1, accent: 'red', map: [72, 29] },
+  { id: 'city-night', name: 'Brooklyn Night', subtitle: 'Neon Borough', model: '/assets/districts/city-night.glb', position: [-500, 0, -510], targetWidth: 360, rotation: Math.PI * .72, accent: 'green', map: [25, 28] },
+  { id: 'downtown', name: 'Downtown', subtitle: 'Financial District', model: '/assets/districts/downtown.glb', position: [-500, 0, 460], targetWidth: 520, rotation: Math.PI * .05, accent: 'red', map: [29, 73] },
+  { id: 'uptown', name: 'Uptown', subtitle: 'Upper Manhattan', model: '/assets/districts/uptown.glb', position: [500, 0, 460], targetWidth: 520, rotation: Math.PI * 1.03, accent: 'blue', map: [69, 72] },
+  { id: 'backstreet', name: 'Backstreet', subtitle: 'Warehouse Row', model: '/assets/districts/backstreet.glb', position: [0, 0, 330], targetWidth: 220, rotation: Math.PI, accent: 'green', map: [49, 62] },
 ] as const;
 
 export const getDistrict = (id: DistrictId) => DISTRICTS.find((district) => district.id === id) ?? DISTRICTS[0];

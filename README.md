@@ -15,11 +15,11 @@ Open `http://localhost:3000`.
 
 - `WASD` — move and steer
 - Arrow keys — look up, down, left, and right
-- Hold `Space` — attach/reel a web from the center reticle; release to let go
+- Tap `Space` — jump; keep holding while airborne to attach and reel a web from the center reticle
 - Hold the primary mouse button — attach a web toward the pointer; release to let go
 - `Esc` — open or close the Spidey Tracker
 
-The tracker fast-travels to eight real 3D districts. Unloaded districts stream only when approached or selected.
+The tracker fast-travels across nine real 3D districts. Unloaded districts stream only when approached or selected.
 
 ## Analytics
 
@@ -34,6 +34,6 @@ Apply `supabase/analytics.sql` to the dedicated Supabase project first. The tabl
 
 ## Asset pipeline
 
-The source city files are normalized and compressed with Meshopt/WebP. The shipped districts are all below 32 MB, and only the selected suit plus nearby geometry enters browser memory. Suit thumbnails are rendered from the supplied GLBs.
+The source city files are normalized and compressed with Meshopt/WebP. The shipped districts are all below 32 MB, and only the selected suit plus nearby geometry enters browser memory. The opening archive is the supplied abandoned warehouse rendered live in Three.js, with all seven playable suit GLBs standing in the scene.
 
 The repository owner is responsible for confirming redistribution and trademark rights for supplied models, textures, names, and fonts before any public release.
