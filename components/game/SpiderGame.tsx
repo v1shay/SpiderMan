@@ -422,6 +422,16 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(function SpiderGam
         const gltf = await loadModel<{ scene: THREE.Group }>(config.model, config.name, loadedDistricts.size ? 84 : 28, loadedDistricts.size ? 98 : 78, report);
         if (disposed) throw new Error('Game disposed');
         const model = gltf.scene;
+        // The City Night environment ships with a sample rigged Spider-Man.
+        // It is scenery, not the selected playable avatar, so remove it before
+        // bounds, collision, and material preparation are calculated.
+        if (config.id === 'city-night') {
+          const embeddedCharacters: THREE.SkinnedMesh[] = [];
+          model.traverse((object) => {
+            if (object instanceof THREE.SkinnedMesh) embeddedCharacters.push(object);
+          });
+          for (const character of embeddedCharacters) character.parent?.remove(character);
+        }
         model.traverse((object) => {
           if (!(object instanceof THREE.Mesh)) return;
           const materials = Array.isArray(object.material) ? object.material : [object.material];
@@ -474,6 +484,10 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(function SpiderGam
           let proxyIndex = 0;
           for (const sourceCollider of metadata.colliders) {
             const collider = transformSourceCollider(sourceCollider, collisionScale, model.position, config);
+            // Ground slabs and shallow curbs belong to the walkable plane, not
+            // the building solver. Treating them as walls traps the avatar and
+            // causes the repeated correction/sticking failure seen on imports.
+            if (collider.max.y <= GROUND_Y + .75) continue;
             addSpatialCollider(spatialColliders, collider);
             collider.getCenter(center);
             collider.getSize(colliderSize);

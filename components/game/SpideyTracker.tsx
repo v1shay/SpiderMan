@@ -21,7 +21,10 @@ const OPEN_FREE_MAP_STYLE = 'https://tiles.openfreemap.org/styles/liberty';
 
 const DISTRICT_COORDINATES: Record<DistrictId, [number, number]> = {
   'new-york-city': [-73.9855, 40.758],
-  'new-york-blvd': [-73.9712, 40.7831],
+  'new-york-buildings': [-74.0104, 40.7075],
+  'street-city': [-73.9946, 40.7308],
+  'city-night': [-73.9969, 40.7061],
+  'backstreet': [-73.9553, 40.7691],
 };
 
 /** Convert OpenFreeMap's no-token OpenMapTiles style into the tracker palette before map creation. */

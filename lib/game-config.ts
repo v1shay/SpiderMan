@@ -26,7 +26,12 @@ export const SUITS: readonly SuitConfig[] = [
   { id: 'ironman', name: 'Iron Man', universe: 'Mark 85', model: '/assets/suits/ironman.glb', modelYaw: Math.PI, traversal: 'ironman' },
 ] as const;
 
-export type DistrictId = 'new-york-city' | 'new-york-blvd';
+export type DistrictId =
+  | 'new-york-city'
+  | 'new-york-buildings'
+  | 'street-city'
+  | 'city-night'
+  | 'backstreet';
 
 export type DistrictConfig = {
   id: DistrictId;
@@ -52,9 +57,24 @@ export const DISTRICTS: readonly DistrictConfig[] = [
     position: [0, 0, 0], spawn: [0, 0], targetWidth: 360, sourceGroundY: 0, rotation: 0, accent: 'red', map: [47, 52],
   },
   {
-    id: 'new-york-blvd', name: 'New York BLVD', subtitle: 'Boulevard Scan',
-    model: '/assets/districts/new-york-blvd.glb', collisionData: '/assets/districts/new-york-blvd-collisions.json',
-    position: [0, 0, 0], spawn: [0, 0], targetWidth: 1200, sourceGroundY: 74, rotation: 0, accent: 'blue', map: [55, 47],
+    id: 'new-york-buildings', name: 'New York Buildings', subtitle: 'Skyline District',
+    model: '/assets/districts/new-york-buildings.glb', collisionData: '/assets/districts/new-york-buildings-collisions.json',
+    position: [0, 0, 0], spawn: [0, 0], targetWidth: 280, sourceGroundY: 0.0045, rotation: 0, accent: 'blue', map: [56, 50],
+  },
+  {
+    id: 'street-city', name: 'Street City', subtitle: 'Tower Blocks',
+    model: '/assets/districts/street-city.glb', collisionData: '/assets/districts/street-city-collisions.json',
+    position: [0, 0, 0], spawn: [0, 0], targetWidth: 320, sourceGroundY: 0.011, rotation: 0, accent: 'green', map: [51, 59],
+  },
+  {
+    id: 'city-night', name: 'Spider-Man City Night', subtitle: 'Midnight Bridge',
+    model: '/assets/districts/city-night.glb', collisionData: '/assets/districts/city-night-collisions.json',
+    position: [0, 0, 0], spawn: [0, 0], targetWidth: 320, sourceGroundY: 0.3967, rotation: 0, accent: 'red', map: [60, 44],
+  },
+  {
+    id: 'backstreet', name: 'Backstreet', subtitle: 'Neon Alleys',
+    model: '/assets/districts/backstreet.glb', collisionData: '/assets/districts/backstreet-collisions.json',
+    position: [0, 0, 0], spawn: [-60, -50], targetWidth: 500, sourceGroundY: 1982.6573, rotation: 0, accent: 'green', map: [39, 45],
   },
 ] as const;
 
