@@ -326,6 +326,13 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(function SpiderGam
       };
       let best = desired;
       let bestScore = clearance(desired);
+      // Authored spawns are chosen for a useful street-level view. Keep them
+      // when they already have player-width clearance; only search outward
+      // when an imported building actually overlaps the spawn.
+      if (bestScore >= 2.5) {
+        best.y = groundYAt(best);
+        return best;
+      }
       const bounds = districtBounds.get(district.id);
       const maximumRadius = Math.min(120, district.targetWidth * .28);
       for (let radius = 8; radius <= maximumRadius; radius += 8) {
@@ -337,6 +344,10 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(function SpiderGam
             || candidate.z < bounds.min.z + 4 || candidate.z > bounds.max.z - 4
           )) continue;
           const candidateClearance = clearance(candidate);
+          if (candidateClearance >= 2.5) {
+            candidate.y = groundYAt(candidate);
+            return candidate;
+          }
           const score = candidateClearance - radius * .006;
           if (candidateClearance >= 0 && score > bestScore) {
             best = candidate;
@@ -360,8 +371,8 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(function SpiderGam
     const traversal = createTraversalState(player.position, player.velocity);
     traversal.grounded = true;
     traversal.mode = 'idle';
-    let cameraYaw = 0;
-    let cameraPitch = .08;
+    let cameraYaw = initialDistrict.spawnYaw ?? 0;
+    let cameraPitch = initialDistrict.spawnPitch ?? .08;
     let avatar: AvatarRig | null = null;
     let currentDistrict: DistrictId = props.districtId;
     let hudAccumulator = 0;
@@ -746,6 +757,8 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(function SpiderGam
       void loadDistrict(district).then(() => {
         if (disposed) return;
         currentDistrict = id;
+        cameraYaw = district.spawnYaw ?? 0;
+        cameraPitch = district.spawnPitch ?? .08;
         player.position.copy(safeSpawn(district));
         player.velocity.set(0, 0, 0);
         player.grounded = true;

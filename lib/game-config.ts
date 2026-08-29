@@ -46,6 +46,8 @@ export type DistrictConfig = {
   /** Authored source-space Y coordinate of the walkable street/floor. */
   sourceGroundY: number;
   rotation?: number;
+  spawnYaw?: number;
+  spawnPitch?: number;
   accent: 'red' | 'blue' | 'green';
   map: [number, number];
 };
@@ -69,12 +71,12 @@ export const DISTRICTS: readonly DistrictConfig[] = [
   {
     id: 'city-night', name: 'Spider-Man City Night', subtitle: 'Midnight Bridge',
     model: '/assets/districts/city-night.glb', collisionData: '/assets/districts/city-night-collisions.json',
-    position: [0, 0, 0], spawn: [0, 0], targetWidth: 320, sourceGroundY: 0.3967, rotation: 0, accent: 'red', map: [60, 44],
+    position: [0, 0, 0], spawn: [0, 105], targetWidth: 320, sourceGroundY: 0.6761, rotation: 0, accent: 'red', map: [60, 44],
   },
   {
     id: 'backstreet', name: 'Backstreet', subtitle: 'Neon Alleys',
     model: '/assets/districts/backstreet.glb', collisionData: '/assets/districts/backstreet-collisions.json',
-    position: [0, 0, 0], spawn: [-60, -50], targetWidth: 500, sourceGroundY: 1982.6573, rotation: 0, accent: 'green', map: [39, 45],
+    position: [0, 0, 0], spawn: [0, 15], targetWidth: 120, sourceGroundY: 1982.6573, rotation: 0, spawnYaw: 0, spawnPitch: .32, accent: 'green', map: [39, 45],
   },
 ] as const;
 

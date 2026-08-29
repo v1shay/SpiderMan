@@ -68,6 +68,10 @@ export function prepareMaterials(root: THREE.Object3D, renderer: THREE.WebGLRend
         standard.map.colorSpace = THREE.SRGBColorSpace;
         standard.map.anisotropy = Math.min(8, renderer.capabilities.getMaxAnisotropy());
       }
+      if (standard.emissiveMap) {
+        standard.emissiveMap.colorSpace = THREE.SRGBColorSpace;
+        standard.emissiveMap.anisotropy = Math.min(8, renderer.capabilities.getMaxAnisotropy());
+      }
       if (standard.normalMap) standard.normalMap.anisotropy = Math.min(4, renderer.capabilities.getMaxAnisotropy());
       if (mode !== 'baked') {
         if ('metalness' in standard && !Number.isFinite(standard.metalness)) standard.metalness = 0;
@@ -80,9 +84,16 @@ export function prepareMaterials(root: THREE.Object3D, renderer: THREE.WebGLRend
         standard.needsUpdate = true;
         return standard;
       }
+      // Several city assets bake their entire facade texture into the glTF
+      // emissive slot. Preserve that texture when converting environments to
+      // low-latency unlit materials instead of replacing it with flat white.
+      const bakedMap = standard.map ?? standard.emissiveMap ?? null;
+      const bakedColor = standard.emissiveMap && !standard.map
+        ? new THREE.Color('#9db3c2')
+        : (standard.color ?? new THREE.Color('white')).clone().multiplyScalar(.88);
       const baked = new THREE.MeshBasicMaterial({
-        map: standard.map ?? null,
-        color: (standard.color ?? new THREE.Color('white')).clone().multiplyScalar(.88),
+        map: bakedMap,
+        color: bakedColor,
         transparent: standard.transparent,
         opacity: standard.opacity,
         alphaTest: standard.alphaTest,
