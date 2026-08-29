@@ -15,6 +15,7 @@
   "dependencies": {
     "@supabase/supabase-js": "2.112.4",
     "lucide-react": "1.31.0",
+    "maplibre-gl": "^5.15.0",
     "react": "19.2.8",
     "react-dom": "19.2.8",
     "react-server-dom-webpack": "19.2.8",

@@ -1,0 +1,94 @@
+.trigger {
+  position: absolute; z-index: 8; top: 104px; right: 22px; display: grid; place-items: center;
+  width: 80px; height: 72px; color: #dffaff; cursor: pointer; border: 3px solid #06111f;
+  outline: 2px solid #4eddf3; background: #0b5272; box-shadow: 5px 5px 0 #020911, inset 0 0 0 2px #73e8f7;
+  text-transform: uppercase;
+}
+.trigger svg { width: 25px; }
+.trigger span { font-size: 8px; letter-spacing: .1em; }
+.trigger:hover { background: #12769a; transform: translate(-1px, -1px); }
+
+.panel {
+  --ink: #030a14; --navy: #061326; --cyan: #48ddf2;
+  position: absolute; z-index: 20; inset: clamp(65px, 7vh, 96px) clamp(12px, 3vw, 52px) clamp(18px, 4vh, 48px);
+  display: grid; grid-template-rows: 58px minmax(0, 1fr) 58px; overflow: hidden; color: #dffaff;
+  border: 5px solid var(--ink); outline: 4px solid #2e9dc0; background: #0b314b;
+  box-shadow: 0 0 0 8px #10293a, 0 28px 100px #000d; image-rendering: auto;
+}
+.panel::after { content: ''; position: absolute; z-index: 8; inset: 0; pointer-events: none; box-shadow: inset 0 0 45px #000b; }
+.topbar { z-index: 10; display: grid; grid-template-columns: 58px 1fr auto 52px; align-items: center; gap: 12px; border-bottom: 5px solid var(--ink); background: linear-gradient(180deg, #42b5d6, #237fa4); }
+.maskLogo { width: 45px; height: 45px; margin-left: 7px; filter: drop-shadow(3px 3px 0 #06111f); }
+.maskLogo img, .spiderLogo img { display: block; width: 100%; height: 100%; object-fit: contain; }
+.wordmark { justify-self: center; display: flex; align-items: center; gap: 9px; padding: 5px 14px; color: #d9f9ff; border: 3px solid var(--ink); border-radius: 8px; background: #103a59; box-shadow: inset 0 0 0 2px #77dff0, 3px 3px 0 #0a2436; text-transform: uppercase; letter-spacing: .12em; }
+.wordmark span { font-size: clamp(10px, 1.45vw, 18px); }
+.wordmark i { width: 19px; height: 19px; border: 3px solid var(--ink); border-radius: 50%; background: linear-gradient(#ef4054 0 43%, #f1fbff 43% 57%, #ef4054 57%); }
+.connection { display: flex; align-items: center; gap: 7px; color: #c8f6ff; font-size: 8px; letter-spacing: .1em; text-transform: uppercase; }
+.connection span { width: 8px; height: 8px; border-radius: 50%; background: #ffd15c; box-shadow: 0 0 10px currentColor; }
+.connection[data-status='online'] span { background: #57f59a; }
+.connection[data-status='error'] span { background: #ef4054; }
+.close, .audio { display: grid; place-items: center; width: 38px; height: 38px; color: var(--ink); cursor: pointer; border: 3px solid var(--ink); background: #e8fbff; box-shadow: 3px 3px 0 #16405a; }
+.close:hover, .audio:hover { background: #ffcd62; }
+.close svg, .audio svg { width: 20px; }
+
+.mapShell { position: relative; min-height: 0; overflow: hidden; background: var(--navy); }
+.map { position: absolute; inset: 0; }
+.map :global(.maplibregl-canvas) { outline: none; }
+.map :global(.maplibregl-ctrl-group) { overflow: hidden; border: 2px solid #17485f; border-radius: 0; background: #06182be8; box-shadow: 3px 3px 0 #020711; }
+.map :global(.maplibregl-ctrl button) { filter: invert(81%) sepia(26%) saturate(1013%) hue-rotate(145deg); }
+.map :global(.maplibregl-ctrl-attrib) { color: #7392a2; background: #020714c7; font: 7px/1.2 sans-serif; }
+.map :global(.maplibregl-ctrl-attrib a) { color: #89b9c8; }
+.scanlines { position: absolute; z-index: 2; inset: 0; pointer-events: none; opacity: .08; mix-blend-mode: screen; background: repeating-linear-gradient(0deg, transparent 0 3px, #c8f8ff 4px); }
+.cornerLabel { position: absolute; z-index: 4; top: 14px; left: 14px; display: grid; min-width: 178px; padding: 10px 14px; border: 1px solid #1e8fb0; border-left: 4px solid var(--cyan); background: #030d1dda; box-shadow: 4px 4px 0 #01060d99; text-transform: uppercase; }
+.cornerLabel span { color: #6e9cad; font-size: 7px; letter-spacing: .15em; }
+.cornerLabel strong { margin-top: 2px; color: #e4fbff; font-size: 15px; font-weight: 500; letter-spacing: .08em; }
+.cornerLabel small { margin-top: 4px; color: #42cae1; font-size: 7px; letter-spacing: .08em; }
+
+.marker { display: grid; justify-items: center; min-width: 82px; padding: 0; color: #d8f8ff; cursor: pointer; border: 0; background: transparent; text-align: center; transform: translateY(-8px); }
+.markerCore { display: grid; place-items: center; width: 30px; height: 30px; border: 3px solid #06111f; background: #3bbfd6; box-shadow: 0 0 0 2px #8fefff, 3px 3px 0 #020814; transform: rotate(45deg); transition: transform 120ms ease, filter 120ms ease; }
+.markerCore span { width: 10px; height: 10px; border: 2px solid #06111f; border-radius: 50%; background: #e9fcff; }
+.marker[data-accent='red'] .markerCore { background: #e93f53; box-shadow: 0 0 0 2px #ff8793, 3px 3px 0 #020814; }
+.marker[data-accent='green'] .markerCore { background: #45c985; box-shadow: 0 0 0 2px #8ff1b9, 3px 3px 0 #020814; }
+.marker strong { margin-top: 7px; padding: 2px 5px; color: #e3faff; background: #020a16dc; font-size: 8px; font-weight: 500; letter-spacing: .05em; text-transform: uppercase; white-space: nowrap; }
+.marker small { display: none; }
+.marker:hover .markerCore, .marker[data-current='true'] .markerCore { filter: brightness(1.3); transform: rotate(45deg) scale(1.22); }
+.marker[data-current='true'] .markerCore { animation: pulse 900ms steps(2) infinite; }
+.marker[data-loaded='false'] { opacity: .7; }
+
+.districtRail { position: absolute; z-index: 4; right: 13px; top: 14px; display: grid; max-height: calc(100% - 94px); overflow-y: auto; border: 1px solid #164e68; background: #020a16e6; box-shadow: 5px 5px 0 #01050c99; }
+.districtRail button { display: grid; grid-template-columns: 1fr auto; gap: 15px; min-width: 175px; padding: 7px 9px; color: #7fa7b6; cursor: pointer; border: 0; border-bottom: 1px solid #17465a; background: transparent; font: inherit; text-align: left; text-transform: uppercase; }
+.districtRail button:last-child { border-bottom: 0; }
+.districtRail button:hover, .districtRail button[data-current='true'] { color: #e6fcff; background: #0f4f68df; }
+.districtRail button[data-current='true'] { box-shadow: inset 3px 0 var(--cyan); }
+.districtRail span { font-size: 8px; letter-spacing: .07em; }
+.districtRail small { color: #48d895; font-size: 6px; letter-spacing: .07em; }
+.districtRail button[data-loaded='false'] small { color: #e7a857; }
+.mapError { position: absolute; z-index: 3; inset: 50% auto auto 50%; padding: 12px 18px; color: #ff9aa5; border: 1px solid #ef4054; background: #100711e8; font-size: 9px; letter-spacing: .08em; text-transform: uppercase; transform: translate(-50%, -50%); }
+
+.footer { z-index: 10; display: grid; grid-template-columns: 56px 1fr 56px; align-items: center; gap: 8px; border-top: 5px solid var(--ink); background: linear-gradient(180deg, #329cbd, #217b9c); }
+.spiderLogo { width: 46px; height: 46px; margin-left: 6px; color: #06111f; filter: drop-shadow(2px 2px 0 #68dff0); }
+.ticker { overflow: hidden; padding: 8px 12px; color: #a9e9f5; border: 3px solid var(--ink); background: #092c42; font-size: 8px; letter-spacing: .12em; text-align: center; text-transform: uppercase; white-space: nowrap; }
+
+@keyframes pulse { 50% { box-shadow: 0 0 0 5px #f4ce55, 0 0 24px #48ddf2, 3px 3px 0 #020814; } }
+
+@media (max-width: 760px) {
+  .trigger { top: 82px; right: 12px; width: 62px; height: 58px; }
+  .panel { inset: 56px 8px 12px; grid-template-rows: 50px minmax(0, 1fr) 49px; border-width: 4px; outline-width: 2px; }
+  .topbar { grid-template-columns: 48px 1fr 40px; gap: 5px; }
+  .maskLogo { width: 37px; height: 37px; margin-left: 5px; }
+  .wordmark { gap: 5px; padding: 4px 7px; }
+  .wordmark i { width: 15px; height: 15px; border-width: 2px; }
+  .connection { display: none; }
+  .close { width: 31px; height: 31px; border-width: 2px; }
+  .cornerLabel { top: 8px; left: 8px; min-width: 145px; padding: 7px 9px; }
+  .cornerLabel strong { font-size: 11px; }
+  .districtRail { right: 8px; top: auto; bottom: 9px; grid-auto-flow: column; grid-auto-columns: minmax(92px, 1fr); max-width: calc(100% - 16px); overflow-x: auto; }
+  .districtRail button { display: grid; min-width: 92px; padding: 6px 7px; border-right: 1px solid #17465a; border-bottom: 0; }
+  .districtRail small { display: none; }
+  .spiderLogo { width: 38px; height: 38px; }
+  .ticker { font-size: 6px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .marker, .markerCore { transition: none; }
+  .marker[data-current='true'] .markerCore { animation: none; }
+}

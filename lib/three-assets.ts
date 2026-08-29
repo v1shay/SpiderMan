@@ -56,6 +56,7 @@ export function isolateRiggedMeshes(root: THREE.Object3D) {
 export function prepareMaterials(root: THREE.Object3D, renderer: THREE.WebGLRenderer, mode: 'character' | 'environment' | 'baked') {
   root.traverse((object) => {
     if (!(object instanceof THREE.Mesh)) return;
+    if (mode === 'character' && object instanceof THREE.SkinnedMesh) object.frustumCulled = false;
     object.castShadow = mode === 'character';
     object.receiveShadow = mode !== 'character';
     const source = Array.isArray(object.material) ? object.material : [object.material];
@@ -65,9 +66,15 @@ export function prepareMaterials(root: THREE.Object3D, renderer: THREE.WebGLRend
         standard.map.colorSpace = THREE.SRGBColorSpace;
         standard.map.anisotropy = Math.min(8, renderer.capabilities.getMaxAnisotropy());
       }
+      if (standard.normalMap) standard.normalMap.anisotropy = Math.min(4, renderer.capabilities.getMaxAnisotropy());
       if (mode !== 'baked') {
         if ('metalness' in standard && !Number.isFinite(standard.metalness)) standard.metalness = 0;
         if ('envMapIntensity' in standard) standard.envMapIntensity = mode === 'character' ? .72 : .45;
+        if (mode === 'environment') {
+          standard.flatShading = false;
+          standard.roughness = Number.isFinite(standard.roughness) ? Math.max(.42, standard.roughness) : .78;
+          standard.metalness = Number.isFinite(standard.metalness) ? Math.min(.55, standard.metalness) : .05;
+        }
         standard.needsUpdate = true;
         return standard;
       }
@@ -97,6 +104,7 @@ export function normalizeSuit(root: THREE.Object3D, suit: SuitConfig, height = 2
   box = new THREE.Box3().setFromObject(root);
   const center = box.getCenter(new THREE.Vector3());
   root.position.x -= center.x;
+  root.position.x += suit.visualOffsetX ?? 0;
   root.position.y -= box.min.y;
   root.position.z -= center.z;
   root.updateWorldMatrix(true, true);
@@ -163,7 +171,9 @@ const AXIS_Z = new THREE.Vector3(0, 0, 1);
 const deltaRotation = new THREE.Quaternion();
 const targetRotation = new THREE.Quaternion();
 
-export function animateRigBones(bones: readonly RigBone[], state: 'idle' | 'run' | 'jump' | 'swing', elapsed: number, delta: number) {
+export type ProceduralPose = 'idle' | 'run' | 'jump' | 'swing' | 'wall' | 'crawl' | 'dive' | 'zip' | 'hover' | 'fly';
+
+export function animateRigBones(bones: readonly RigBone[], state: ProceduralPose, elapsed: number, delta: number) {
   const stride = Math.sin(elapsed * 9.5);
   const breathe = Math.sin(elapsed * 2.4);
   for (const entry of bones) {
@@ -177,7 +187,7 @@ export function animateRigBones(bones: readonly RigBone[], state: 'idle' | 'run'
       if (entry.role === 'leftArm') x = -stride * .58;
       if (entry.role === 'rightArm') x = stride * .58;
       if (entry.role === 'chest') z = stride * .055;
-    } else if (state === 'swing') {
+    } else if (state === 'swing' || state === 'zip') {
       if (entry.role === 'leftArm') z = -1.18;
       if (entry.role === 'rightArm') z = 1.18;
       if (entry.role === 'leftForeArm' || entry.role === 'rightForeArm') x = -.48;
@@ -190,6 +200,26 @@ export function animateRigBones(bones: readonly RigBone[], state: 'idle' | 'run'
       if (entry.role === 'rightArm') z = .62;
       if (entry.role === 'leftUpLeg' || entry.role === 'rightUpLeg') x = .28;
       if (entry.role === 'leftLeg' || entry.role === 'rightLeg') x = .42;
+    } else if (state === 'wall' || state === 'crawl') {
+      const crawl = state === 'crawl' ? stride : .3;
+      if (entry.role === 'leftArm') z = -.82 + crawl * .28;
+      if (entry.role === 'rightArm') z = .82 - crawl * .28;
+      if (entry.role === 'leftForeArm' || entry.role === 'rightForeArm') x = -.58;
+      if (entry.role === 'leftUpLeg') x = .48 - crawl * .32;
+      if (entry.role === 'rightUpLeg') x = .48 + crawl * .32;
+      if (entry.role === 'leftLeg' || entry.role === 'rightLeg') x = -.62;
+    } else if (state === 'dive') {
+      if (entry.role === 'leftArm') z = -.25;
+      if (entry.role === 'rightArm') z = .25;
+      if (entry.role === 'chest' || entry.role === 'spine2') x = .28;
+      if (entry.role === 'leftUpLeg' || entry.role === 'rightUpLeg') x = -.18;
+    } else if (state === 'hover' || state === 'fly') {
+      const bank = state === 'fly' ? .16 : breathe * .03;
+      if (entry.role === 'leftArm') z = -.18 - bank;
+      if (entry.role === 'rightArm') z = .18 + bank;
+      if (entry.role === 'leftForeArm' || entry.role === 'rightForeArm') x = .2;
+      if (entry.role === 'leftUpLeg' || entry.role === 'rightUpLeg') x = state === 'fly' ? -.12 : .04;
+      if (entry.role === 'chest' || entry.role === 'spine2') x = state === 'fly' ? .22 : breathe * .012;
     } else if (entry.role === 'chest' || entry.role === 'spine2') {
       x = breathe * .018;
     }

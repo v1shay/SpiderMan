@@ -41,9 +41,10 @@ export default function SuitShowroom({ selected, onSelect, onStatus }: Props) {
     const scene = new THREE.Scene();
     scene.background = new THREE.Color('#05070a');
     scene.fog = new THREE.Fog('#05070a', 11, 32);
-    const camera = new THREE.PerspectiveCamera(68, 1, .05, 120);
-    camera.position.set(0, 2.55, 3.6);
-    camera.lookAt(0, 1.4, -2.8);
+    const camera = new THREE.PerspectiveCamera(67, 1, .05, 120);
+    // Stand inside the authored warehouse shell, past its front facade.
+    camera.position.set(0, 2.55, -.5);
+    camera.lookAt(0, 1.35, -5.2);
     const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
     renderer.outputColorSpace = THREE.SRGBColorSpace;
@@ -58,13 +59,13 @@ export default function SuitShowroom({ selected, onSelect, onStatus }: Props) {
     scene.add(new THREE.HemisphereLight('#759bc7', '#170909', 1.1));
     const key = new THREE.SpotLight('#badfff', 28, 38, Math.PI / 4, .58, 1.4);
     key.position.set(-7, 7, 1);
-    key.target.position.set(0, 1, -2.8);
+    key.target.position.set(0, 1, -5.2);
     key.castShadow = true;
     key.shadow.mapSize.set(1024, 1024);
     scene.add(key, key.target);
     const redRim = new THREE.SpotLight('#ff244a', 20, 34, Math.PI / 4, .6, 1.4);
     redRim.position.set(8, 6, -1);
-    redRim.target.position.set(0, 1, -2.8);
+    redRim.target.position.set(0, 1, -5.2);
     scene.add(redRim, redRim.target);
 
     const floor = new THREE.Mesh(
@@ -84,7 +85,7 @@ export default function SuitShowroom({ selected, onSelect, onStatus }: Props) {
     loader.setMeshoptDecoder(MeshoptDecoder);
     const displays: DisplaySuit[] = [];
     const clickableMeshes: THREE.Object3D[] = [];
-    const spacing = 1.48;
+    const spacing = 1.12;
     const raycaster = new THREE.Raycaster();
     const pointer = new THREE.Vector2(5, 5);
     const resize = () => {
@@ -115,17 +116,12 @@ export default function SuitShowroom({ selected, onSelect, onStatus }: Props) {
           if (!(object instanceof THREE.Mesh)) return;
           const materials = Array.isArray(object.material) ? object.material : [object.material];
           const names = `${object.name} ${materials.map((material) => material.name).join(' ')}`;
-          if (/beziercurve|icosphere|cardboard|cable|lampe|gravas/i.test(names)) object.visible = false;
+          if (/beziercurve|icosphere|cardboard|cable|gravas/i.test(names)) object.visible = false;
         });
-        warehouseRoot.updateWorldMatrix(true, true);
-        let warehouseBox = new THREE.Box3().setFromObject(warehouseRoot);
-        const warehouseSize = warehouseBox.getSize(new THREE.Vector3());
-        const warehouseScale = 56 / Math.max(warehouseSize.x, .001);
-        warehouseRoot.scale.setScalar(warehouseScale);
-        warehouseRoot.updateWorldMatrix(true, true);
-        warehouseBox = new THREE.Box3().setFromObject(warehouseRoot);
-        const warehouseCenter = warehouseBox.getCenter(new THREE.Vector3());
-        warehouseRoot.position.set(-warehouseCenter.x, -.83565 * warehouseScale, -warehouseCenter.z - 1.5);
+        // Exact placement measured from the source file's authored floor Plane_0.
+        // This avoids debris-skewed bounding boxes and leaves the lineup inside.
+        warehouseRoot.scale.setScalar(1.65965882);
+        warehouseRoot.position.set(-4.351744, 4.867527, 8.737152);
         scene.add(warehouseRoot);
 
         await Promise.all(SUITS.map(async (suit, index) => {
@@ -138,7 +134,7 @@ export default function SuitShowroom({ selected, onSelect, onStatus }: Props) {
           normalizeSuit(gltf.scene, suit, 2.1);
           const holder = new THREE.Group();
           const baseX = (index - (SUITS.length - 1) / 2) * spacing;
-          holder.position.set(baseX, .02, -2.85 - Math.abs(index - 3) * .04);
+          holder.position.set(baseX, .02, -5.2 - Math.abs(index - (SUITS.length - 1) / 2) * .025);
           holder.rotation.y = Math.PI;
           holder.add(gltf.scene);
           holder.userData.suitId = suit.id;
@@ -167,7 +163,7 @@ export default function SuitShowroom({ selected, onSelect, onStatus }: Props) {
           }
           displays.push({ id: suit.id, holder, baseX, ring, light, mixer, bones: collectRigBones(gltf.scene) });
         }));
-        if (!disposed) onStatusRef.current('All seven suits online', 100);
+        if (!disposed) onStatusRef.current('All eight heroes online', 100);
       } catch (error) {
         console.error('[showroom] unable to assemble warehouse', error);
         onStatusRef.current('Warehouse recovery lighting active', 100);
@@ -200,18 +196,18 @@ export default function SuitShowroom({ selected, onSelect, onStatus }: Props) {
         if (!display.mixer) animateRigBones(display.bones, 'idle', elapsed + display.baseX, delta);
         const active = display.id === selectedRef.current;
         const hot = active || display.id === hovered;
-        const scale = active ? 1.1 : display.id === hovered ? 1.055 : .94;
+        const scale = active ? 1.045 : display.id === hovered ? 1.02 : .94;
         display.holder.scale.lerp(new THREE.Vector3(scale, scale, scale), 1 - Math.exp(-9 * delta));
         display.holder.position.x = THREE.MathUtils.damp(display.holder.position.x, display.baseX, 8, delta);
-        display.holder.position.z = THREE.MathUtils.damp(display.holder.position.z, active ? -2.15 : -2.85 - Math.abs(display.baseX / spacing) * .04, 8, delta);
+        display.holder.position.z = THREE.MathUtils.damp(display.holder.position.z, active ? -4.82 : -5.2 - Math.abs(display.baseX / spacing) * .025, 8, delta);
         display.ring.material.color.set(active ? '#ff2747' : hot ? '#6de8ff' : '#244d60');
         display.ring.material.opacity = active ? .95 : hot ? .72 : .35;
         display.ring.scale.setScalar(active ? 1.18 + Math.sin(elapsed * 4) * .025 : 1);
         display.light.color.set(active ? '#ff2949' : '#52cfff');
         display.light.intensity = THREE.MathUtils.damp(display.light.intensity, active ? 8 : hot ? 5 : 1.2, 8, delta);
       }
-      camera.position.x = THREE.MathUtils.damp(camera.position.x, pointer.x * .42, 3, delta);
-      camera.lookAt(camera.position.x * .2, 1.4, -2.8);
+      camera.position.x = THREE.MathUtils.damp(camera.position.x, pointer.x * .32, 3, delta);
+      camera.lookAt(camera.position.x * .18, 1.35, -5.2);
       renderer.render(scene, camera);
     };
     tick();

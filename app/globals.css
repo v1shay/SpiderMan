@@ -47,7 +47,7 @@ button:focus-visible { outline: 3px solid var(--cyan); outline-offset: 4px; }
 h1 { margin: 0; font-size: clamp(28px, 3.7vw, 56px); line-height: .9; letter-spacing: -.02em; text-transform: uppercase; }
 .selector-copy { justify-self: end; max-width: 390px; margin: 0; color: #a8bdcc; font-size: clamp(12px, 1vw, 15px); line-height: 1.45; letter-spacing: .03em; }
 
-.suit-roster { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 7px; margin: 0; padding: 0; list-style: none; pointer-events: auto; }
+.suit-roster { display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 7px; margin: 0; padding: 0; list-style: none; pointer-events: auto; }
 .suit-chip { width: 100%; min-height: 58px; display: grid; grid-template-columns: auto 1fr; grid-template-rows: auto auto; gap: 1px 8px; align-items: center; padding: 8px 10px; color: #ccdae3; cursor: pointer; border: 1px solid rgba(115,205,244,.24); background: rgba(3,9,15,.76); backdrop-filter: blur(8px); text-align: left; text-transform: uppercase; transition: border-color .18s ease, background .18s ease, transform .18s ease; }
 .suit-chip > span { grid-row: 1 / 3; color: #5e7a8e; font-size: 9px; }
 .suit-chip strong { align-self: end; overflow: hidden; font-size: clamp(9px, .85vw, 13px); line-height: 1; text-overflow: ellipsis; white-space: nowrap; }

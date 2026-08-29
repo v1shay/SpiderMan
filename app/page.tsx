@@ -18,9 +18,9 @@ export default function Home() {
   const [progress, setProgress] = useState(0);
   const [trackerOpen, setTrackerOpen] = useState(false);
   const [loadedDistricts, setLoadedDistricts] = useState<Set<DistrictId>>(() => new Set());
-  const [currentDistrict, setCurrentDistrict] = useState<DistrictId>('times-square');
+  const [currentDistrict, setCurrentDistrict] = useState<DistrictId>('new-york-buildings');
   const [hud, setHud] = useState<GameHud>({ speed: 0, altitude: 0, fps: 60, swinging: false });
-  const [showroomStatus, setShowroomStatus] = useState({ message: 'Opening abandoned warehouse', progress: 0 });
+  const [showroomStatus, setShowroomStatus] = useState({ message: 'Opening Avengers warehouse', progress: 0 });
   const gameRef = useRef<SpiderGameHandle>(null);
   const activeSuit = SUITS.find((suit) => suit.id === selected) ?? SUITS[0];
   const activeDistrict = DISTRICTS.find((district) => district.id === currentDistrict) ?? DISTRICTS[0];
@@ -63,10 +63,10 @@ export default function Home() {
 
         <section className="selector-shell" aria-labelledby="select-heading">
           <div className="selector-heading">
-            <div><p className="eyebrow">Underground suit archive // 07 online</p><h1 id="select-heading">Choose your Spider-Man</h1></div>
-            <p className="selector-copy">Move across the lineup and click a real suit model to select it.</p>
+            <div><p className="eyebrow">Avengers warehouse // 08 heroes online</p><h1 id="select-heading">Choose your hero</h1></div>
+            <p className="selector-copy">Move across the lineup and click a real rigged model to select it.</p>
           </div>
-          <ul className="suit-roster" aria-label="Available Spider-Man suits">
+          <ul className="suit-roster" aria-label="Available heroes and Spider-Man suits">
             {SUITS.map((suit, index) => (
               <li key={suit.id}>
                 <button className={`suit-chip ${selected === suit.id ? 'is-selected' : ''}`} onClick={() => setSelected(suit.id)} type="button" aria-pressed={selected === suit.id}>
@@ -78,7 +78,7 @@ export default function Home() {
             ))}
           </ul>
           <footer className="selector-footer">
-            <div className="selection-readout"><span>Selected suit</span><strong>{activeSuit.name}</strong></div>
+            <div className="selection-readout"><span>Selected hero</span><strong>{activeSuit.name}</strong></div>
             <button className="enter-city" type="button" onClick={enterCity} disabled={showroomStatus.progress < 100}>
               {showroomStatus.progress < 100 ? 'Assembling suits' : 'Enter New York'} <span aria-hidden="true">→</span>
             </button>
@@ -116,7 +116,7 @@ export default function Home() {
       {phase === 'game' && (
         <>
           <header className="game-topbar">
-            <div className="game-brand"><span>Spider-Man</span><strong>New York</strong></div>
+            <div className="game-brand"><span>{activeSuit.traversal === 'ironman' ? 'Iron Man' : 'Spider-Man'}</span><strong>New York</strong></div>
             <div className="district-readout"><Navigation aria-hidden="true" /><span><small>Current sector</small><strong>{activeDistrict.name}</strong></span></div>
             <div className={`stream-state ${status.includes('Streaming') || status.includes('Opening') ? 'busy' : ''}`}><Radio aria-hidden="true" /><span>{status}</span></div>
           </header>
@@ -133,8 +133,11 @@ export default function Home() {
           <aside className="controls-card">
             <div><kbd>WASD</kbd><span>Move</span></div>
             <div><kbd>↑ ↓ ← →</kbd><span>Look</span></div>
-            <div><kbd>Space</kbd><span>Jump / hold to swing</span></div>
-            <div><kbd>Click</kbd><span>Web to pointer</span></div>
+            <div><kbd>Space</kbd><span>{activeSuit.traversal === 'ironman' ? 'Repulsor ascent' : 'Jump / swing'}</span></div>
+            <div><kbd>Click</kbd><span>{activeSuit.traversal === 'ironman' ? 'Boost cruise' : 'Web / zip'}</span></div>
+            <div><kbd>E</kbd><span>{activeSuit.traversal === 'ironman' ? 'Repulsor boost' : 'Zip / point launch'}</span></div>
+            <div><kbd>Shift</kbd><span>{activeSuit.traversal === 'ironman' ? 'Descend' : 'Dive'}</span></div>
+            {activeSuit.traversal === 'spider' && <div><kbd>Q</kbd><span>Wall crawl</span></div>}
             <Rotate3d aria-hidden="true" />
           </aside>
 
