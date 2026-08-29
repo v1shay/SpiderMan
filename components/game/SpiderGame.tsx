@@ -164,7 +164,44 @@ function createAsphaltTexture() {
   return texture;
 }
 
+function createConcreteTexture() {
+  const canvas = document.createElement('canvas');
+  canvas.width = 256;
+  canvas.height = 256;
+  const context = canvas.getContext('2d');
+  if (context) {
+    context.fillStyle = '#69727a';
+    context.fillRect(0, 0, 256, 256);
+    context.strokeStyle = 'rgba(25,31,37,.52)';
+    context.lineWidth = 2;
+    for (let tile = 0; tile <= 8; tile += 1) {
+      context.beginPath();
+      context.moveTo(tile * 32, 0);
+      context.lineTo(tile * 32, 256);
+      context.stroke();
+      context.beginPath();
+      context.moveTo(0, tile * 32);
+      context.lineTo(256, tile * 32);
+      context.stroke();
+    }
+    for (let speck = 0; speck < 1300; speck += 1) {
+      const shade = 88 + Math.floor(seeded(speck + 2200) * 54);
+      context.fillStyle = `rgba(${shade},${shade + 3},${shade + 5},.28)`;
+      context.fillRect(seeded(speck + 2300) * 256, seeded(speck + 2500) * 256, 1.4, 1.4);
+    }
+  }
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
+  texture.repeat.set(5, 5);
+  texture.anisotropy = 4;
+  return texture;
+}
+
 function addCityGrid(scene: THREE.Scene) {
+  const root = new THREE.Group();
+  root.name = 'Collision-authored Manhattan';
+  scene.add(root);
   const colliders: THREE.Box3[] = [];
   const anchors: THREE.Object3D[] = [];
   const geometry = new THREE.BoxGeometry(1, 1, 1);
@@ -179,8 +216,10 @@ function addCityGrid(scene: THREE.Scene) {
     emissive: '#8ac4d7',
     emissiveIntensity: .5,
   });
-  const gridRadius = 12;
-  const spacing = 86;
+  const gridRadius = 15;
+  const spacing = 96;
+  const blockCount = (gridRadius * 2 + 1) ** 2;
+  const worldSize = spacing * (gridRadius * 2 + 2);
   const mesh = new THREE.InstancedMesh(geometry, material, (gridRadius * 2 + 1) ** 2);
   mesh.name = 'Manhattan building grid';
   mesh.castShadow = true;
@@ -190,77 +229,115 @@ function addCityGrid(scene: THREE.Scene) {
   let instance = 0;
   const sidewalk = new THREE.InstancedMesh(
     geometry,
-    new THREE.MeshStandardMaterial({ color: '#59616a', roughness: .92, metalness: .04 }),
-    (gridRadius * 2 + 1) ** 2,
+    new THREE.MeshStandardMaterial({ map: createConcreteTexture(), color: '#aeb7be', roughness: .94, metalness: .02 }),
+    blockCount,
   );
   sidewalk.name = 'Raised Manhattan sidewalks';
   sidewalk.receiveShadow = true;
+
+  const roofGeometry = new THREE.BoxGeometry(1, 1, 1);
+  const roof = new THREE.InstancedMesh(
+    roofGeometry,
+    new THREE.MeshStandardMaterial({ color: '#242d35', roughness: .82, metalness: .25 }),
+    blockCount,
+  );
+  roof.name = 'Manhattan rooftop structures';
+  roof.castShadow = true;
+  roof.receiveShadow = true;
 
   for (let gx = -gridRadius; gx <= gridRadius; gx += 1) {
     for (let gz = -gridRadius; gz <= gridRadius; gz += 1) {
       const x = (gx + .5) * spacing;
       const z = (gz + .5) * spacing;
-      const reserved = DISTRICTS.some((district) => Math.hypot(x - district.position[0], z - district.position[2]) < district.targetWidth * .58);
-      if (reserved || (Math.abs(x) < 64 && z > -30 && z < 150)) continue;
       const index = (gx + gridRadius + 1) * 67 + gz + gridRadius;
-      const width = 46 + seeded(index) * 12;
-      const depth = 46 + seeded(index + 3) * 12;
-      const height = 42 + seeded(index + 8) * 190;
-      matrix.compose(new THREE.Vector3(x, height / 2, z), new THREE.Quaternion(), new THREE.Vector3(width, height, depth));
+      const width = 58 + seeded(index) * 10;
+      const depth = 58 + seeded(index + 3) * 10;
+      const height = 48 + seeded(index + 8) * 205 + (Math.abs(gx) < 4 && Math.abs(gz) < 4 ? 54 : 0);
+      matrix.compose(new THREE.Vector3(x, GROUND_Y + height / 2, z), new THREE.Quaternion(), new THREE.Vector3(width, height, depth));
       mesh.setMatrixAt(instance, matrix);
-      color.setHSL(.55 + seeded(index + 23) * .08, .2, .32 + seeded(index + 29) * .17);
+      color.setHSL(.54 + seeded(index + 23) * .1, .18, .34 + seeded(index + 29) * .18);
       mesh.setColorAt(instance, color);
       colliders.push(new THREE.Box3(
-        new THREE.Vector3(x - width / 2, 0, z - depth / 2),
-        new THREE.Vector3(x + width / 2, height, z + depth / 2),
+        new THREE.Vector3(x - width / 2, GROUND_Y, z - depth / 2),
+        new THREE.Vector3(x + width / 2, GROUND_Y + height + 2.6, z + depth / 2),
       ));
-      matrix.compose(new THREE.Vector3(x, .14, z), new THREE.Quaternion(), new THREE.Vector3(width + 4.2, .28, depth + 4.2));
+      matrix.compose(new THREE.Vector3(x, .06, z), new THREE.Quaternion(), new THREE.Vector3(width + 7.5, .12, depth + 7.5));
       sidewalk.setMatrixAt(instance, matrix);
+      const roofWidth = 9 + seeded(index + 41) * 13;
+      const roofDepth = 8 + seeded(index + 47) * 12;
+      const roofHeight = 1.2 + seeded(index + 53) * 1.4;
+      matrix.compose(
+        new THREE.Vector3(x + (seeded(index + 59) - .5) * 14, GROUND_Y + height + roofHeight / 2, z + (seeded(index + 61) - .5) * 14),
+        new THREE.Quaternion(),
+        new THREE.Vector3(roofWidth, roofHeight, roofDepth),
+      );
+      roof.setMatrixAt(instance, matrix);
       instance += 1;
     }
   }
   mesh.count = instance;
   mesh.instanceMatrix.needsUpdate = true;
   if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
-  if (instance > 0) scene.add(mesh);
+  if (instance > 0) root.add(mesh);
   sidewalk.count = instance;
   sidewalk.instanceMatrix.needsUpdate = true;
+  roof.count = instance;
+  roof.instanceMatrix.needsUpdate = true;
   if (instance > 0) {
-    scene.add(sidewalk);
+    root.add(sidewalk, roof);
     anchors.push(mesh);
   }
 
-  const worldSize = Math.max(7200, ...DISTRICTS.map((district) => district.targetWidth * 1.2));
-
   const asphalt = new THREE.Mesh(
-    new THREE.PlaneGeometry(worldSize, worldSize),
-    new THREE.MeshStandardMaterial({ map: createAsphaltTexture(), color: '#c6ccd1', roughness: .98, metalness: .01 }),
+    new THREE.BoxGeometry(worldSize, .24, worldSize),
+    new THREE.MeshStandardMaterial({ map: createAsphaltTexture(), color: '#9ea5ac', roughness: .96, metalness: .035 }),
   );
-  asphalt.rotation.x = -Math.PI / 2;
+  asphalt.position.y = -.12;
   asphalt.receiveShadow = true;
-  asphalt.name = 'New York asphalt';
-  scene.add(asphalt);
+  asphalt.name = 'Solid New York asphalt slab';
+  root.add(asphalt);
 
-  // The imported city includes its own roads. Only draw the synthetic grid
-  // markings when synthetic buildings were actually needed around a district.
-  if (instance > 0) {
-    const lineMaterial = new THREE.MeshBasicMaterial({ color: '#b79b52', transparent: true, opacity: .5 });
-    const lines = new THREE.Group();
-    for (let lane = -12; lane <= 12; lane += 1) {
-      const coordinate = lane * spacing;
-      const vertical = new THREE.Mesh(new THREE.PlaneGeometry(.22, worldSize), lineMaterial);
-      vertical.rotation.x = -Math.PI / 2;
-      vertical.position.set(coordinate, .018, 0);
-      lines.add(vertical);
-      const horizontal = new THREE.Mesh(new THREE.PlaneGeometry(worldSize, .22), lineMaterial);
-      horizontal.rotation.x = -Math.PI / 2;
-      horizontal.position.set(0, .019, coordinate);
-      lines.add(horizontal);
+  const laneMaterial = new THREE.MeshStandardMaterial({ color: '#dbc96d', emissive: '#5a4919', emissiveIntensity: .16, roughness: .72 });
+  const streetMarkings = new THREE.Group();
+  streetMarkings.name = 'Painted Manhattan lanes';
+  for (let lane = -gridRadius; lane <= gridRadius + 1; lane += 1) {
+    const coordinate = lane * spacing;
+    const isAvenue = lane % 4 === 0;
+    for (const offset of isAvenue ? [-1.15, 1.15] : [0]) {
+      const vertical = new THREE.Mesh(new THREE.BoxGeometry(isAvenue ? .2 : .12, .025, worldSize), laneMaterial);
+      vertical.position.set(coordinate + offset, .016, 0);
+      streetMarkings.add(vertical);
+      const horizontal = new THREE.Mesh(new THREE.BoxGeometry(worldSize, .025, isAvenue ? .2 : .12), laneMaterial);
+      horizontal.position.set(0, .017, coordinate + offset);
+      streetMarkings.add(horizontal);
     }
-    lines.name = 'Manhattan street markings';
-    scene.add(lines);
   }
-  return { colliders, anchors };
+  root.add(streetMarkings);
+
+  const crosswalkMaterial = new THREE.MeshStandardMaterial({ color: '#d9dde0', roughness: .76, metalness: .02 });
+  const crosswalks = new THREE.InstancedMesh(new THREE.BoxGeometry(1, .026, 1), crosswalkMaterial, 9 * 32);
+  crosswalks.name = 'Central crosswalks';
+  let crosswalkIndex = 0;
+  for (const ix of [-2, 0, 2]) {
+    for (const iz of [-2, 0, 2]) {
+      const centerX = ix * spacing;
+      const centerZ = iz * spacing;
+      for (let stripe = -3; stripe <= 3; stripe += 1) {
+        matrix.compose(new THREE.Vector3(centerX + stripe * 2.1, .022, centerZ - 10.5), new THREE.Quaternion(), new THREE.Vector3(1.15, 1, 7));
+        crosswalks.setMatrixAt(crosswalkIndex++, matrix);
+        matrix.compose(new THREE.Vector3(centerX + stripe * 2.1, .022, centerZ + 10.5), new THREE.Quaternion(), new THREE.Vector3(1.15, 1, 7));
+        crosswalks.setMatrixAt(crosswalkIndex++, matrix);
+        matrix.compose(new THREE.Vector3(centerX - 10.5, .022, centerZ + stripe * 2.1), new THREE.Quaternion(), new THREE.Vector3(7, 1, 1.15));
+        crosswalks.setMatrixAt(crosswalkIndex++, matrix);
+        matrix.compose(new THREE.Vector3(centerX + 10.5, .022, centerZ + stripe * 2.1), new THREE.Quaternion(), new THREE.Vector3(7, 1, 1.15));
+        crosswalks.setMatrixAt(crosswalkIndex++, matrix);
+      }
+    }
+  }
+  crosswalks.count = crosswalkIndex;
+  crosswalks.instanceMatrix.needsUpdate = true;
+  root.add(crosswalks);
+  return { colliders, anchors, root };
 }
 
 function addLandmarkColliders(
@@ -311,6 +388,34 @@ function cameraAgainstWorld(target: THREE.Vector3, desired: THREE.Vector3, colli
   return desired;
 }
 
+function enforceBuildingSolidity(
+  position: { x: number; y: number; z: number },
+  velocity: { x: number; y: number; z: number },
+  colliders: readonly THREE.Box3[],
+) {
+  const radius = .46;
+  let corrected = false;
+  for (const collider of colliders) {
+    if (position.y > collider.max.y + 1.7 || position.y + 1.8 < collider.min.y) continue;
+    const minX = collider.min.x - radius;
+    const maxX = collider.max.x + radius;
+    const minZ = collider.min.z - radius;
+    const maxZ = collider.max.z + radius;
+    if (position.x <= minX || position.x >= maxX || position.z <= minZ || position.z >= maxZ) continue;
+    const exits = [
+      { distance: position.x - minX, axis: 'x' as const, value: minX, normal: -1 },
+      { distance: maxX - position.x, axis: 'x' as const, value: maxX, normal: 1 },
+      { distance: position.z - minZ, axis: 'z' as const, value: minZ, normal: -1 },
+      { distance: maxZ - position.z, axis: 'z' as const, value: maxZ, normal: 1 },
+    ].sort((a, b) => a.distance - b.distance);
+    const exit = exits[0];
+    position[exit.axis] = exit.value;
+    if (velocity[exit.axis] * exit.normal < 0) velocity[exit.axis] = 0;
+    corrected = true;
+  }
+  return corrected;
+}
+
 export const SpiderGame = forwardRef<SpiderGameHandle, Props>(function SpiderGame(props, ref) {
   const mountRef = useRef<HTMLDivElement>(null);
   const travelRef = useRef<(id: DistrictId) => void>(() => undefined);
@@ -355,9 +460,10 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(function SpiderGam
     scene.add(sun);
 
     const city = addCityGrid(scene);
-    const worldColliders = city.colliders;
+    const worldColliders: THREE.Box3[] = [];
     const spatialColliders = new Map<string, THREE.Box3[]>();
-    let indexedColliderCount = 0;
+    let indexedColliderCount = city.colliders.length;
+    for (const collider of city.colliders) addSpatialCollider(spatialColliders, collider);
     const nearbyColliders = (position: { x: number; y: number; z: number }, radius = 42) => {
       const result = new Set<THREE.Box3>(worldColliders);
       const minX = Math.floor((position.x - radius) / COLLIDER_CELL_SIZE);
@@ -409,6 +515,7 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(function SpiderGam
     let fpsAccumulator = 0;
     let fpsFrames = 0;
     let measuredFps = 60;
+    let buildingCorrectionCount = 0;
     let performanceScaled = false;
     let lastFrameTime = performance.now();
     let elapsedTime = 0;
@@ -456,6 +563,16 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(function SpiderGam
     const loadDistrict = (config: DistrictConfig, report = true) => {
       const existing = districtPromises.get(config.id);
       if (existing) return existing;
+      if (config.model === 'procedural-city') {
+        const promise = Promise.resolve(city.root).then((root) => {
+          loadedDistricts.add(config.id);
+          notifyLoaded();
+          if (report) callbacksRef.current.onStatus(`${config.name} online`, 100);
+          return root;
+        });
+        districtPromises.set(config.id, promise);
+        return promise;
+      }
       let modelPromise = districtModelPromises.get(config.model);
       if (!modelPromise) modelPromise = (async () => {
         if (report) callbacksRef.current.onStatus(`Opening route to ${config.name}`, loadedDistricts.size ? 84 : 28);
@@ -881,6 +998,11 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(function SpiderGam
         runSpeed: 11,
         maximumSpeed: 92,
       } : undefined);
+
+      if (enforceBuildingSolidity(traversal.position, traversal.velocity, activeColliders)) {
+        buildingCorrectionCount += 1;
+        renderer.domElement.dataset.buildingCorrectionCount = String(buildingCorrectionCount);
+      }
 
       player.position.set(traversal.position.x, traversal.position.y, traversal.position.z);
       player.velocity.set(traversal.velocity.x, traversal.velocity.y, traversal.velocity.z);

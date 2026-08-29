@@ -53,18 +53,13 @@ export type DistrictConfig = {
   map: [number, number];
 };
 
-/**
- * The supplied full-city scan is the traversal world. Its original 15.5 km
- * footprint was previously normalized to 520 units, which reduced even the
- * tallest buildings to roughly 15 units. At 6000 units the same geometry has
- * believable 40–175 unit buildings and several kilometres of swing space.
- */
+/** The collision-authored city uses one mesh/collider source of truth. */
 export const DISTRICTS: readonly DistrictConfig[] = [
-  { id: 'backstreet', name: 'Central Avenue', subtitle: 'Main Spawn', model: '/assets/districts/full-city-flat.glb', collisionData: '/assets/districts/full-city-collisions.json', position: [0, 0, 0], spawn: [38.266, -108.227], targetWidth: 6000, sourceGroundY: 0, rotation: 0, accent: 'green', map: [49, 52] },
-  { id: 'street-city', name: 'West Village', subtitle: 'Checkpoint West', model: '/assets/districts/full-city-flat.glb', collisionData: '/assets/districts/full-city-collisions.json', position: [0, 0, 0], spawn: [20, -100], targetWidth: 6000, sourceGroundY: 0, rotation: 0, accent: 'blue', map: [38, 57] },
-  { id: 'times-square', name: 'East Midtown', subtitle: 'Checkpoint East', model: '/assets/districts/full-city-flat.glb', collisionData: '/assets/districts/full-city-collisions.json', position: [0, 0, 0], spawn: [60, -110], targetWidth: 6000, sourceGroundY: 0, rotation: 0, accent: 'red', map: [62, 46] },
-  { id: 'uptown', name: 'North End', subtitle: 'Checkpoint North', model: '/assets/districts/full-city-flat.glb', collisionData: '/assets/districts/full-city-collisions.json', position: [0, 0, 0], spawn: [20, -120], targetWidth: 6000, sourceGroundY: 0, rotation: 0, accent: 'blue', map: [52, 31] },
-  { id: 'downtown', name: 'South End', subtitle: 'Checkpoint South', model: '/assets/districts/full-city-flat.glb', collisionData: '/assets/districts/full-city-collisions.json', position: [0, 0, 0], spawn: [20, -80], targetWidth: 6000, sourceGroundY: 0, rotation: 0, accent: 'red', map: [46, 70] },
+  { id: 'backstreet', name: 'Central Avenue', subtitle: 'Main Spawn', model: 'procedural-city', position: [0, 0, 0], spawn: [0, 0], targetWidth: 3000, sourceGroundY: 0, rotation: 0, accent: 'green', map: [49, 52] },
+  { id: 'street-city', name: 'West Village', subtitle: 'Checkpoint West', model: 'procedural-city', position: [0, 0, 0], spawn: [-480, 288], targetWidth: 3000, sourceGroundY: 0, rotation: 0, accent: 'blue', map: [38, 57] },
+  { id: 'times-square', name: 'East Midtown', subtitle: 'Checkpoint East', model: 'procedural-city', position: [0, 0, 0], spawn: [480, -288], targetWidth: 3000, sourceGroundY: 0, rotation: 0, accent: 'red', map: [62, 46] },
+  { id: 'uptown', name: 'North End', subtitle: 'Checkpoint North', model: 'procedural-city', position: [0, 0, 0], spawn: [192, -576], targetWidth: 3000, sourceGroundY: 0, rotation: 0, accent: 'blue', map: [52, 31] },
+  { id: 'downtown', name: 'South End', subtitle: 'Checkpoint South', model: 'procedural-city', position: [0, 0, 0], spawn: [-192, 576], targetWidth: 3000, sourceGroundY: 0, rotation: 0, accent: 'red', map: [46, 70] },
 ] as const;
 
 export const getDistrict = (id: DistrictId) => DISTRICTS.find((district) => district.id === id) ?? DISTRICTS[0];
