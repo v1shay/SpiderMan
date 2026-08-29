@@ -704,7 +704,7 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(function SpiderGam
         zipHeld: hero.traversal === 'spider' && keys.has('KeyE'),
         zipReleased: hero.traversal === 'spider' && zipReleased,
         diveHeld: hero.traversal === 'spider' && keys.has('ShiftLeft'),
-        wallCrawlHeld: hero.traversal === 'spider' && (keys.has('KeyQ') || (Boolean(traversal.wall) && keys.has('KeyW'))),
+        wallCrawlHeld: hero.traversal === 'spider' && keys.has('KeyQ'),
         wallClimb: keys.has('KeyW') ? 1 : keys.has('KeyS') ? -1 : 0,
         pointerPressure,
         reel: swingHeld && keys.has('KeyW') ? -1 : keys.has('KeyS') ? 1 : 0,

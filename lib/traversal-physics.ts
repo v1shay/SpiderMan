@@ -49,6 +49,8 @@ export interface SurfaceContact {
   point: Vector3Like;
   normal: Vector3Like;
   colliderId?: string;
+  /** True only when the wall overlaps the player's lower foot probe. */
+  feetTouching?: boolean;
 }
 
 export interface WebAnchorCandidate {
@@ -118,6 +120,7 @@ export interface WallRuntime {
   point: Vector3Like;
   normal: Vector3Like;
   colliderId?: string;
+  feetTouching: boolean;
   contactSeconds: number;
   graceSeconds: number;
 }
@@ -633,11 +636,13 @@ function updateWallFromContact(
 ): void {
   if (contact && Math.abs(contact.normal.y) < 0.45) {
     const normal = normalize(horizontal(contact.normal));
+    const feetTouching = contact.feetTouching === true;
     const wasTouching = Boolean(state.wall);
     if (state.wall) {
       state.wall.normal = normalize(lerpVector(state.wall.normal, normal, saturate(delta * 16)), normal);
       state.wall.point = copy(contact.point);
       state.wall.colliderId = contact.colliderId;
+      state.wall.feetTouching = feetTouching;
       state.wall.contactSeconds += delta;
       state.wall.graceSeconds = config.wallContactGrace;
     } else {
@@ -645,12 +650,16 @@ function updateWallFromContact(
         point: copy(contact.point),
         normal,
         colliderId: contact.colliderId,
+        feetTouching,
         contactSeconds: 0,
         graceSeconds: config.wallContactGrace,
       };
     }
     if (!wasTouching) events.push(event('wall-contact', state, { colliderId: contact.colliderId }));
   } else if (state.wall) {
+    // Wall-run grace smooths a missed collision frame, but crawl must end as
+    // soon as the lower foot probe is no longer touching real geometry.
+    state.wall.feetTouching = false;
     state.wall.graceSeconds -= delta;
     if (state.wall.graceSeconds <= 0) state.wall = null;
   }
@@ -672,7 +681,7 @@ function applyWallTraversal(
   const move = input.move ?? vector();
   const alongWall = reject(horizontal(move), normal);
   const horizontalSpeed = length(horizontal(state.velocity));
-  const wantsCrawl = Boolean(input.wallCrawlHeld) || horizontalSpeed < config.wallRunMinimumSpeed;
+  const wantsCrawl = Boolean(input.wallCrawlHeld) && wall.feetTouching;
   if (wantsCrawl) {
     const tangent = normalize(alongWall, normalize(cross(UP, normal), vector(1, 0, 0)));
     const automaticClimb = lengthSquared(horizontal(move)) > 0.04 ? 0.58 : 0;
@@ -755,7 +764,9 @@ function resolveMotion(
       state.position[hit.axis] = hit.value;
       const normalSpeed = dot(state.velocity, hit.normal);
       if (normalSpeed < 0) state.velocity = subtract(state.velocity, scale(hit.normal, normalSpeed));
-      wall = { point: copy(state.position), normal: hit.normal, colliderId: collider.id };
+      const footProbeTop = bottom + Math.min(config.playerHeight * 0.28, 0.55);
+      const feetTouching = footProbeTop > collider.min.y - 0.04 && bottom < collider.max.y + 0.08;
+      wall = { point: copy(state.position), normal: hit.normal, colliderId: collider.id, feetTouching };
     }
   }
 
@@ -832,14 +843,14 @@ function createContext(state: TraversalState, input: TraversalInput, config: Tra
   };
 }
 
-function updateMode(state: TraversalState, input: TraversalInput, config: TraversalConfig): void {
+function updateMode(state: TraversalState, input: TraversalInput): void {
   const horizontalSpeed = length(horizontal(state.velocity));
   if (state.pointLaunchSeconds > 0) state.mode = 'pointLaunch';
   else if (state.wallJumpSeconds > 0) state.mode = 'wallJump';
   else if (state.perchSeconds > 0) state.mode = 'perch';
   else if (state.swing) state.mode = 'swing';
   else if (state.zip) state.mode = 'webZip';
-  else if (state.wall && !state.grounded && (input.wallCrawlHeld || horizontalSpeed < config.wallRunMinimumSpeed)) state.mode = 'wallCrawl';
+  else if (state.wall && state.wall.feetTouching && !state.grounded && input.wallCrawlHeld) state.mode = 'wallCrawl';
   else if (state.wall && !state.grounded) state.mode = 'wallRun';
   else if (state.grounded && state.landingSeconds > 0) state.mode = 'land';
   else if (state.grounded) state.mode = horizontalSpeed > 0.55 ? 'run' : 'idle';
@@ -882,7 +893,7 @@ export function stepTraversalInPlace(
   state.wallJumpSeconds = Math.max(0, state.wallJumpSeconds - delta);
   state.perchSeconds = Math.max(0, state.perchSeconds - delta);
 
-  updateWallFromContact(state, environment.wallContact ?? null, config, delta, events);
+  if (environment.wallContact) updateWallFromContact(state, environment.wallContact, config, delta, events);
 
   if ((input.swingPressed || input.swingHeld) && !state.swing && !state.zip) {
     const anchor = chooseSwingAnchor(state, input, environment, config);
@@ -955,7 +966,7 @@ export function stepTraversalInPlace(
   }
   if (state.grounded) state.airSeconds = 0;
   else state.airSeconds += delta;
-  updateMode(state, input, config);
+  updateMode(state, input);
   return { state, context: createContext(state, input, config), events };
 }
 
@@ -1019,6 +1030,31 @@ export function runTraversalPhysicsSelfTests(): TraversalSelfTestResult {
   diagnostics.wallJumpOutwardSpeed = -wallJump.state.velocity.x;
   checks.wallJump = wallJump.events.some((item) => item.type === 'wall-jump') && wallJump.state.velocity.x < -5;
 
+  const torsoOnlyState = createTraversalState(vector(1.54, 3, 0), vector());
+  const torsoOnlyCrawl = stepTraversal(torsoOnlyState, {
+    wallCrawlHeld: true,
+    wallClimb: 1,
+  }, {
+    groundY: 0,
+    wallContact: { point: vector(2, 3.9, 0), normal: vector(-1, 0, 0), colliderId: 'wall', feetTouching: false },
+  }, delta);
+  checks.wallCrawlRequiresFeet = torsoOnlyCrawl.state.mode !== 'wallCrawl';
+
+  const feetContactState = createTraversalState(vector(1.54, 3, 0), vector());
+  const feetCrawl = stepTraversal(feetContactState, {
+    wallCrawlHeld: true,
+    wallClimb: 1,
+  }, {
+    groundY: 0,
+    wallContact: { point: vector(2, 3, 0), normal: vector(-1, 0, 0), colliderId: 'wall', feetTouching: true },
+  }, delta);
+  const lostFeetContact = stepTraversal(feetCrawl.state, {
+    wallCrawlHeld: true,
+    wallClimb: 1,
+  }, { groundY: 0 }, delta);
+  checks.wallCrawlWithFeet = feetCrawl.state.mode === 'wallCrawl';
+  checks.wallCrawlStopsWithoutFeet = lostFeetContact.state.mode !== 'wallCrawl';
+
   const zipTarget: WebAnchorCandidate = { id: 'perch', point: vector(0, 12, -12), kind: 'perch' };
   const zipState = createTraversalState(vector(0, 12, -7), vector(0, 0, -18));
   zipState.zip = { target: copy(zipTarget.point), targetId: zipTarget.id, elapsed: 0.2, startingDistance: 12 };
@@ -1030,7 +1066,7 @@ export function runTraversalPhysicsSelfTests(): TraversalSelfTestResult {
   diagnostics.pointLaunchSpeed = length(launched.state.velocity);
   checks.pointLaunch = launched.events.some((item) => item.type === 'point-launch') && launched.state.pointLaunchSeconds > 0;
 
-  checks.finite = [swingState, release.state, collisionState, wallJump.state, launched.state].every((state) =>
+  checks.finite = [swingState, release.state, collisionState, wallJump.state, torsoOnlyCrawl.state, feetCrawl.state, lostFeetContact.state, launched.state].every((state) =>
     Number.isFinite(state.position.x + state.position.y + state.position.z + state.velocity.x + state.velocity.y + state.velocity.z));
   return { passed: Object.values(checks).every(Boolean), checks, diagnostics };
 }
