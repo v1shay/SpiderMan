@@ -49,7 +49,7 @@ export const DISTRICTS: readonly DistrictConfig[] = [
   {
     id: 'new-york-city', name: 'New York City', subtitle: 'City Core',
     model: '/assets/districts/new-york-city-2026.glb', collisionData: '/assets/districts/new-york-city-2026-collisions.json',
-    position: [0, 0, 0], spawn: [0, 0], targetWidth: 1200, sourceGroundY: 0, rotation: 0, accent: 'red', map: [47, 52],
+    position: [0, 0, 0], spawn: [0, 0], targetWidth: 360, sourceGroundY: 0, rotation: 0, accent: 'red', map: [47, 52],
   },
   {
     id: 'new-york-blvd', name: 'New York BLVD', subtitle: 'Boulevard Scan',

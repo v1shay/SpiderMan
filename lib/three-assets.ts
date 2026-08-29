@@ -56,7 +56,9 @@ export function isolateRiggedMeshes(root: THREE.Object3D) {
 export function prepareMaterials(root: THREE.Object3D, renderer: THREE.WebGLRenderer, mode: 'character' | 'environment' | 'baked') {
   root.traverse((object) => {
     if (!(object instanceof THREE.Mesh)) return;
-    if (mode === 'character' && object instanceof THREE.SkinnedMesh) object.frustumCulled = false;
+    // Rigged suits can be split across several meshes with stale imported
+    // bounds. Never let per-part frustum culling make hands or legs pop out.
+    if (mode === 'character') object.frustumCulled = false;
     object.castShadow = mode === 'character';
     object.receiveShadow = mode !== 'character';
     const source = Array.isArray(object.material) ? object.material : [object.material];

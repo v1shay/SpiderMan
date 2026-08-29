@@ -277,6 +277,26 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(function SpiderGam
 
     const worldColliders: THREE.Box3[] = [];
     const spatialColliders = new Map<string, THREE.Box3[]>();
+    const districtBounds = new Map<DistrictId, THREE.Box3>();
+    const walkableSurfaces: THREE.Object3D[] = [];
+    const groundHeightCache = new Map<string, number>();
+    const groundRaycaster = new THREE.Raycaster();
+    const groundRayOrigin = new THREE.Vector3();
+    const groundRayDirection = new THREE.Vector3(0, -1, 0);
+    const groundYAt = (position: { x: number; y: number; z: number }) => {
+      if (!walkableSurfaces.length) return GROUND_Y;
+      const cacheKey = `${Math.round(position.x * 2)}:${Math.round(position.z * 2)}`;
+      const cached = groundHeightCache.get(cacheKey);
+      if (cached !== undefined) return cached;
+      groundRayOrigin.set(position.x, GROUND_Y + 4, position.z);
+      groundRaycaster.set(groundRayOrigin, groundRayDirection);
+      groundRaycaster.far = 8;
+      const surface = groundRaycaster.intersectObjects(walkableSurfaces, false)[0];
+      const groundY = surface ? Math.max(GROUND_Y, surface.point.y + GROUND_Y) : GROUND_Y;
+      if (groundHeightCache.size > 8000) groundHeightCache.clear();
+      groundHeightCache.set(cacheKey, groundY);
+      return groundY;
+    };
     let indexedColliderCount = 0;
     const nearbyColliders = (position: { x: number; y: number; z: number }, radius = 42) => {
       const result = new Set<THREE.Box3>(worldColliders);
@@ -306,10 +326,16 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(function SpiderGam
       };
       let best = desired;
       let bestScore = clearance(desired);
-      for (let radius = 8; radius <= 240; radius += 8) {
+      const bounds = districtBounds.get(district.id);
+      const maximumRadius = Math.min(120, district.targetWidth * .28);
+      for (let radius = 8; radius <= maximumRadius; radius += 8) {
         for (let step = 0; step < 32; step += 1) {
           const angle = step / 32 * Math.PI * 2;
           const candidate = desired.clone().add(new THREE.Vector3(Math.cos(angle) * radius, 0, Math.sin(angle) * radius));
+          if (bounds && (
+            candidate.x < bounds.min.x + 4 || candidate.x > bounds.max.x - 4
+            || candidate.z < bounds.min.z + 4 || candidate.z > bounds.max.z - 4
+          )) continue;
           const candidateClearance = clearance(candidate);
           const score = candidateClearance - radius * .006;
           if (candidateClearance >= 0 && score > bestScore) {
@@ -318,6 +344,7 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(function SpiderGam
           }
         }
       }
+      best.y = groundYAt(best);
       return best;
     };
     const anchorTargets: THREE.Object3D[] = [];
@@ -395,6 +422,15 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(function SpiderGam
         const gltf = await loadModel<{ scene: THREE.Group }>(config.model, config.name, loadedDistricts.size ? 84 : 28, loadedDistricts.size ? 98 : 78, report);
         if (disposed) throw new Error('Game disposed');
         const model = gltf.scene;
+        model.traverse((object) => {
+          if (!(object instanceof THREE.Mesh)) return;
+          const materials = Array.isArray(object.material) ? object.material : [object.material];
+          const materialNames = materials.map((material) => material.name).join(' ');
+          const sourceBox = new THREE.Box3().setFromObject(object);
+          object.userData.walkableStreetSurface = config.id === 'new-york-city'
+            && sourceBox.max.y < (config.sourceGroundY ?? 0) + 1.5
+            && /citygen_streets|side_walks|citygen_curb|citygen_grass/i.test(materialNames);
+        });
         prepareMaterials(model, renderer, 'baked');
         model.updateWorldMatrix(true, true);
         let box = new THREE.Box3().setFromObject(model);
@@ -416,6 +452,10 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(function SpiderGam
         root.add(model);
         scene.add(root);
         root.updateWorldMatrix(true, true);
+        districtBounds.set(config.id, new THREE.Box3().setFromObject(model));
+        model.traverse((object) => {
+          if (object.userData.walkableStreetSurface) walkableSurfaces.push(object);
+        });
         addAuthoredMapFloor(root, size.x, size.z, config.name);
         let detailedColliderCount = 0;
         if (config.collisionData) {
@@ -809,6 +849,7 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(function SpiderGam
 
       const activeColliders = nearbyColliders(player.position, Math.max(42, player.velocity.length() * .12));
       const ironPowered = hero.traversal === 'ironman' && (ironFlightMode === 'hover' || ironFlightMode === 'cruise');
+      const localGroundY = groundYAt(traversal.position);
 
       const result = stepTraversalInPlace(traversal, {
         move: wish,
@@ -828,7 +869,7 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(function SpiderGam
         pointerPressure,
         reel: swingHeld && keys.has('KeyW') ? -1 : keys.has('KeyS') ? 1 : 0,
       }, {
-        groundY: GROUND_Y,
+        groundY: localGroundY,
         colliders: activeColliders,
         anchorCandidates,
         zipTargets: anchorCandidates,
@@ -929,9 +970,12 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(function SpiderGam
         }
       }
       if (hudAccumulator > .15) {
-        callbacksRef.current.onHud({ speed: Math.round(speed * 7.4), altitude: Math.max(0, Math.round(player.position.y - GROUND_Y)), fps: measuredFps, swinging: Boolean(traversal.swing) });
+        const groundY = groundYAt(player.position);
+        callbacksRef.current.onHud({ speed: Math.round(speed * 7.4), altitude: Math.max(0, Math.round(player.position.y - groundY)), fps: measuredFps, swinging: Boolean(traversal.swing) });
         renderer.domElement.dataset.playerPosition = [player.position.x, player.position.y, player.position.z].map((value) => value.toFixed(2)).join(',');
         renderer.domElement.dataset.grounded = String(player.grounded);
+        renderer.domElement.dataset.groundY = groundY.toFixed(3);
+        renderer.domElement.dataset.walkableSurfaceCount = String(walkableSurfaces.length);
         renderer.domElement.dataset.traversalMode = traversal.mode;
         renderer.domElement.dataset.colliderCount = String(worldColliders.length + indexedColliderCount);
         renderer.domElement.dataset.anchorTargetCount = String(anchorTargets.length + indexedColliderCount);
