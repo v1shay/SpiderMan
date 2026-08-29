@@ -313,6 +313,7 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(function SpiderGam
     };
     const safeSpawn = (district: DistrictConfig) => {
       const desired = districtSpawn(district);
+      const requiredClearance = district.spawnClearance ?? 2.5;
       const clearance = (point: THREE.Vector3) => {
         let nearest = 42;
         for (const collider of nearbyColliders(point, 42)) {
@@ -329,22 +330,24 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(function SpiderGam
       // Authored spawns are chosen for a useful street-level view. Keep them
       // when they already have player-width clearance; only search outward
       // when an imported building actually overlaps the spawn.
-      if (bestScore >= 2.5) {
+      if (bestScore >= requiredClearance) {
         best.y = groundYAt(best);
         return best;
       }
       const bounds = districtBounds.get(district.id);
       const maximumRadius = Math.min(120, district.targetWidth * .28);
-      for (let radius = 8; radius <= maximumRadius; radius += 8) {
+      const radiusStep = Math.max(.75, Math.min(8, maximumRadius / 4));
+      const boundsInset = Math.min(4, district.targetWidth * .04);
+      for (let radius = radiusStep; radius <= maximumRadius; radius += radiusStep) {
         for (let step = 0; step < 32; step += 1) {
           const angle = step / 32 * Math.PI * 2;
           const candidate = desired.clone().add(new THREE.Vector3(Math.cos(angle) * radius, 0, Math.sin(angle) * radius));
           if (bounds && (
-            candidate.x < bounds.min.x + 4 || candidate.x > bounds.max.x - 4
-            || candidate.z < bounds.min.z + 4 || candidate.z > bounds.max.z - 4
+            candidate.x < bounds.min.x + boundsInset || candidate.x > bounds.max.x - boundsInset
+            || candidate.z < bounds.min.z + boundsInset || candidate.z > bounds.max.z - boundsInset
           )) continue;
           const candidateClearance = clearance(candidate);
-          if (candidateClearance >= 2.5) {
+          if (candidateClearance >= requiredClearance) {
             candidate.y = groundYAt(candidate);
             return candidate;
           }

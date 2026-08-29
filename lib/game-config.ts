@@ -48,6 +48,8 @@ export type DistrictConfig = {
   rotation?: number;
   spawnYaw?: number;
   spawnPitch?: number;
+  /** Minimum horizontal clearance around the authored spawn, in game meters. */
+  spawnClearance?: number;
   accent: 'red' | 'blue' | 'green';
   map: [number, number];
 };
@@ -76,7 +78,10 @@ export const DISTRICTS: readonly DistrictConfig[] = [
   {
     id: 'backstreet', name: 'Backstreet', subtitle: 'Neon Alleys',
     model: '/assets/districts/backstreet.glb', collisionData: '/assets/districts/backstreet-collisions.json',
-    position: [0, 0, 0], spawn: [0, 15], targetWidth: 120, sourceGroundY: 1982.6573, rotation: 0, spawnYaw: 0, spawnPitch: .32, accent: 'green', map: [39, 45],
+    // This source file has enormous/corrupt bounds. A 12 m normalized width
+    // makes its authored doors roughly human scale; the previous 120 m value
+    // made a doorway read like a multi-storey wall.
+    position: [0, 0, 0], spawn: [0, 5], targetWidth: 12, sourceGroundY: 1982.6573, rotation: 0, spawnYaw: 0, spawnPitch: .18, spawnClearance: .9, accent: 'green', map: [39, 45],
   },
 ] as const;
 
