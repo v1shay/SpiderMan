@@ -10,6 +10,7 @@ import { animateRigBones, collectRigBones, normalizeSuit, poseOnlyClips, prepare
 type Props = {
   selected: SuitId;
   onSelect: (id: SuitId) => void;
+  onConfirm: () => void;
   onStatus: (message: string, progress: number) => void;
 };
 
@@ -21,15 +22,18 @@ type DisplaySuit = {
   light: THREE.PointLight;
   mixer: THREE.AnimationMixer | null;
   bones: RigBone[];
+  label: HTMLButtonElement;
 };
 
-export default function SuitShowroom({ selected, onSelect, onStatus }: Props) {
+export default function SuitShowroom({ selected, onSelect, onConfirm, onStatus }: Props) {
   const mountRef = useRef<HTMLDivElement>(null);
   const selectedRef = useRef(selected);
   const onSelectRef = useRef(onSelect);
+  const onConfirmRef = useRef(onConfirm);
   const onStatusRef = useRef(onStatus);
   useEffect(() => { selectedRef.current = selected; }, [selected]);
   useEffect(() => { onSelectRef.current = onSelect; }, [onSelect]);
+  useEffect(() => { onConfirmRef.current = onConfirm; }, [onConfirm]);
   useEffect(() => { onStatusRef.current = onStatus; }, [onStatus]);
 
   useEffect(() => {
@@ -55,6 +59,9 @@ export default function SuitShowroom({ selected, onSelect, onStatus }: Props) {
     renderer.domElement.className = 'showroom-canvas';
     renderer.domElement.setAttribute('aria-label', 'Interactive abandoned warehouse suit selection');
     mount.appendChild(renderer.domElement);
+    const labels = document.createElement('div');
+    labels.className = 'showroom-labels';
+    mount.appendChild(labels);
 
     scene.add(new THREE.HemisphereLight('#759bc7', '#170909', 1.1));
     const key = new THREE.SpotLight('#badfff', 28, 38, Math.PI / 4, .58, 1.4);
@@ -73,13 +80,9 @@ export default function SuitShowroom({ selected, onSelect, onStatus }: Props) {
       new THREE.MeshStandardMaterial({ color: '#111318', roughness: .86, metalness: .12 }),
     );
     floor.rotation.x = -Math.PI / 2;
+    floor.position.y = .018;
     floor.receiveShadow = true;
     scene.add(floor);
-    const floorGrid = new THREE.GridHelper(30, 30, '#62212c', '#18202b');
-    floorGrid.position.y = .012;
-    const gridMaterials = Array.isArray(floorGrid.material) ? floorGrid.material : [floorGrid.material];
-    gridMaterials.forEach((material) => { material.transparent = true; material.opacity = .28; });
-    scene.add(floorGrid);
 
     const loader = new GLTFLoader();
     loader.setMeshoptDecoder(MeshoptDecoder);
@@ -116,7 +119,7 @@ export default function SuitShowroom({ selected, onSelect, onStatus }: Props) {
           if (!(object instanceof THREE.Mesh)) return;
           const materials = Array.isArray(object.material) ? object.material : [object.material];
           const names = `${object.name} ${materials.map((material) => material.name).join(' ')}`;
-          if (/beziercurve|icosphere|cardboard|cable|gravas/i.test(names)) object.visible = false;
+          if (/beziercurve|icosphere|cardboard|cable|gravas|^plane_0\b|\bfloor\b/i.test(names)) object.visible = false;
         });
         // Exact placement measured from the source file's authored floor Plane_0.
         // This avoids debris-skewed bounding boxes and leaves the lineup inside.
@@ -155,13 +158,22 @@ export default function SuitShowroom({ selected, onSelect, onStatus }: Props) {
           light.position.set(baseX, 2.35, holder.position.z + .35);
           scene.add(light);
 
+          const label = document.createElement('button');
+          label.type = 'button';
+          label.className = 'showroom-suit-label';
+          label.textContent = suit.name;
+          label.setAttribute('aria-label', `Select ${suit.name}; double-click to enter`);
+          label.addEventListener('click', () => onSelectRef.current(suit.id));
+          label.addEventListener('dblclick', () => onConfirmRef.current());
+          labels.appendChild(label);
+
           let mixer: THREE.AnimationMixer | null = null;
           const idle = poseOnlyClips(gltf.animations).find((clip) => /stand|idle/i.test(clip.name));
           if (idle) {
             mixer = new THREE.AnimationMixer(gltf.scene);
             mixer.clipAction(idle).play();
           }
-          displays.push({ id: suit.id, holder, baseX, ring, light, mixer, bones: collectRigBones(gltf.scene) });
+          displays.push({ id: suit.id, holder, baseX, ring, light, mixer, bones: collectRigBones(gltf.scene), label });
         }));
         if (!disposed) onStatusRef.current('All eight heroes online', 100);
       } catch (error) {
@@ -180,8 +192,10 @@ export default function SuitShowroom({ selected, onSelect, onStatus }: Props) {
       renderer.domElement.style.cursor = hovered ? 'pointer' : 'crosshair';
     };
     const choosePointer = () => { if (hovered) onSelectRef.current(hovered); };
+    const confirmPointer = () => { if (hovered && hovered === selectedRef.current) onConfirmRef.current(); };
     renderer.domElement.addEventListener('pointermove', readPointer);
     renderer.domElement.addEventListener('pointerdown', choosePointer);
+    renderer.domElement.addEventListener('dblclick', confirmPointer);
 
     let lastFrame = performance.now();
     let elapsed = 0;
@@ -205,6 +219,11 @@ export default function SuitShowroom({ selected, onSelect, onStatus }: Props) {
         display.ring.scale.setScalar(active ? 1.18 + Math.sin(elapsed * 4) * .025 : 1);
         display.light.color.set(active ? '#ff2949' : '#52cfff');
         display.light.intensity = THREE.MathUtils.damp(display.light.intensity, active ? 8 : hot ? 5 : 1.2, 8, delta);
+        const labelPosition = new THREE.Vector3(display.holder.position.x, 2.5, display.holder.position.z).project(camera);
+        display.label.style.left = `${(labelPosition.x * .5 + .5) * mount.clientWidth}px`;
+        display.label.style.top = `${(-labelPosition.y * .5 + .5) * mount.clientHeight}px`;
+        display.label.classList.toggle('is-selected', active);
+        display.label.classList.toggle('is-hovered', display.id === hovered);
       }
       camera.position.x = THREE.MathUtils.damp(camera.position.x, pointer.x * .32, 3, delta);
       camera.lookAt(camera.position.x * .18, 1.35, -5.2);
@@ -218,6 +237,7 @@ export default function SuitShowroom({ selected, onSelect, onStatus }: Props) {
       observer.disconnect();
       renderer.domElement.removeEventListener('pointermove', readPointer);
       renderer.domElement.removeEventListener('pointerdown', choosePointer);
+      renderer.domElement.removeEventListener('dblclick', confirmPointer);
       scene.traverse((object) => {
         if (!(object instanceof THREE.Mesh)) return;
         object.geometry.dispose();
@@ -226,6 +246,7 @@ export default function SuitShowroom({ selected, onSelect, onStatus }: Props) {
       });
       renderer.dispose();
       renderer.domElement.remove();
+      labels.remove();
     };
   }, []);
 

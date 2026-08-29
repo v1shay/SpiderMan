@@ -32,12 +32,16 @@ button:focus-visible { outline: 3px solid var(--cyan); outline-offset: 4px; }
 }
 .showroom-mount, .showroom-canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
 .showroom-canvas { display: block; }
+.showroom-labels { position: absolute; z-index: 4; inset: 0; overflow: hidden; pointer-events: none; }
+.showroom-suit-label { position: absolute; padding: 0; color: rgba(224, 244, 255, .78); border: 0; background: none; cursor: pointer; pointer-events: auto; transform: translate(-50%, -115%); text-transform: uppercase; white-space: nowrap; font-size: clamp(8px, .78vw, 12px); letter-spacing: .1em; text-shadow: 0 2px 4px #000, 0 0 12px #031019; transition: color .16s ease, transform .16s ease, text-shadow .16s ease; }
+.showroom-suit-label:hover, .showroom-suit-label.is-hovered { color: var(--cyan); transform: translate(-50%, -130%) scale(1.06); text-shadow: 0 2px 4px #000, 0 0 14px rgba(71, 223, 255, .75); }
+.showroom-suit-label.is-selected { color: white; transform: translate(-50%, -135%) scale(1.1); text-shadow: 0 2px 4px #000, 0 0 16px var(--red); }
 .warehouse-vignette { position: absolute; z-index: 1; inset: 0; pointer-events: none; background: linear-gradient(180deg, rgba(2,4,7,.78), transparent 21%, transparent 64%, rgba(2,4,7,.88) 100%), radial-gradient(circle at center, transparent 25%, rgba(0,0,0,.52) 100%); }
 
-.launch-header { position: relative; z-index: 3; display: flex; align-items: flex-start; justify-content: space-between; gap: 24px; }
+.launch-header { position: relative; z-index: 5; display: flex; align-items: flex-start; justify-content: space-between; gap: 24px; pointer-events: none; }
 .brand-lockup { display: grid; text-transform: uppercase; transform: rotate(-2deg); }
 .brand-kicker { color: var(--red); font-size: 12px; letter-spacing: .28em; margin-left: 4px; }
-.brand-title { font-size: clamp(36px, 5vw, 68px); line-height: .72; letter-spacing: -.04em; text-shadow: 3px 3px 0 var(--red-dark), 6px 6px 0 #07101d; }
+.brand-title { font-size: clamp(42px, 6vw, 82px); line-height: .72; letter-spacing: -.04em; text-shadow: 3px 3px 0 var(--red-dark), 6px 6px 0 #07101d; }
 .system-ready { color: var(--muted); font-size: 12px; letter-spacing: .16em; text-transform: uppercase; display: flex; align-items: center; gap: 10px; }
 .system-ready span { width: 8px; height: 8px; border-radius: 50%; background: #6cff9f; box-shadow: 0 0 14px #6cff9f; }
 

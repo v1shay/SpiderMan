@@ -41,6 +41,7 @@ export type DistrictConfig = {
   name: string;
   subtitle: string;
   model: string;
+  collisionData?: string;
   position: [number, number, number];
   /** Local X/Z offset for a verified street-level spawn. */
   spawn?: [number, number];
@@ -59,7 +60,11 @@ export type DistrictConfig = {
  * believable 40–175 unit buildings and several kilometres of swing space.
  */
 export const DISTRICTS: readonly DistrictConfig[] = [
-  { id: 'backstreet', name: 'New York City', subtitle: 'Full-Scale Manhattan', model: '/assets/districts/downtown.glb', position: [0, 0, 0], spawn: [0, 0], targetWidth: 6000, sourceGroundY: 29.92676, rotation: 0, accent: 'green', map: [49, 52] },
+  { id: 'backstreet', name: 'Central Avenue', subtitle: 'Main Spawn', model: '/assets/districts/full-city-flat.glb', collisionData: '/assets/districts/full-city-collisions.json', position: [0, 0, 0], spawn: [38.266, -108.227], targetWidth: 6000, sourceGroundY: 0, rotation: 0, accent: 'green', map: [49, 52] },
+  { id: 'street-city', name: 'West Village', subtitle: 'Checkpoint West', model: '/assets/districts/full-city-flat.glb', collisionData: '/assets/districts/full-city-collisions.json', position: [0, 0, 0], spawn: [20, -100], targetWidth: 6000, sourceGroundY: 0, rotation: 0, accent: 'blue', map: [38, 57] },
+  { id: 'times-square', name: 'East Midtown', subtitle: 'Checkpoint East', model: '/assets/districts/full-city-flat.glb', collisionData: '/assets/districts/full-city-collisions.json', position: [0, 0, 0], spawn: [60, -110], targetWidth: 6000, sourceGroundY: 0, rotation: 0, accent: 'red', map: [62, 46] },
+  { id: 'uptown', name: 'North End', subtitle: 'Checkpoint North', model: '/assets/districts/full-city-flat.glb', collisionData: '/assets/districts/full-city-collisions.json', position: [0, 0, 0], spawn: [20, -120], targetWidth: 6000, sourceGroundY: 0, rotation: 0, accent: 'blue', map: [52, 31] },
+  { id: 'downtown', name: 'South End', subtitle: 'Checkpoint South', model: '/assets/districts/full-city-flat.glb', collisionData: '/assets/districts/full-city-collisions.json', position: [0, 0, 0], spawn: [20, -80], targetWidth: 6000, sourceGroundY: 0, rotation: 0, accent: 'red', map: [46, 70] },
 ] as const;
 
 export const getDistrict = (id: DistrictId) => DISTRICTS.find((district) => district.id === id) ?? DISTRICTS[0];

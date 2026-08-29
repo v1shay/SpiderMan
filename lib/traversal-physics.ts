@@ -672,7 +672,7 @@ function applyWallTraversal(
   delta: number,
 ): void {
   const wall = state.wall;
-  if (!wall || state.swing || state.zip || state.grounded) return;
+  if (!wall || !wall.feetTouching || !input.wallCrawlHeld || state.swing || state.zip || state.grounded) return;
   const normal = normalize(horizontal(wall.normal));
   const inwardSpeed = dot(state.velocity, normal);
   if (inwardSpeed < 0) state.velocity = subtract(state.velocity, scale(normal, inwardSpeed));
@@ -680,24 +680,11 @@ function applyWallTraversal(
 
   const move = input.move ?? vector();
   const alongWall = reject(horizontal(move), normal);
-  const horizontalSpeed = length(horizontal(state.velocity));
-  const wantsCrawl = Boolean(input.wallCrawlHeld) && wall.feetTouching;
-  if (wantsCrawl) {
-    const tangent = normalize(alongWall, normalize(cross(UP, normal), vector(1, 0, 0)));
-    const automaticClimb = lengthSquared(horizontal(move)) > 0.04 ? 0.58 : 0;
-    const climb = clamp(value(input.wallClimb, automaticClimb), -1, 1);
-    const desired = add(scale(tangent, config.wallCrawlSpeed * Math.min(1, length(horizontal(move)))), vector(0, climb * config.wallCrawlSpeed, 0));
-    state.velocity = lerpVector(state.velocity, desired, 1 - Math.exp(-12 * delta));
-  } else {
-    const fallback = normalize(cross(UP, normal), vector(1, 0, 0));
-    let tangent = normalize(alongWall, reject(horizontal(state.velocity), normal));
-    if (lengthSquared(tangent) < EPSILON) tangent = fallback;
-    if (dot(tangent, state.velocity) < 0) tangent = scale(tangent, -1);
-    const desired = scale(tangent, Math.max(config.wallRunSpeed, horizontalSpeed));
-    state.velocity.x = damp(state.velocity.x, desired.x, 7, delta);
-    state.velocity.z = damp(state.velocity.z, desired.z, 7, delta);
-    state.velocity.y = damp(state.velocity.y, config.wallRunLift, 5.5, delta);
-  }
+  const tangent = normalize(alongWall, normalize(cross(UP, normal), vector(1, 0, 0)));
+  const automaticClimb = lengthSquared(horizontal(move)) > 0.04 ? 0.58 : 0;
+  const climb = clamp(value(input.wallClimb, automaticClimb), -1, 1);
+  const desired = add(scale(tangent, config.wallCrawlSpeed * Math.min(1, length(horizontal(move)))), vector(0, climb * config.wallCrawlSpeed, 0));
+  state.velocity = lerpVector(state.velocity, desired, 1 - Math.exp(-12 * delta));
 }
 
 interface MotionResolution {
@@ -851,7 +838,6 @@ function updateMode(state: TraversalState, input: TraversalInput): void {
   else if (state.swing) state.mode = 'swing';
   else if (state.zip) state.mode = 'webZip';
   else if (state.wall && state.wall.feetTouching && !state.grounded && input.wallCrawlHeld) state.mode = 'wallCrawl';
-  else if (state.wall && !state.grounded) state.mode = 'wallRun';
   else if (state.grounded && state.landingSeconds > 0) state.mode = 'land';
   else if (state.grounded) state.mode = horizontalSpeed > 0.55 ? 'run' : 'idle';
   else if (input.diveHeld && state.velocity.y < 1) state.mode = 'dive';
@@ -946,7 +932,7 @@ export function stepTraversalInPlace(
   applyWallTraversal(state, input, config, delta);
   if (state.swing) applySwing(state, input, config, delta);
   else if (state.zip) applyZip(state, input, config, delta, events);
-  else if (!state.grounded && !state.wall) {
+  else if (!state.grounded && (!state.wall || !state.wall.feetTouching || !input.wallCrawlHeld)) {
     const gravityMultiplier = input.diveHeld && state.velocity.y < 1 ? config.diveGravityMultiplier : 1;
     state.velocity.y -= config.gravity * gravityMultiplier * delta;
     if (input.diveHeld) {
@@ -1055,6 +1041,18 @@ export function runTraversalPhysicsSelfTests(): TraversalSelfTestResult {
   checks.wallCrawlWithFeet = feetCrawl.state.mode === 'wallCrawl';
   checks.wallCrawlStopsWithoutFeet = lostFeetContact.state.mode !== 'wallCrawl';
 
+  const incidentalWallState = createTraversalState(vector(1.54, 6, 0), vector(0, -4, -18));
+  const incidentalWallContact = stepTraversal(incidentalWallState, {
+    move: vector(0, 0, -1),
+    wallCrawlHeld: false,
+  }, {
+    groundY: 0,
+    wallContact: { point: vector(2, 5.9, 0), normal: vector(-1, 0, 0), colliderId: 'wall', feetTouching: true },
+  }, delta);
+  checks.incidentalWallContactDoesNotStick = incidentalWallContact.state.mode !== 'wallCrawl'
+    && incidentalWallContact.state.mode !== 'wallRun'
+    && incidentalWallContact.state.velocity.y < incidentalWallState.velocity.y;
+
   const zipTarget: WebAnchorCandidate = { id: 'perch', point: vector(0, 12, -12), kind: 'perch' };
   const zipState = createTraversalState(vector(0, 12, -7), vector(0, 0, -18));
   zipState.zip = { target: copy(zipTarget.point), targetId: zipTarget.id, elapsed: 0.2, startingDistance: 12 };
@@ -1066,7 +1064,7 @@ export function runTraversalPhysicsSelfTests(): TraversalSelfTestResult {
   diagnostics.pointLaunchSpeed = length(launched.state.velocity);
   checks.pointLaunch = launched.events.some((item) => item.type === 'point-launch') && launched.state.pointLaunchSeconds > 0;
 
-  checks.finite = [swingState, release.state, collisionState, wallJump.state, torsoOnlyCrawl.state, feetCrawl.state, lostFeetContact.state, launched.state].every((state) =>
+  checks.finite = [swingState, release.state, collisionState, wallJump.state, torsoOnlyCrawl.state, feetCrawl.state, lostFeetContact.state, incidentalWallContact.state, launched.state].every((state) =>
     Number.isFinite(state.position.x + state.position.y + state.position.z + state.velocity.x + state.velocity.y + state.velocity.z));
   return { passed: Object.values(checks).every(Boolean), checks, diagnostics };
 }

@@ -20,7 +20,7 @@ export default function Home() {
   const [loadedDistricts, setLoadedDistricts] = useState<Set<DistrictId>>(() => new Set());
   const [currentDistrict, setCurrentDistrict] = useState<DistrictId>('backstreet');
   const [hud, setHud] = useState<GameHud>({ speed: 0, altitude: 0, fps: 60, swinging: false });
-  const [showroomStatus, setShowroomStatus] = useState({ message: 'Opening Avengers warehouse', progress: 0 });
+  const [, setShowroomStatus] = useState({ message: 'Opening warehouse', progress: 0 });
   const gameRef = useRef<SpiderGameHandle>(null);
   const activeSuit = SUITS.find((suit) => suit.id === selected) ?? SUITS[0];
   const activeDistrict = DISTRICTS.find((district) => district.id === currentDistrict) ?? DISTRICTS[0];
@@ -42,7 +42,7 @@ export default function Home() {
   };
 
   const travelTo = (district: DistrictId) => {
-    setStatus(`Route selected: ${DISTRICTS.find((item) => item.id === district)?.name ?? 'New York'}`);
+    setStatus(`Checkpoint selected: ${DISTRICTS.find((item) => item.id === district)?.name ?? 'City'}`);
     gameRef.current?.travelTo(district);
     setTrackerOpen(false);
   };
@@ -53,38 +53,13 @@ export default function Home() {
         <SuitShowroom
           selected={selected}
           onSelect={setSelected}
+          onConfirm={enterCity}
           onStatus={(message, nextProgress) => setShowroomStatus({ message, progress: Math.round(nextProgress) })}
         />
         <div className="warehouse-vignette" aria-hidden="true" />
         <header className="launch-header">
-          <div className="brand-lockup" aria-label="New York Spider-Man"><span className="brand-kicker">Spider-Man</span><span className="brand-title">New York</span></div>
-          <div className="system-ready"><span /> {showroomStatus.message} · {showroomStatus.progress}%</div>
+          <div className="brand-lockup" aria-label="SpiderMan"><span className="brand-title">SpiderMan</span></div>
         </header>
-
-        <section className="selector-shell" aria-labelledby="select-heading">
-          <div className="selector-heading">
-            <div><p className="eyebrow">Avengers warehouse // 08 heroes online</p><h1 id="select-heading">Choose your hero</h1></div>
-            <p className="selector-copy">Move across the lineup and click a real rigged model to select it.</p>
-          </div>
-          <ul className="suit-roster" aria-label="Available heroes and Spider-Man suits">
-            {SUITS.map((suit, index) => (
-              <li key={suit.id}>
-                <button className={`suit-chip ${selected === suit.id ? 'is-selected' : ''}`} onClick={() => setSelected(suit.id)} type="button" aria-pressed={selected === suit.id}>
-                  <span>0{index + 1}</span>
-                  <strong>{suit.name}</strong>
-                  <small>{suit.universe}</small>
-                </button>
-              </li>
-            ))}
-          </ul>
-          <footer className="selector-footer">
-            <div className="selection-readout"><span>Selected hero</span><strong>{activeSuit.name}</strong></div>
-            <button className="enter-city" type="button" onClick={enterCity} disabled={showroomStatus.progress < 100}>
-              {showroomStatus.progress < 100 ? 'Assembling suits' : 'Enter New York'} <span aria-hidden="true">→</span>
-            </button>
-          </footer>
-        </section>
-        <p className="build-mark">NYC // Build 01.08.28</p>
       </main>
     );
   }
@@ -104,19 +79,19 @@ export default function Home() {
       </Suspense>
 
       {phase === 'loading' && (
-        <section className="loading-screen" aria-live="polite" aria-label="Loading New York">
+        <section className="loading-screen" aria-live="polite" aria-label="Loading SpiderMan">
           <div className="loading-web" aria-hidden="true"><span /><span /><span /><span /></div>
-          <div className="loading-logo"><small>Spider-Man</small><strong>New York</strong></div>
+          <div className="loading-logo"><strong>SpiderMan</strong></div>
           <div className="loading-progress"><span style={{ width: `${progress}%` }} /></div>
           <div className="loading-readout"><span>{status}</span><strong>{progress}%</strong></div>
-          <p>District streaming enabled · only nearby streets enter memory</p>
+          <p>Loading the full-scale city and verified street checkpoints</p>
         </section>
       )}
 
       {phase === 'game' && (
         <>
           <header className="game-topbar">
-            <div className="game-brand"><span>{activeSuit.traversal === 'ironman' ? 'Iron Man' : 'Spider-Man'}</span><strong>New York</strong></div>
+            <div className="game-brand"><strong>{activeSuit.traversal === 'ironman' ? 'Iron Man' : 'SpiderMan'}</strong></div>
             <div className="district-readout"><Navigation aria-hidden="true" /><span><small>Current sector</small><strong>{activeDistrict.name}</strong></span></div>
             <div className={`stream-state ${status.includes('Streaming') || status.includes('Opening') ? 'busy' : ''}`}><Radio aria-hidden="true" /><span>{status}</span></div>
           </header>
@@ -134,8 +109,9 @@ export default function Home() {
             <div><kbd>WASD</kbd><span>Move</span></div>
             <div><kbd>↑ ↓ ← →</kbd><span>Look</span></div>
             <div><kbd>Space</kbd><span>{activeSuit.traversal === 'ironman' ? 'Repulsor ascent' : 'Jump / swing'}</span></div>
-            <div><kbd>Click</kbd><span>{activeSuit.traversal === 'ironman' ? 'Boost cruise' : 'Web / zip'}</span></div>
-            <div><kbd>E</kbd><span>{activeSuit.traversal === 'ironman' ? 'Repulsor boost' : 'Zip / point launch'}</span></div>
+            <div><kbd>Click</kbd><span>{activeSuit.traversal === 'ironman' ? 'Toggle cruise' : 'Web / zip'}</span></div>
+            <div><kbd>E</kbd><span>{activeSuit.traversal === 'ironman' ? 'Toggle cruise' : 'Zip / point launch'}</span></div>
+            {activeSuit.traversal === 'ironman' && <div><kbd>F</kbd><span>Hover / free fall</span></div>}
             <div><kbd>Shift</kbd><span>{activeSuit.traversal === 'ironman' ? 'Descend' : 'Dive'}</span></div>
             {activeSuit.traversal === 'spider' && <div><kbd>Q</kbd><span>Wall crawl</span></div>}
             <Rotate3d aria-hidden="true" />
