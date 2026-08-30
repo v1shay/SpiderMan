@@ -661,10 +661,14 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(function SpiderGam
       const config = getDistrict(district);
       const centerX = Math.round((position.x - config.position[0]) / stream.tileWidth);
       const centerZ = Math.round((position.z - config.position[2]) / stream.tileDepth);
-      const desired = new Set<string>();
-      for (let x = centerX - 1; x <= centerX + 1; x += 1) {
-        for (let z = centerZ - 1; z <= centerZ + 1; z += 1) desired.add(tileKey(x, z));
-      }
+      const desired = new Set<string>([tileKey(centerX, centerZ)]);
+      const localX = position.x - config.position[0] - centerX * stream.tileWidth;
+      const localZ = position.z - config.position[2] - centerZ * stream.tileDepth;
+      const edgeX = Math.abs(localX) > stream.tileWidth * .3 ? Math.sign(localX) : 0;
+      const edgeZ = Math.abs(localZ) > stream.tileDepth * .3 ? Math.sign(localZ) : 0;
+      if (edgeX) desired.add(tileKey(centerX + edgeX, centerZ));
+      if (edgeZ) desired.add(tileKey(centerX, centerZ + edgeZ));
+      if (edgeX && edgeZ) desired.add(tileKey(centerX + edgeX, centerZ + edgeZ));
 
       let changed = false;
       for (const tile of Array.from(stream.tiles.values())) {
@@ -673,9 +677,9 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(function SpiderGam
         changed = true;
       }
 
-      // Add only two shared-geometry tiles per frame. This spreads scene-graph
-      // work across frames while still completing the 3x3 safety ring almost
-      // immediately after a boundary crossing.
+      // Add only two shared-geometry tiles per frame. At the center of a map
+      // only one tile exists; neighbors are prefetched just before an edge and
+      // distant tiles are removed. This keeps the 96 MB city scan playable.
       let mounted = 0;
       for (const key of desired) {
         if (stream.tiles.has(key) || mounted >= 2) continue;

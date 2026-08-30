@@ -49,4 +49,6 @@ try {
   console.log('Verified: private Realtime broadcast, Presence join, and analytics insert.');
 } finally {
   await Promise.all([a.removeChannel(channelA), b.removeChannel(channelB)]);
+  a.realtime.disconnect();
+  b.realtime.disconnect();
 }
