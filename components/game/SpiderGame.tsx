@@ -624,6 +624,8 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(function SpiderGam
     let pointerHeld = false;
     let pointerPressed = false;
     let pointerReleased = false;
+    let pointerDownAt = -10_000;
+    let pointerZipActive = false;
     let pointerPressure = .55;
     let hoverTogglePressed = false;
     let cruiseTogglePressed = false;
@@ -1238,15 +1240,31 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(function SpiderGam
       if (event.button !== 0) return;
       renderer.domElement.focus({ preventScroll: true });
       readPointer(event);
+      if (getSuit(props.suitId).traversal === 'spider' && traversal.zip) {
+        traversal.zip = null;
+        pointerZipActive = false;
+      }
       pointerHeld = true;
       pointerPressed = true;
       pointerReleased = false;
+      pointerDownAt = performance.now();
     };
     const onPointerMove = (event: PointerEvent) => { if (pointerHeld) readPointer(event); };
     const onPointerUp = (event: PointerEvent) => {
       if (event.button !== 0) return;
+      readPointer(event);
+      const quickClick = performance.now() - pointerDownAt < 240;
       pointerHeld = false;
-      pointerReleased = true;
+      if (quickClick && getSuit(props.suitId).traversal === 'spider') {
+        // A tap is a committed web grapple. Keep the exact pointer aim alive
+        // after pointer-up and keep the zip held internally until arrival.
+        pointerZipActive = true;
+        zipPressed = true;
+        zipReleased = false;
+        pointerReleased = Boolean(traversal.swing);
+      } else {
+        pointerReleased = true;
+      }
       pointerPressure = .55;
     };
     const onKeyDown = (event: KeyboardEvent) => {
@@ -1280,6 +1298,7 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(function SpiderGam
       keys.clear();
       pointerHeld = false;
       pointerReleased = true;
+      pointerZipActive = false;
       zipReleased = true;
       hoverTogglePressed = false;
       cruiseTogglePressed = false;
@@ -1373,8 +1392,9 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(function SpiderGam
       const hero = getSuit(props.suitId);
       const cameraAim = new THREE.Vector3(forward.x, Math.sin(cameraPitch) + .18, forward.z).normalize();
       const keyboardSwingHeld = hero.traversal === 'spider' && keys.has('Space') && !traversal.grounded && elapsedTime - spacePressedAt > .12;
-      const swingHeld = hero.traversal === 'spider' && (pointerHeld || keyboardSwingHeld);
-      const targetNdc = pointerHeld || pointerPressed ? pointerNdc : new THREE.Vector2(0, .08);
+      const pointerSwingHeld = pointerHeld && performance.now() - pointerDownAt >= 240;
+      const swingHeld = hero.traversal === 'spider' && (pointerSwingHeld || keyboardSwingHeld);
+      const targetNdc = pointerHeld || pointerPressed || pointerZipActive ? pointerNdc : new THREE.Vector2(0, .08);
       const needsAnchor = hero.traversal === 'spider' && (swingHeld || zipPressed || keys.has('KeyE'));
       const anchorCandidates = needsAnchor ? collectAnchorCandidates(targetNdc) : [];
 
@@ -1427,12 +1447,12 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(function SpiderGam
         aimDirection: cameraAim,
         jumpPressed: hero.traversal === 'spider' && jumpPressed,
         jumpHeld: keys.has('Space'),
-        swingPressed: hero.traversal === 'spider' && (pointerPressed || keyboardSwingHeld),
+        swingPressed: hero.traversal === 'spider' && (pointerSwingHeld || keyboardSwingHeld),
         swingHeld,
         swingReleased: hero.traversal === 'spider' && pointerReleased,
         zipPressed: hero.traversal === 'spider' && zipPressed,
-        zipHeld: hero.traversal === 'spider' && keys.has('KeyE'),
-        zipReleased: hero.traversal === 'spider' && zipReleased,
+        zipHeld: hero.traversal === 'spider' && (pointerZipActive || keys.has('KeyE')),
+        zipReleased: hero.traversal === 'spider' && zipReleased && !pointerZipActive,
         diveHeld: hero.traversal === 'spider' && keys.has('ShiftLeft'),
         wallCrawlHeld: hero.traversal === 'spider' && keys.has('KeyQ'),
         wallClimb: keys.has('KeyW') ? 1 : keys.has('KeyS') ? -1 : 0,
@@ -1467,7 +1487,13 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(function SpiderGam
           renderer.domElement.dataset.lastSwingAnchor = [anchor.x, anchor.y, anchor.z].map((value) => value.toFixed(2)).join(',');
           renderer.domElement.dataset.lastSwingSource = pointerHeld ? 'pointer' : 'space';
         }
+        if (traversalEvent.type === 'zip-started' && traversal.zip) {
+          renderer.domElement.dataset.lastGrappleTarget = [traversal.zip.target.x, traversal.zip.target.y, traversal.zip.target.z]
+            .map((value) => value.toFixed(2)).join(',');
+          renderer.domElement.dataset.lastGrappleSource = pointerZipActive ? 'click' : 'keyboard';
+        }
       }
+      if (pointerZipActive && !traversal.zip) pointerZipActive = false;
       jumpPressed = false;
       zipPressed = false;
       zipReleased = false;
@@ -1503,10 +1529,11 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(function SpiderGam
         });
       }
 
-      webLine.visible = Boolean(traversal.swing);
-      if (traversal.swing) {
+      webLine.visible = Boolean(traversal.swing || traversal.zip);
+      if (traversal.swing || traversal.zip) {
         const hand = player.position.clone().add(new THREE.Vector3(0, 1.58, 0));
-        webPositions.set([hand.x, hand.y, hand.z, traversal.swing.anchor.x, traversal.swing.anchor.y, traversal.swing.anchor.z]);
+        const webTarget = traversal.swing?.anchor ?? traversal.zip?.target;
+        if (webTarget) webPositions.set([hand.x, hand.y, hand.z, webTarget.x, webTarget.y, webTarget.z]);
         (webGeometry.getAttribute('position') as THREE.BufferAttribute).needsUpdate = true;
       }
       const speed = result.context.speed;
@@ -1558,6 +1585,7 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(function SpiderGam
         renderer.domElement.dataset.anchorTargetCount = String(anchorTargets.size + indexedColliderCount);
         renderer.domElement.dataset.ropeLength = traversal.swing?.ropeLength.toFixed(2) ?? '';
         renderer.domElement.dataset.swingTension = traversal.swing?.tension.toFixed(2) ?? '';
+        renderer.domElement.dataset.grappling = String(Boolean(pointerZipActive && traversal.zip));
         renderer.domElement.dataset.wallContact = traversal.wall ? `${traversal.wall.normal.x.toFixed(2)},${traversal.wall.normal.y.toFixed(2)},${traversal.wall.normal.z.toFixed(2)}` : '';
         hudAccumulator = 0;
       }

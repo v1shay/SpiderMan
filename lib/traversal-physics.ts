@@ -503,6 +503,13 @@ function startZip(state: TraversalState, target: WebAnchorCandidate, events: Tra
   };
   state.swing = null;
   state.perchSeconds = 0;
+  if (target.point.y > state.position.y + 1) {
+    // A ground-fired web zip needs a decisive break from the pavement. Without
+    // this launch, gravity can cancel the vertical component of a shallow aim
+    // and make a grapple look like horizontal skating.
+    state.velocity.y = Math.max(state.velocity.y, 6.5);
+    state.grounded = false;
+  }
   events.push(event('zip-started', state, { anchorId: target.id }));
 }
 
