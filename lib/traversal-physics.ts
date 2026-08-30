@@ -681,7 +681,13 @@ function applyWallTraversal(
   delta: number,
 ): void {
   const wall = state.wall;
-  if (!wall || !wall.feetTouching || !input.wallCrawlHeld || state.swing || state.zip || state.grounded) return;
+  if (!wall || !wall.feetTouching || !input.wallCrawlHeld || state.swing || state.zip) return;
+  if (state.grounded) {
+    // Q at the base of a facade should flow directly from pavement to wall
+    // traversal instead of requiring an awkward jump before the wall sticks.
+    state.grounded = false;
+    state.velocity.y = Math.max(state.velocity.y, 1.2);
+  }
   const normal = normalize(horizontal(wall.normal));
   const inwardSpeed = dot(state.velocity, normal);
   if (inwardSpeed < 0) state.velocity = subtract(state.velocity, scale(normal, inwardSpeed));
@@ -1058,6 +1064,20 @@ export function runTraversalPhysicsSelfTests(): TraversalSelfTestResult {
   checks.wallCrawlWithFeet = feetCrawl.state.mode === 'wallCrawl';
   checks.wallCrawlStopsWithoutFeet = lostFeetContact.state.mode !== 'wallCrawl';
 
+  const pavementToWallState = createTraversalState(vector(1.54, 0, 0), vector());
+  pavementToWallState.grounded = true;
+  const pavementToWallCrawl = stepTraversal(pavementToWallState, {
+    move: vector(1, 0, 0),
+    wallCrawlHeld: true,
+    wallClimb: 1,
+  }, {
+    groundY: 0,
+    wallContact: { point: vector(2, .1, 0), normal: vector(-1, 0, 0), colliderId: 'wall', feetTouching: true },
+  }, delta);
+  checks.wallCrawlTransitionsFromPavement = pavementToWallCrawl.state.mode === 'wallCrawl'
+    && !pavementToWallCrawl.state.grounded
+    && pavementToWallCrawl.state.velocity.y > 0;
+
   const incidentalWallState = createTraversalState(vector(1.54, 6, 0), vector(0, -4, -18));
   const incidentalWallContact = stepTraversal(incidentalWallState, {
     move: vector(0, 0, -1),
@@ -1081,7 +1101,7 @@ export function runTraversalPhysicsSelfTests(): TraversalSelfTestResult {
   diagnostics.pointLaunchSpeed = length(launched.state.velocity);
   checks.pointLaunch = launched.events.some((item) => item.type === 'point-launch') && launched.state.pointLaunchSeconds > 0;
 
-  checks.finite = [swingState, release.state, collisionState, rooftopState, wallJump.state, torsoOnlyCrawl.state, feetCrawl.state, lostFeetContact.state, incidentalWallContact.state, launched.state].every((state) =>
+  checks.finite = [swingState, release.state, collisionState, rooftopState, wallJump.state, torsoOnlyCrawl.state, feetCrawl.state, lostFeetContact.state, pavementToWallCrawl.state, incidentalWallContact.state, launched.state].every((state) =>
     Number.isFinite(state.position.x + state.position.y + state.position.z + state.velocity.x + state.velocity.y + state.velocity.z));
   return { passed: Object.values(checks).every(Boolean), checks, diagnostics };
 }

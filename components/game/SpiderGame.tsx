@@ -138,17 +138,70 @@ function seeded(index: number) {
 }
 
 function addSky(scene: THREE.Scene) {
+  const skyUniforms = {
+    topColor: { value: new THREE.Color('#168de2') },
+    horizonColor: { value: new THREE.Color('#bfe9ff') },
+    sunColor: { value: new THREE.Color('#fff4cf') },
+  };
   const sky = new THREE.Mesh(
     new THREE.SphereGeometry(9000, 32, 18),
     new THREE.ShaderMaterial({
       side: THREE.BackSide,
-      uniforms: { topColor: { value: new THREE.Color('#06162b') }, bottomColor: { value: new THREE.Color('#ca4053') } },
+      uniforms: skyUniforms,
       vertexShader: 'varying vec3 vWorld; void main(){ vec4 world = modelMatrix * vec4(position, 1.0); vWorld = world.xyz; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
-      fragmentShader: 'uniform vec3 topColor; uniform vec3 bottomColor; varying vec3 vWorld; void main(){ float h = normalize(vWorld + vec3(0.0, 180.0, 0.0)).y; gl_FragColor = vec4(mix(bottomColor, topColor, smoothstep(-0.14, 0.48, h)), 1.0); }',
+      fragmentShader: `
+        uniform vec3 topColor;
+        uniform vec3 horizonColor;
+        uniform vec3 sunColor;
+        varying vec3 vWorld;
+        void main(){
+          vec3 direction = normalize(vWorld);
+          float height = smoothstep(-0.08, 0.58, direction.y);
+          float sun = pow(max(0.0, dot(direction, normalize(vec3(-0.35, 0.42, -0.84)))), 180.0);
+          vec3 color = mix(horizonColor, topColor, height);
+          gl_FragColor = vec4(mix(color, sunColor, sun * 0.82), 1.0);
+        }
+      `,
     }),
   );
-  sky.name = 'NYC twilight sky';
+  sky.name = 'NYC daylight sky';
   scene.add(sky);
+
+  const cloudUniforms = { time: { value: 0 } };
+  const clouds = new THREE.Mesh(
+    new THREE.SphereGeometry(8600, 32, 18),
+    new THREE.ShaderMaterial({
+      side: THREE.BackSide,
+      transparent: true,
+      depthWrite: false,
+      uniforms: cloudUniforms,
+      vertexShader: 'varying vec3 vDirection; void main(){ vDirection = normalize(position); gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
+      fragmentShader: `
+        uniform float time;
+        varying vec3 vDirection;
+        float cloudNoise(vec2 point) {
+          float first = sin(point.x * 7.0 + sin(point.y * 5.0));
+          float second = sin(point.y * 11.0 - point.x * 3.0);
+          float third = sin((point.x + point.y) * 17.0) * 0.45;
+          return first * 0.46 + second * 0.34 + third * 0.2;
+        }
+        void main(){
+          vec2 drift = vec2(time * 0.007, time * 0.0025);
+          vec2 point = vec2(atan(vDirection.z, vDirection.x) / 6.28318, vDirection.y) + drift;
+          float broad = cloudNoise(point * vec2(2.6, 1.8));
+          float detail = cloudNoise(point * vec2(7.2, 4.4) + 1.7) * 0.32;
+          float cloud = smoothstep(0.18, 0.58, broad + detail);
+          float altitude = smoothstep(0.12, 0.3, vDirection.y) * (1.0 - smoothstep(0.78, 0.96, vDirection.y));
+          gl_FragColor = vec4(vec3(1.0, 0.985, 0.95), cloud * altitude * 0.54);
+        }
+      `,
+    }),
+  );
+  clouds.name = 'Animated NYC cloud field';
+  scene.add(clouds);
+  return {
+    update: (elapsed: number) => { cloudUniforms.time.value = elapsed; },
+  };
 }
 
 function createAsphaltTexture() {
@@ -239,6 +292,57 @@ function createFacadeTexture(variant: number) {
   return texture;
 }
 
+const landmarkSlots: readonly [number, number][] = [
+  [-196, -224], [-84, -224], [84, -224], [196, -224],
+  [-252, -96], [-140, -96], [140, -96], [252, -96],
+  [-196, 32], [-84, 32], [84, 32], [196, 32],
+  [-252, 160], [-140, 160], [0, 160], [140, 160], [252, 160],
+  [-196, 224], [-84, 224], [84, 224], [196, 224],
+] as const;
+
+function distributeLandmarks(model: THREE.Group, root: THREE.Group) {
+  const landmarks = model.children.filter((object) => {
+    let containsMesh = false;
+    object.traverse((child) => { if (child instanceof THREE.Mesh) containsMesh = true; });
+    return containsMesh;
+  });
+  model.updateWorldMatrix(true, true);
+  const ranked = landmarks
+    .map((object) => ({ object, height: new THREE.Box3().setFromObject(object).getSize(new THREE.Vector3()).y }))
+    .sort((a, b) => a.height - b.height);
+  const rank = new Map(ranked.map((entry, index) => [entry.object, index / Math.max(1, ranked.length - 1)]));
+  const boxes: THREE.Box3[] = [];
+
+  landmarks.forEach((object, index) => {
+    let box = new THREE.Box3().setFromObject(object);
+    let size = box.getSize(new THREE.Vector3());
+    const stature = rank.get(object) ?? 0;
+    const targetHeight = 62 + stature * 96 + seeded(index + 1300) * 12;
+    const targetFootprint = 20 + seeded(index + 1500) * 12;
+    const footprintScale = clamp(targetFootprint / Math.max(size.x, size.z, .1), .62, 2.15);
+    object.scale.x *= footprintScale;
+    object.scale.z *= footprintScale;
+    object.scale.y *= targetHeight / Math.max(size.y, .1);
+    object.updateWorldMatrix(true, true);
+
+    box = new THREE.Box3().setFromObject(object);
+    size = box.getSize(new THREE.Vector3());
+    const center = box.getCenter(new THREE.Vector3());
+    const slot = landmarkSlots[index % landmarkSlots.length];
+    const desired = root.localToWorld(new THREE.Vector3(slot[0], 0, slot[1]));
+    const deltaWorld = new THREE.Vector3(desired.x - center.x, desired.y - box.min.y, desired.z - center.z);
+    const inverseModel = model.matrixWorld.clone().invert();
+    const localOrigin = new THREE.Vector3().applyMatrix4(inverseModel);
+    const localDelta = deltaWorld.clone().applyMatrix4(inverseModel).sub(localOrigin);
+    object.position.add(localDelta);
+    object.updateWorldMatrix(true, true);
+    box = new THREE.Box3().setFromObject(object);
+    boxes.push(box);
+  });
+  model.updateWorldMatrix(true, true);
+  return boxes;
+}
+
 /**
  * Builds a Manhattan-style traversal district around the imported landmark.
  * The visuals, rooftop targets, and physics all share the same AABBs so there
@@ -247,17 +351,17 @@ function createFacadeTexture(variant: number) {
 function addProceduralSwingDistrict(
   root: THREE.Group,
   config: DistrictConfig,
-  landmarkBounds: THREE.Box3,
+  landmarkBounds: readonly THREE.Box3[],
 ): SwingDistrictResult {
   const extent = 560;
   const half = extent / 2;
   const cellX = 56;
   const cellZ = 64;
-  const roadX = 20;
-  const roadZ = 20;
+  const roadX = 28;
+  const roadZ = 26;
   const quaternion = new THREE.Quaternion();
   const buildings: SwingDistrictBuilding[] = [];
-  const landmarkClearance = landmarkBounds.clone().expandByScalar(13);
+  const landmarkClearance = landmarkBounds.map((bounds) => bounds.clone().expandByScalar(12));
 
   let index = 0;
   for (let gridX = -5; gridX < 5; gridX += 1) {
@@ -276,7 +380,7 @@ function addProceduralSwingDistrict(
         new THREE.Vector3(worldCenter.x + width / 2, height + .4, worldCenter.z + depth / 2),
       );
       index += 1;
-      if (collider.intersectsBox(landmarkClearance)) continue;
+      if (landmarkClearance.some((bounds) => collider.intersectsBox(bounds))) continue;
 
       const facadeMatrix = new THREE.Matrix4().compose(
         new THREE.Vector3(x, height / 2, z),
@@ -332,7 +436,7 @@ function addProceduralSwingDistrict(
   }
 
   const avenue = new THREE.Mesh(
-    new THREE.BoxGeometry(roadX, .035, extent),
+    new THREE.BoxGeometry(roadX + 8, .035, extent),
     new THREE.MeshBasicMaterial({ color: '#202b34' }),
   );
   avenue.position.y = .012;
@@ -383,9 +487,10 @@ function addLandmarkColliders(
   depth: number,
   height: number,
 ) {
-  const road = clamp(Math.min(width, depth) * .18, 18, 34);
-  const blockWidth = Math.max(8, (width - road) / 2);
-  const blockDepth = Math.max(8, (depth - road) / 2);
+  const shortSide = Math.max(4, Math.min(width, depth));
+  const road = clamp(shortSide * .18, Math.min(2, shortSide * .2), shortSide * .45);
+  const blockWidth = Math.max(2, (width - road) / 2);
+  const blockDepth = Math.max(2, (depth - road) / 2);
   const proxyMaterial = new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false });
   proxyMaterial.colorWrite = false;
   for (const xSign of [-1, 1]) {
@@ -453,6 +558,25 @@ function enforceBuildingSolidity(
   return corrected;
 }
 
+function chooseRooftopSpawn(config: DistrictConfig, colliders: readonly THREE.Box3[], bounds: THREE.Box3) {
+  const center = bounds.getCenter(new THREE.Vector3());
+  const size = bounds.getSize(new THREE.Vector3());
+  const viable = colliders.filter((collider) => {
+    const footprint = collider.getSize(new THREE.Vector3());
+    return collider.max.y > GROUND_Y + 4 && footprint.x > 1.2 && footprint.z > 1.2;
+  });
+  const central = viable.filter((collider) => {
+    const colliderCenter = collider.getCenter(new THREE.Vector3());
+    return Math.abs(colliderCenter.x - center.x) < Math.max(8, size.x * .34)
+      && Math.abs(colliderCenter.z - center.z) < Math.max(8, size.z * .34);
+  });
+  const candidates = central.length ? central : viable;
+  const rooftop = candidates.sort((a, b) => b.max.y - a.max.y)[0];
+  if (!rooftop) return districtSpawn(config);
+  const rooftopCenter = rooftop.getCenter(new THREE.Vector3());
+  return new THREE.Vector3(rooftopCenter.x, rooftop.max.y + .025, rooftopCenter.z);
+}
+
 export const SpiderGame = forwardRef<SpiderGameHandle, Props>(function SpiderGame(props, ref) {
   const mountRef = useRef<HTMLDivElement>(null);
   const travelRef = useRef<(id: DistrictId) => void>(() => undefined);
@@ -467,8 +591,8 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(function SpiderGam
     let frameId = 0;
     let ready = false;
     const scene = new THREE.Scene();
-    scene.fog = new THREE.FogExp2('#07101b', .00024);
-    addSky(scene);
+    scene.fog = new THREE.FogExp2('#9acbe3', .0002);
+    const atmosphere = addSky(scene);
     const camera = new THREE.PerspectiveCamera(66, 1, .08, 12000);
     const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.25));
@@ -499,6 +623,7 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(function SpiderGam
     const worldColliders: THREE.Box3[] = [];
     const spatialColliders = new Map<string, THREE.Box3[]>();
     const districtBounds = new Map<DistrictId, THREE.Box3>();
+    const districtRooftopSpawns = new Map<DistrictId, THREE.Vector3>();
     const walkableSurfaces = new Set<THREE.Object3D>();
     let walkableSurfaceList: THREE.Object3D[] = [];
     const districtStreams = new Map<DistrictId, DistrictStream>();
@@ -535,6 +660,8 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(function SpiderGam
       return [...result];
     };
     const safeSpawn = (district: DistrictConfig) => {
+      const rooftop = districtRooftopSpawns.get(district.id);
+      if (rooftop) return rooftop.clone();
       const desired = districtSpawn(district);
       const requiredClearance = district.spawnClearance ?? 2.5;
       const clearance = (point: THREE.Vector3) => {
@@ -600,6 +727,8 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(function SpiderGam
     traversal.mode = 'idle';
     let cameraYaw = initialDistrict.spawnYaw ?? 0;
     let cameraPitch = initialDistrict.spawnPitch ?? .08;
+    let wallCameraBlend = 0;
+    const wallCameraNormal = new THREE.Vector3(0, 0, 1);
     let avatar: AvatarRig | null = null;
     let multiplayer: SpiderMultiplayer | null = null;
     let multiplayerStatus: MultiplayerStatus = 'connecting';
@@ -626,6 +755,7 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(function SpiderGam
     let pointerReleased = false;
     let pointerDownAt = -10_000;
     let pointerZipActive = false;
+    let grappleLineUntil = -1;
     let pointerPressure = .55;
     let hoverTogglePressed = false;
     let cruiseTogglePressed = false;
@@ -926,7 +1056,13 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(function SpiderGam
         root.add(model);
         scene.add(root);
         root.updateWorldMatrix(true, true);
-        const landmarkBounds = new THREE.Box3().setFromObject(model);
+        const landmarkBoxes = config.id === 'new-york-buildings'
+          ? distributeLandmarks(model, root)
+          : [new THREE.Box3().setFromObject(model)];
+        const landmarkBounds = landmarkBoxes.reduce(
+          (combined, bounds) => combined.union(bounds),
+          new THREE.Box3().makeEmpty(),
+        );
         districtBounds.set(config.id, landmarkBounds.clone());
         model.traverse((object) => {
           if (object.userData.walkableStreetSurface) walkableSurfaces.add(object);
@@ -942,7 +1078,8 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(function SpiderGam
         const baseColliders: THREE.Box3[] = [];
         let anchorTemplate: THREE.Object3D | null = null;
         let detailedColliderCount = 0;
-        if (config.collisionData) {
+        const usesCollisionMetadata = Boolean(config.collisionData && config.id !== 'new-york-buildings');
+        if (config.collisionData && usesCollisionMetadata) {
           const response = await fetch(config.collisionData);
           if (!response.ok) throw new Error(`Collision data unavailable: ${response.status}`);
           const metadata = await response.json() as CollisionMetadata;
@@ -983,8 +1120,8 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(function SpiderGam
         model.traverse((object) => {
           if (!(object instanceof THREE.Mesh)) return;
           const positionCount = object.geometry.getAttribute('position')?.count ?? 0;
-          if (!config.collisionData && positionCount > 0 && positionCount < 180_000) anchorTargets.add(object);
-          if (config.collisionData) return;
+          if (!usesCollisionMetadata && positionCount > 0 && positionCount < 180_000) anchorTargets.add(object);
+          if (usesCollisionMetadata) return;
           if (positionCount <= 0 || positionCount >= 180_000) return;
           const meshBox = new THREE.Box3().setFromObject(object);
           const meshSize = meshBox.getSize(new THREE.Vector3());
@@ -1001,7 +1138,7 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(function SpiderGam
         const landmarkColliderCount = detailedColliderCount;
         let proceduralExtent = 0;
         if (config.id === 'new-york-buildings') {
-          const procedural = addProceduralSwingDistrict(root, config, landmarkBounds);
+          const procedural = addProceduralSwingDistrict(root, config, landmarkBoxes);
           proceduralExtent = procedural.extent;
           for (const collider of procedural.colliders) {
             addSpatialCollider(spatialColliders, collider);
@@ -1011,8 +1148,8 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(function SpiderGam
           }
 
           const proceduralAnchors = createColliderAnchorProxy(
-            procedural.colliders,
-            `${config.name} procedural facades and clickable rooftops`,
+            baseColliders,
+            `${config.name} landmark facades and clickable rooftops`,
           );
           if (anchorTemplate) {
             anchorTargets.delete(anchorTemplate);
@@ -1040,10 +1177,21 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(function SpiderGam
           proceduralExtent,
           Math.abs(Math.sin(root.rotation.y)) * size.x + Math.abs(Math.cos(root.rotation.y)) * size.z,
         );
-        if (detailedColliderCount < 4) {
+        const hasElevatedRooftop = baseColliders.some((collider) => {
+          const footprint = collider.getSize(new THREE.Vector3());
+          return collider.max.y > GROUND_Y + 4 && footprint.x > 1.2 && footprint.z > 1.2;
+        });
+        if (detailedColliderCount < 4 || !hasElevatedRooftop) {
           const beforeFallback = worldColliders.length;
           addLandmarkColliders(scene, worldColliders, anchorTargets, config, rotatedWidth, rotatedDepth, size.y);
           baseColliders.push(...worldColliders.slice(beforeFallback));
+        }
+        const finalDistrictBounds = districtBounds.get(config.id) ?? new THREE.Box3().setFromObject(root);
+        const rooftopSpawn = chooseRooftopSpawn(config, baseColliders, finalDistrictBounds);
+        districtRooftopSpawns.set(config.id, rooftopSpawn);
+        if (config.id === currentDistrict) {
+          renderer.domElement.dataset.spawnMode = 'central-rooftop';
+          renderer.domElement.dataset.rooftopSpawn = rooftopSpawn.toArray().map((value) => value.toFixed(2)).join(',');
         }
         anchorTargetList = [...anchorTargets];
         const baseWalkables = tileWalkables(root);
@@ -1061,7 +1209,7 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(function SpiderGam
           centerX: 0,
           centerZ: 0,
         });
-        updateWorldStreaming(config.id, districtSpawn(config));
+        updateWorldStreaming(config.id, rooftopSpawn);
         return root;
       })();
       districtModelPromises.set(config.model, modelPromise);
@@ -1180,7 +1328,10 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(function SpiderGam
       const localFacades = nearbyColliders(traversal.position, 180);
       for (let index = 0; index < samples.length; index += 1) {
         raycaster.setFromCamera(samples[index], camera);
-        const meshHit = raycaster.intersectObjects(anchorTargetList, true).find((item) => item.distance > 5 && item.distance < 170 && item.point.y > traversal.position.y + 3);
+        // Preserve the actual pointed-at surface for web zips, including roofs
+        // below a tallest-building spawn. Swing selection applies its own
+        // height rule later, so this does not create downward swing anchors.
+        const meshHit = raycaster.intersectObjects(anchorTargetList, true).find((item) => item.distance > 5 && item.distance < 170);
         let point = meshHit?.point;
         if (!point) {
           let nearestDistance = Infinity;
@@ -1190,7 +1341,7 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(function SpiderGam
               new THREE.Vector3(collider.max.x, collider.max.y, collider.max.z),
             );
             const collisionPoint = raycaster.ray.intersectBox(facadeBounds, new THREE.Vector3());
-            if (!collisionPoint || collisionPoint.y <= traversal.position.y + 3) continue;
+            if (!collisionPoint) continue;
             const distance = collisionPoint.distanceTo(camera.position);
             if (distance > 5 && distance < 170 && distance < nearestDistance) {
               nearestDistance = distance;
@@ -1326,6 +1477,13 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(function SpiderGam
         traversal.swing = null;
         traversal.zip = null;
         traversal.wall = null;
+        wallCameraBlend = 0;
+        camera.up.set(0, 1, 0);
+        const travelOffset = new THREE.Vector3(Math.sin(cameraYaw) * 10, 4.4, Math.cos(cameraYaw) * 10);
+        camera.position.copy(player.position).add(travelOffset);
+        camera.lookAt(player.position.clone().add(new THREE.Vector3(0, 1.4, 0)));
+        renderer.domElement.dataset.spawnMode = 'central-rooftop';
+        renderer.domElement.dataset.rooftopSpawn = player.position.toArray().map((value) => value.toFixed(2)).join(',');
         clearRemoteAvatars();
         onlinePeerCount = 0;
         if (multiplayer) void multiplayer.join(id, props.suitId);
@@ -1376,6 +1534,7 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(function SpiderGam
       const delta = Math.min(Math.max((timestamp - lastFrameTime) / 1000, 0), .034);
       lastFrameTime = timestamp;
       elapsedTime += delta;
+      atmosphere.update(elapsedTime);
       if (!ready) { renderer.render(scene, camera); return; }
       if (keys.has('ArrowLeft')) cameraYaw += 1.5 * delta;
       if (keys.has('ArrowRight')) cameraYaw -= 1.5 * delta;
@@ -1441,6 +1600,24 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(function SpiderGam
       const ironPowered = hero.traversal === 'ironman' && (ironFlightMode === 'hover' || ironFlightMode === 'cruise');
       const localGroundY = groundYAt(traversal.position);
 
+      const traversalOverrides = hero.traversal === 'ironman' ? {
+        gravity: ironPowered ? .8 : 29,
+        groundAcceleration: 40,
+        airAcceleration: ironPowered ? 30 : 10,
+        runSpeed: 11,
+        maximumSpeed: 92,
+      } : pointerZipActive ? {
+        // A click grapple is the traversal equivalent of Spider-Man's web
+        // zip: a brief, decisive pull rather than another rope-swing state.
+        zipAcceleration: 190,
+        zipDamping: 2.35,
+        zipMaximumSpeed: 88,
+        maximumSpeed: 94,
+      } : {
+        zipAcceleration: 126,
+        zipDamping: 3.6,
+        zipMaximumSpeed: 66,
+      };
       const result = stepTraversalInPlace(traversal, {
         move: wish,
         cameraForward: forward,
@@ -1463,13 +1640,7 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(function SpiderGam
         colliders: activeColliders,
         anchorCandidates,
         zipTargets: anchorCandidates,
-      }, delta, hero.traversal === 'ironman' ? {
-        gravity: ironPowered ? .8 : 29,
-        groundAcceleration: 40,
-        airAcceleration: ironPowered ? 30 : 10,
-        runSpeed: 11,
-        maximumSpeed: 92,
-      } : undefined);
+      }, delta, traversalOverrides);
 
       if (enforceBuildingSolidity(traversal.position, traversal.velocity, activeColliders)) {
         buildingCorrectionCount += 1;
@@ -1488,6 +1659,7 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(function SpiderGam
           renderer.domElement.dataset.lastSwingSource = pointerHeld ? 'pointer' : 'space';
         }
         if (traversalEvent.type === 'zip-started' && traversal.zip) {
+          grappleLineUntil = elapsedTime + (pointerZipActive ? .16 : .28);
           renderer.domElement.dataset.lastGrappleTarget = [traversal.zip.target.x, traversal.zip.target.y, traversal.zip.target.z]
             .map((value) => value.toFixed(2)).join(',');
           renderer.domElement.dataset.lastGrappleSource = pointerZipActive ? 'click' : 'keyboard';
@@ -1529,8 +1701,9 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(function SpiderGam
         });
       }
 
-      webLine.visible = Boolean(traversal.swing || traversal.zip);
-      if (traversal.swing || traversal.zip) {
+      const grappleLineVisible = Boolean(traversal.zip && elapsedTime < grappleLineUntil);
+      webLine.visible = Boolean(traversal.swing || grappleLineVisible);
+      if (traversal.swing || grappleLineVisible) {
         const hand = player.position.clone().add(new THREE.Vector3(0, 1.58, 0));
         const webTarget = traversal.swing?.anchor ?? traversal.zip?.target;
         if (webTarget) webPositions.set([hand.x, hand.y, hand.z, webTarget.x, webTarget.y, webTarget.z]);
@@ -1539,6 +1712,24 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(function SpiderGam
       const speed = result.context.speed;
       const distance = result.context.camera.followDistance;
       const horizontalDistance = Math.cos(cameraPitch) * distance;
+      const wallNormal = result.context.wallNormal
+        ? new THREE.Vector3(result.context.wallNormal.x, result.context.wallNormal.y, result.context.wallNormal.z).normalize()
+        : null;
+      let wallTopClearance = Infinity;
+      if (wallNormal) {
+        for (const collider of activeColliders) {
+          const nearX = player.position.x > collider.min.x - .75 && player.position.x < collider.max.x + .75;
+          const nearZ = player.position.z > collider.min.z - .75 && player.position.z < collider.max.z + .75;
+          if (!nearX || !nearZ || player.position.y < collider.min.y - .2 || player.position.y > collider.max.y + .2) continue;
+          wallTopClearance = Math.min(wallTopClearance, collider.max.y - player.position.y);
+        }
+      }
+      const wallCameraRequested = traversal.mode === 'wallCrawl'
+        && keys.has('KeyQ')
+        && Boolean(wallNormal)
+        && wallTopClearance > 2.2;
+      wallCameraBlend = damp(wallCameraBlend, wallCameraRequested ? 1 : 0, wallCameraRequested ? 5.5 : 11, delta);
+      if (wallNormal) wallCameraNormal.lerp(wallNormal, 1 - Math.exp(-10 * delta)).normalize();
       const target = player.position.clone().add(new THREE.Vector3(
         result.context.camera.lookAhead.x * .28,
         1.35 + result.context.camera.lookAhead.y * .16,
@@ -1550,11 +1741,20 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(function SpiderGam
         result.context.camera.heightOffset + Math.sin(cameraPitch) * distance + Math.sin(elapsedTime * 27) * shake * .45,
         Math.cos(cameraYaw) * horizontalDistance,
       ));
+      if (wallCameraBlend > .001) {
+        const wallTarget = player.position.clone().add(new THREE.Vector3(0, 4.2, 0));
+        const wallDesired = player.position.clone()
+          .addScaledVector(wallCameraNormal, 2.4)
+          .add(new THREE.Vector3(0, -5.4, 0));
+        target.lerp(wallTarget, wallCameraBlend);
+        desired.lerp(wallDesired, wallCameraBlend);
+      }
       cameraAgainstWorld(target, desired, activeColliders);
       camera.position.lerp(desired, 1 - Math.exp(-8 * delta));
       camera.fov = damp(camera.fov, result.context.camera.fov, 7, delta);
       camera.updateProjectionMatrix();
-      camera.up.set(Math.sin(result.context.camera.roll), Math.cos(result.context.camera.roll), 0).normalize();
+      const chaseUp = new THREE.Vector3(Math.sin(result.context.camera.roll), Math.cos(result.context.camera.roll), 0).normalize();
+      camera.up.copy(chaseUp).lerp(wallCameraNormal, wallCameraBlend).normalize();
       camera.lookAt(target);
       sun.position.set(player.position.x - 180, player.position.y + 360, player.position.z + 170);
 
@@ -1586,7 +1786,10 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(function SpiderGam
         renderer.domElement.dataset.ropeLength = traversal.swing?.ropeLength.toFixed(2) ?? '';
         renderer.domElement.dataset.swingTension = traversal.swing?.tension.toFixed(2) ?? '';
         renderer.domElement.dataset.grappling = String(Boolean(pointerZipActive && traversal.zip));
+        renderer.domElement.dataset.grappleLineVisible = String(grappleLineVisible);
         renderer.domElement.dataset.wallContact = traversal.wall ? `${traversal.wall.normal.x.toFixed(2)},${traversal.wall.normal.y.toFixed(2)},${traversal.wall.normal.z.toFixed(2)}` : '';
+        renderer.domElement.dataset.wallCameraBlend = wallCameraBlend.toFixed(2);
+        renderer.domElement.dataset.wallTopClearance = Number.isFinite(wallTopClearance) ? wallTopClearance.toFixed(2) : '';
         hudAccumulator = 0;
       }
       renderer.render(scene, camera);
@@ -1606,6 +1809,10 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(function SpiderGam
         setTraversalKinematics(traversal, player.position, player.velocity);
         traversal.grounded = true;
         traversal.mode = 'idle';
+        const setupOffset = new THREE.Vector3(Math.sin(cameraYaw) * 10, 4.4, Math.cos(cameraYaw) * 10);
+        camera.position.copy(player.position).add(setupOffset);
+        camera.up.set(0, 1, 0);
+        camera.lookAt(player.position.clone().add(new THREE.Vector3(0, 1.4, 0)));
         ready = true;
         connectMultiplayer();
         callbacksRef.current.onDistrictChange(initialDistrict.id);
