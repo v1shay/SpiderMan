@@ -5,6 +5,7 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.js';
 import { getDistrict, getSuit, type DistrictConfig, type DistrictId, type SuitId } from '@/lib/game-config';
+import { SpiderMultiplayer, type MultiplayerStatus, type NetworkPlayerState } from '@/lib/multiplayer';
 import {
   createTraversalState,
   runTraversalPhysicsSelfTests,
@@ -26,6 +27,7 @@ type Props = {
   onHud: (hud: GameHud) => void;
   onLoadedDistricts: (districts: Set<DistrictId>) => void;
   onDistrictChange: (district: DistrictId) => void;
+  onOnlineCount: (count: number, status: MultiplayerStatus) => void;
 };
 
 type AvatarRig = {
@@ -46,6 +48,44 @@ type CollisionMetadata = {
 };
 
 type IronFlightMode = 'grounded' | 'freefall' | 'hover' | 'cruise';
+
+type RemoteAvatar = {
+  root: THREE.Group;
+  bones: RigBone[];
+  targetPosition: THREE.Vector3;
+  targetYaw: number;
+  mode: string;
+  suitId: SuitId;
+  lastSequence: number;
+  lastUpdate: number;
+};
+
+type StreamedTile = {
+  root: THREE.Group;
+  anchorProxy: THREE.InstancedMesh | null;
+  walkables: THREE.Object3D[];
+  x: number;
+  z: number;
+};
+
+type DistrictStream = {
+  template: THREE.Group;
+  anchorTemplate: THREE.InstancedMesh | null;
+  baseColliders: THREE.Box3[];
+  tileWidth: number;
+  tileDepth: number;
+  tiles: Map<string, StreamedTile>;
+  centerX: number;
+  centerZ: number;
+};
+
+const networkPose = (mode: string): ProceduralPose => mode === 'swing' ? 'swing'
+  : mode === 'webZip' || mode === 'pointLaunch' ? 'zip'
+    : mode === 'wallRun' ? 'wall'
+      : mode === 'wallCrawl' ? 'crawl'
+        : mode === 'dive' ? 'dive'
+          : mode === 'run' ? 'run'
+            : mode === 'idle' || mode === 'land' || mode === 'perch' ? 'idle' : 'jump';
 
 const GROUND_Y = .12;
 const COLLIDER_CELL_SIZE = 48;
@@ -152,6 +192,7 @@ function addAuthoredMapFloor(root: THREE.Group, width: number, depth: number, na
   floor.position.y = -.16;
   floor.receiveShadow = true;
   floor.name = `${name} solid gameplay floor`;
+  floor.userData.walkableStreetSurface = true;
   root.add(floor);
   return floor;
 }
@@ -159,7 +200,7 @@ function addAuthoredMapFloor(root: THREE.Group, width: number, depth: number, na
 function addLandmarkColliders(
   scene: THREE.Scene,
   colliders: THREE.Box3[],
-  anchors: THREE.Object3D[],
+  anchors: Set<THREE.Object3D>,
   config: DistrictConfig,
   width: number,
   depth: number,
@@ -183,7 +224,7 @@ function addLandmarkColliders(
       proxy.position.set(x, Math.max(12, height) / 2, z);
       proxy.name = `${config.name} building collision`;
       scene.add(proxy);
-      anchors.push(proxy);
+      anchors.add(proxy);
     }
   }
 }
@@ -278,20 +319,22 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(function SpiderGam
     const worldColliders: THREE.Box3[] = [];
     const spatialColliders = new Map<string, THREE.Box3[]>();
     const districtBounds = new Map<DistrictId, THREE.Box3>();
-    const walkableSurfaces: THREE.Object3D[] = [];
+    const walkableSurfaces = new Set<THREE.Object3D>();
+    let walkableSurfaceList: THREE.Object3D[] = [];
+    const districtStreams = new Map<DistrictId, DistrictStream>();
     const groundHeightCache = new Map<string, number>();
     const groundRaycaster = new THREE.Raycaster();
     const groundRayOrigin = new THREE.Vector3();
     const groundRayDirection = new THREE.Vector3(0, -1, 0);
     const groundYAt = (position: { x: number; y: number; z: number }) => {
-      if (!walkableSurfaces.length) return GROUND_Y;
+      if (!walkableSurfaceList.length) return GROUND_Y;
       const cacheKey = `${Math.round(position.x * 2)}:${Math.round(position.z * 2)}`;
       const cached = groundHeightCache.get(cacheKey);
       if (cached !== undefined) return cached;
       groundRayOrigin.set(position.x, GROUND_Y + 4, position.z);
       groundRaycaster.set(groundRayOrigin, groundRayDirection);
       groundRaycaster.far = 8;
-      const surface = groundRaycaster.intersectObjects(walkableSurfaces, false)[0];
+      const surface = groundRaycaster.intersectObjects(walkableSurfaceList, false)[0];
       const groundY = surface ? Math.max(GROUND_Y, surface.point.y + GROUND_Y) : GROUND_Y;
       if (groundHeightCache.size > 8000) groundHeightCache.clear();
       groundHeightCache.set(cacheKey, groundY);
@@ -361,7 +404,8 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(function SpiderGam
       best.y = groundYAt(best);
       return best;
     };
-    const anchorTargets: THREE.Object3D[] = [];
+    const anchorTargets = new Set<THREE.Object3D>();
+    let anchorTargetList: THREE.Object3D[] = [];
     const loadedDistricts = new Set<DistrictId>();
     const districtPromises = new Map<DistrictId, Promise<THREE.Group>>();
     const districtModelPromises = new Map<string, Promise<THREE.Group>>();
@@ -377,6 +421,14 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(function SpiderGam
     let cameraYaw = initialDistrict.spawnYaw ?? 0;
     let cameraPitch = initialDistrict.spawnPitch ?? .08;
     let avatar: AvatarRig | null = null;
+    let multiplayer: SpiderMultiplayer | null = null;
+    let multiplayerStatus: MultiplayerStatus = 'connecting';
+    let onlinePeerCount = 0;
+    let networkSequence = 0;
+    let lastNetworkBroadcast = -1;
+    const remoteAvatars = new Map<string, RemoteAvatar>();
+    const remoteStates = new Map<string, NetworkPlayerState>();
+    const remoteLoads = new Map<string, Promise<void>>();
     let currentDistrict: DistrictId = props.districtId;
     let hudAccumulator = 0;
     let fpsAccumulator = 0;
@@ -426,6 +478,218 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(function SpiderGam
         if (report) callbacksRef.current.onStatus(`Streaming ${label}`, start + (end - start) * clamp(ratio, 0, 1));
       }, reject);
     });
+
+    const removeRemoteAvatar = (playerId: string) => {
+      const remote = remoteAvatars.get(playerId);
+      if (!remote) return;
+      scene.remove(remote.root);
+      remote.root.traverse((object) => {
+        if (!(object instanceof THREE.Mesh)) return;
+        object.geometry.dispose();
+        const materials = Array.isArray(object.material) ? object.material : [object.material];
+        materials.forEach((material) => material.dispose());
+      });
+      remoteAvatars.delete(playerId);
+    };
+
+    const clearRemoteAvatars = () => {
+      for (const playerId of remoteAvatars.keys()) removeRemoteAvatar(playerId);
+      remoteStates.clear();
+    };
+
+    const ensureRemoteAvatar = (state: NetworkPlayerState) => {
+      const existingState = remoteStates.get(state.playerId);
+      if (existingState && state.sequence <= existingState.sequence) return;
+      remoteStates.set(state.playerId, state);
+      const existing = remoteAvatars.get(state.playerId);
+      if (existing && existing.suitId === state.suitId) {
+        existing.targetPosition.fromArray(state.position);
+        existing.targetYaw = state.yaw;
+        existing.mode = state.mode;
+        existing.lastSequence = state.sequence;
+        existing.lastUpdate = performance.now();
+        return;
+      }
+      if (existing) removeRemoteAvatar(state.playerId);
+      if (remoteLoads.has(state.playerId)) return;
+
+      const promise = (async () => {
+        const suit = getSuit(state.suitId);
+        const gltf = await loadModel<{ scene: THREE.Group }>(suit.model, `${suit.name} network avatar`, 0, 0, false);
+        if (disposed) return;
+        const latest = remoteStates.get(state.playerId);
+        if (!latest || latest.suitId !== suit.id || latest.districtId !== currentDistrict) return;
+        prepareMaterials(gltf.scene, renderer, 'character');
+        normalizeSuit(gltf.scene, suit, 2.05);
+        const root = new THREE.Group();
+        root.name = `Network player: ${state.playerId}`;
+        root.add(gltf.scene);
+        root.position.fromArray(latest.position);
+        root.rotation.y = latest.yaw;
+
+        const marker = new THREE.Mesh(
+          new THREE.RingGeometry(.72, .82, 32),
+          new THREE.MeshBasicMaterial({ color: '#44e5ff', transparent: true, opacity: .72, side: THREE.DoubleSide }),
+        );
+        marker.rotation.x = -Math.PI / 2;
+        marker.position.y = .025;
+        marker.name = 'Network player marker';
+        root.add(marker);
+        scene.add(root);
+        remoteAvatars.set(state.playerId, {
+          root,
+          bones: collectRigBones(gltf.scene),
+          targetPosition: new THREE.Vector3().fromArray(latest.position),
+          targetYaw: latest.yaw,
+          mode: latest.mode,
+          suitId: latest.suitId,
+          lastSequence: latest.sequence,
+          lastUpdate: performance.now(),
+        });
+      })().catch((error) => console.info('[multiplayer] remote avatar unavailable', error)).finally(() => {
+        remoteLoads.delete(state.playerId);
+      });
+      remoteLoads.set(state.playerId, promise);
+    };
+
+    const updateRemoteAvatars = (delta: number) => {
+      const now = performance.now();
+      for (const [playerId, remote] of remoteAvatars) {
+        if (now - remote.lastUpdate > 5_000) {
+          removeRemoteAvatar(playerId);
+          continue;
+        }
+        remote.root.position.lerp(remote.targetPosition, 1 - Math.exp(-12 * delta));
+        remote.root.rotation.y = damp(remote.root.rotation.y, remote.targetYaw, 12, delta);
+        animateRigBones(remote.bones, networkPose(remote.mode), elapsedTime, delta, getSuit(remote.suitId).rigPreset);
+      }
+    };
+
+    const reportMultiplayer = () => {
+      callbacksRef.current.onOnlineCount(multiplayerStatus === 'online' ? onlinePeerCount + 1 : 1, multiplayerStatus);
+      renderer.domElement.dataset.multiplayerStatus = multiplayerStatus;
+      renderer.domElement.dataset.onlinePlayers = String(multiplayerStatus === 'online' ? onlinePeerCount + 1 : 1);
+    };
+
+    const connectMultiplayer = () => {
+      multiplayer = SpiderMultiplayer.create(props.suitId, currentDistrict, {
+        onPlayerState: ensureRemoteAvatar,
+        onPeers: (peerIds) => {
+          onlinePeerCount = peerIds.size;
+          for (const playerId of remoteAvatars.keys()) {
+            if (!peerIds.has(playerId)) removeRemoteAvatar(playerId);
+          }
+          reportMultiplayer();
+        },
+        onStatus: (status) => {
+          multiplayerStatus = status;
+          reportMultiplayer();
+        },
+      });
+      reportMultiplayer();
+      if (multiplayer) void multiplayer.join(currentDistrict, props.suitId);
+    };
+
+    const tileKey = (x: number, z: number) => `${x}:${z}`;
+    const tileWalkables = (root: THREE.Object3D) => {
+      const result: THREE.Object3D[] = [];
+      root.traverse((object) => {
+        if (object.userData.walkableStreetSurface) result.push(object);
+      });
+      return result;
+    };
+
+    const rebuildStreamedCollision = (stream: DistrictStream) => {
+      spatialColliders.clear();
+      worldColliders.length = 0;
+      indexedColliderCount = 0;
+      const offset = new THREE.Vector3();
+      for (const tile of stream.tiles.values()) {
+        offset.set(tile.x * stream.tileWidth, 0, tile.z * stream.tileDepth);
+        for (const base of stream.baseColliders) {
+          const collider = base.clone().translate(offset);
+          addSpatialCollider(spatialColliders, collider);
+          indexedColliderCount += 1;
+        }
+      }
+      groundHeightCache.clear();
+    };
+
+    const mountStreamedTile = (stream: DistrictStream, x: number, z: number) => {
+      const key = tileKey(x, z);
+      if (stream.tiles.has(key)) return;
+      const isOrigin = x === 0 && z === 0;
+      const root = isOrigin ? stream.template : stream.template.clone(true);
+      root.position.set(
+        stream.template.position.x + x * stream.tileWidth,
+        stream.template.position.y,
+        stream.template.position.z + z * stream.tileDepth,
+      );
+      scene.add(root);
+
+      const anchorProxy = stream.anchorTemplate
+        ? (isOrigin ? stream.anchorTemplate : stream.anchorTemplate.clone())
+        : null;
+      if (anchorProxy) {
+        anchorProxy.position.set(x * stream.tileWidth, 0, z * stream.tileDepth);
+        scene.add(anchorProxy);
+        anchorTargets.add(anchorProxy);
+        anchorTargetList = [...anchorTargets];
+      }
+
+      const walkables = tileWalkables(root);
+      for (const surface of walkables) walkableSurfaces.add(surface);
+      walkableSurfaceList = [...walkableSurfaces];
+      stream.tiles.set(key, { root, anchorProxy, walkables, x, z });
+    };
+
+    const unmountStreamedTile = (stream: DistrictStream, tile: StreamedTile) => {
+      scene.remove(tile.root);
+      for (const surface of tile.walkables) walkableSurfaces.delete(surface);
+      if (tile.anchorProxy) {
+        scene.remove(tile.anchorProxy);
+        anchorTargets.delete(tile.anchorProxy);
+        anchorTargetList = [...anchorTargets];
+      }
+      stream.tiles.delete(tileKey(tile.x, tile.z));
+      walkableSurfaceList = [...walkableSurfaces];
+    };
+
+    const updateWorldStreaming = (district: DistrictId, position: THREE.Vector3) => {
+      const stream = districtStreams.get(district);
+      if (!stream) return;
+      const config = getDistrict(district);
+      const centerX = Math.round((position.x - config.position[0]) / stream.tileWidth);
+      const centerZ = Math.round((position.z - config.position[2]) / stream.tileDepth);
+      const desired = new Set<string>();
+      for (let x = centerX - 1; x <= centerX + 1; x += 1) {
+        for (let z = centerZ - 1; z <= centerZ + 1; z += 1) desired.add(tileKey(x, z));
+      }
+
+      let changed = false;
+      for (const tile of Array.from(stream.tiles.values())) {
+        if (desired.has(tileKey(tile.x, tile.z))) continue;
+        unmountStreamedTile(stream, tile);
+        changed = true;
+      }
+
+      // Add only two shared-geometry tiles per frame. This spreads scene-graph
+      // work across frames while still completing the 3x3 safety ring almost
+      // immediately after a boundary crossing.
+      let mounted = 0;
+      for (const key of desired) {
+        if (stream.tiles.has(key) || mounted >= 2) continue;
+        const [x, z] = key.split(':').map(Number);
+        mountStreamedTile(stream, x, z);
+        mounted += 1;
+        changed = true;
+      }
+      if (changed) rebuildStreamedCollision(stream);
+      stream.centerX = centerX;
+      stream.centerZ = centerZ;
+      renderer.domElement.dataset.streamCenter = `${centerX}:${centerZ}`;
+      renderer.domElement.dataset.streamedTileCount = String(stream.tiles.size);
+    };
 
     const loadDistrict = (config: DistrictConfig, report = true) => {
       const existing = districtPromises.get(config.id);
@@ -478,9 +742,12 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(function SpiderGam
         root.updateWorldMatrix(true, true);
         districtBounds.set(config.id, new THREE.Box3().setFromObject(model));
         model.traverse((object) => {
-          if (object.userData.walkableStreetSurface) walkableSurfaces.push(object);
+          if (object.userData.walkableStreetSurface) walkableSurfaces.add(object);
         });
-        addAuthoredMapFloor(root, size.x, size.z, config.name);
+        walkableSurfaces.add(addAuthoredMapFloor(root, size.x, size.z, config.name));
+        walkableSurfaceList = [...walkableSurfaces];
+        const baseColliders: THREE.Box3[] = [];
+        let anchorTemplate: THREE.InstancedMesh | null = null;
         let detailedColliderCount = 0;
         if (config.collisionData) {
           const response = await fetch(config.collisionData);
@@ -503,6 +770,7 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(function SpiderGam
             // causes the repeated correction/sticking failure seen on imports.
             if (collider.max.y <= GROUND_Y + .75) continue;
             addSpatialCollider(spatialColliders, collider);
+            baseColliders.push(collider);
             collider.getCenter(center);
             collider.getSize(colliderSize);
             matrix.compose(center, new THREE.Quaternion(), colliderSize);
@@ -515,12 +783,14 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(function SpiderGam
           proxy.instanceMatrix.needsUpdate = true;
           proxy.frustumCulled = false;
           scene.add(proxy);
-          anchorTargets.push(proxy);
+          anchorTargets.add(proxy);
+          anchorTargetList = [...anchorTargets];
+          anchorTemplate = proxy;
         }
         model.traverse((object) => {
           if (!(object instanceof THREE.Mesh)) return;
           const positionCount = object.geometry.getAttribute('position')?.count ?? 0;
-          if (!config.collisionData && positionCount > 0 && positionCount < 180_000) anchorTargets.push(object);
+          if (!config.collisionData && positionCount > 0 && positionCount < 180_000) anchorTargets.add(object);
           if (config.collisionData) return;
           if (positionCount <= 0 || positionCount >= 180_000) return;
           const meshBox = new THREE.Box3().setFromObject(object);
@@ -532,13 +802,33 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(function SpiderGam
             && meshSize.z < config.targetWidth * .72;
           if (!isSolidBuildingPart) return;
           worldColliders.push(meshBox);
+          baseColliders.push(meshBox);
           detailedColliderCount += 1;
         });
         const rotatedWidth = Math.abs(Math.cos(root.rotation.y)) * size.x + Math.abs(Math.sin(root.rotation.y)) * size.z;
         const rotatedDepth = Math.abs(Math.sin(root.rotation.y)) * size.x + Math.abs(Math.cos(root.rotation.y)) * size.z;
         if (detailedColliderCount < 4) {
+          const beforeFallback = worldColliders.length;
           addLandmarkColliders(scene, worldColliders, anchorTargets, config, rotatedWidth, rotatedDepth, size.y);
+          baseColliders.push(...worldColliders.slice(beforeFallback));
         }
+        anchorTargetList = [...anchorTargets];
+        const baseWalkables = tileWalkables(root);
+        districtStreams.set(config.id, {
+          template: root,
+          anchorTemplate,
+          baseColliders,
+          // Leave a narrow street-width seam between repeated imports. Several
+          // source scans have facade collision right on their bounds; abutting
+          // those bounds exactly makes the expanded player capsule overlap two
+          // tiles at once. The authored floor overhang bridges this seam.
+          tileWidth: Math.max(8, rotatedWidth + 8),
+          tileDepth: Math.max(8, rotatedDepth + 8),
+          tiles: new Map([[tileKey(0, 0), { root, anchorProxy: anchorTemplate, walkables: baseWalkables, x: 0, z: 0 }]]),
+          centerX: 0,
+          centerZ: 0,
+        });
+        updateWorldStreaming(config.id, districtSpawn(config));
         return root;
       })();
       districtModelPromises.set(config.model, modelPromise);
@@ -657,7 +947,7 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(function SpiderGam
       const localFacades = nearbyColliders(traversal.position, 180);
       for (let index = 0; index < samples.length; index += 1) {
         raycaster.setFromCamera(samples[index], camera);
-        const meshHit = raycaster.intersectObjects(anchorTargets, true).find((item) => item.distance > 5 && item.distance < 170 && item.point.y > traversal.position.y + 3);
+        const meshHit = raycaster.intersectObjects(anchorTargetList, true).find((item) => item.distance > 5 && item.distance < 170 && item.point.y > traversal.position.y + 3);
         let point = meshHit?.point;
         if (!point) {
           let nearestDistance = Infinity;
@@ -735,6 +1025,20 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(function SpiderGam
       if (event.code === 'KeyE' && firstPress) { zipPressed = true; zipReleased = false; }
       if (event.code === 'KeyF' && firstPress) hoverTogglePressed = true;
       if (event.code === 'KeyE' && firstPress) cruiseTogglePressed = true;
+      if (process.env.NODE_ENV !== 'production' && event.code === 'KeyT' && firstPress) {
+        const stream = districtStreams.get(currentDistrict);
+        if (stream) {
+          // Jump to the same verified street spawn in the neighboring tile.
+          // This exercises a partition crossing without teleporting into an
+          // arbitrary facade.
+          const home = safeSpawn(getDistrict(currentDistrict));
+          const nextTileX = Math.round((player.position.x - home.x) / stream.tileWidth) + 1;
+          player.position.set(home.x + nextTileX * stream.tileWidth, home.y, home.z);
+          player.velocity.set(0, 0, 0);
+          setTraversalKinematics(traversal, player.position, player.velocity);
+          renderer.domElement.dataset.streamDebugJump = 'completed';
+        }
+      }
     };
     const onKeyUp = (event: KeyboardEvent) => {
       keys.delete(event.code);
@@ -771,6 +1075,9 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(function SpiderGam
         traversal.swing = null;
         traversal.zip = null;
         traversal.wall = null;
+        clearRemoteAvatars();
+        onlinePeerCount = 0;
+        if (multiplayer) void multiplayer.join(id, props.suitId);
         callbacksRef.current.onDistrictChange(id);
         callbacksRef.current.onStatus(`${district.name} ready`, 100);
       }).catch(() => undefined);
@@ -877,6 +1184,7 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(function SpiderGam
         }
       }
 
+      updateWorldStreaming(currentDistrict, player.position);
       const activeColliders = nearbyColliders(player.position, Math.max(42, player.velocity.length() * .12));
       const ironPowered = hero.traversal === 'ironman' && (ironFlightMode === 'hover' || ironFlightMode === 'cruise');
       const localGroundY = groundYAt(traversal.position);
@@ -936,13 +1244,7 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(function SpiderGam
       hoverTogglePressed = false;
       cruiseTogglePressed = false;
 
-      const activeDistrict = getDistrict(currentDistrict);
-      const worldRadius = activeDistrict.targetWidth * .62;
-      const outsideWorld = Math.hypot(
-        player.position.x - activeDistrict.position[0],
-        player.position.z - activeDistrict.position[2],
-      ) > worldRadius;
-      if (player.position.y < -20 || outsideWorld) {
+      if (player.position.y < -20) {
         const home = getDistrict(currentDistrict);
         player.position.copy(safeSpawn(home));
         player.velocity.set(0, 0, 0);
@@ -955,6 +1257,19 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(function SpiderGam
         traversal.wall = null;
       }
       updateAvatar(delta, elapsedTime, result.context);
+      updateRemoteAvatars(delta);
+      if (multiplayer && elapsedTime - lastNetworkBroadcast >= .125) {
+        lastNetworkBroadcast = elapsedTime;
+        multiplayer.publish({
+          suitId: props.suitId,
+          position: [player.position.x, player.position.y, player.position.z],
+          velocity: [player.velocity.x, player.velocity.y, player.velocity.z],
+          yaw: player.facing,
+          mode: result.context.animation.state,
+          sequence: ++networkSequence,
+          sentAt: Date.now(),
+        });
+      }
 
       webLine.visible = Boolean(traversal.swing);
       if (traversal.swing) {
@@ -1005,10 +1320,10 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(function SpiderGam
         renderer.domElement.dataset.playerPosition = [player.position.x, player.position.y, player.position.z].map((value) => value.toFixed(2)).join(',');
         renderer.domElement.dataset.grounded = String(player.grounded);
         renderer.domElement.dataset.groundY = groundY.toFixed(3);
-        renderer.domElement.dataset.walkableSurfaceCount = String(walkableSurfaces.length);
+        renderer.domElement.dataset.walkableSurfaceCount = String(walkableSurfaces.size);
         renderer.domElement.dataset.traversalMode = traversal.mode;
         renderer.domElement.dataset.colliderCount = String(worldColliders.length + indexedColliderCount);
-        renderer.domElement.dataset.anchorTargetCount = String(anchorTargets.length + indexedColliderCount);
+        renderer.domElement.dataset.anchorTargetCount = String(anchorTargets.size + indexedColliderCount);
         renderer.domElement.dataset.ropeLength = traversal.swing?.ropeLength.toFixed(2) ?? '';
         renderer.domElement.dataset.swingTension = traversal.swing?.tension.toFixed(2) ?? '';
         renderer.domElement.dataset.wallContact = traversal.wall ? `${traversal.wall.normal.x.toFixed(2)},${traversal.wall.normal.y.toFixed(2)},${traversal.wall.normal.z.toFixed(2)}` : '';
@@ -1032,6 +1347,7 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(function SpiderGam
         traversal.grounded = true;
         traversal.mode = 'idle';
         ready = true;
+        connectMultiplayer();
         callbacksRef.current.onDistrictChange(initialDistrict.id);
         callbacksRef.current.onStatus(`${initialDistrict.name} route online`, 100);
         callbacksRef.current.onReady();
@@ -1054,6 +1370,8 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(function SpiderGam
       window.removeEventListener('keydown', onKeyDown);
       window.removeEventListener('keyup', onKeyUp);
       window.removeEventListener('blur', clearKeys);
+      void multiplayer?.dispose();
+      clearRemoteAvatars();
       scene.traverse((object) => {
         if (!(object instanceof THREE.Mesh)) return;
         object.geometry.dispose();

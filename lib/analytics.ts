@@ -1,20 +1,18 @@
-import { createClient } from '@supabase/supabase-js';
+import { getSupabaseBrowserClient } from '@/lib/supabase-browser';
 
 let sent = false;
 
 export async function trackVisit() {
   if (sent || typeof window === 'undefined') return;
   sent = true;
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const publishableKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
-  if (!url || !publishableKey) return;
+  const supabase = getSupabaseBrowserClient();
+  if (!supabase) return;
 
   try {
     const storageKey = 'nyc-spider-session';
     const existing = window.sessionStorage.getItem(storageKey);
     const sessionId = existing ?? crypto.randomUUID();
     if (!existing) window.sessionStorage.setItem(storageKey, sessionId);
-    const supabase = createClient(url, publishableKey, { auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false } });
     const { error } = await supabase.from('site_visits').insert({
       session_id: sessionId,
       path: window.location.pathname,

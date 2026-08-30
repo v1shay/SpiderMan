@@ -1,6 +1,6 @@
 import { sites } from '@openai/sites-vite-plugin';
 import vinext from 'vinext';
-import { defineConfig } from 'vite';
+import { defineConfig, type PluginOption } from 'vite';
 import hostingConfig from './.openai/hosting.json' with { type: 'json' };
 
 const SITE_CREATOR_PLACEHOLDER_DATABASE_ID =
@@ -40,20 +40,25 @@ export default defineConfig(async () => {
   process.env.WRANGLER_LOG_PATH ??= '.wrangler/logs';
   process.env.MINIFLARE_REGISTRY_PATH ??= '.wrangler/registry';
 
-  // Wrangler snapshots its log path while the Cloudflare plugin is imported.
-  const { cloudflare } = await import('@cloudflare/vite-plugin');
+  const plugins: PluginOption[] = [vinext(), sites()];
+  if (process.env.VERCEL === '1') {
+    // Vinext emits Cloudflare Worker output by default in this project. Nitro
+    // translates the RSC/SSR environments into Vercel Build Output API files.
+    const { nitro } = await import('nitro/vite');
+    plugins.push(nitro());
+  } else {
+    // Wrangler snapshots its log path while the Cloudflare plugin is imported.
+    const { cloudflare } = await import('@cloudflare/vite-plugin');
+    plugins.push(cloudflare({
+      viteEnvironment: { name: 'rsc', childEnvironments: ['ssr'] },
+      config: localBindingConfig,
+    }));
+  }
 
   return {
     server: isCodexSeatbeltSandbox
       ? { watch: { useFsEvents: false, usePolling: true } }
       : undefined,
-    plugins: [
-      vinext(),
-      sites(),
-      cloudflare({
-        viteEnvironment: { name: 'rsc', childEnvironments: ['ssr'] },
-        config: localBindingConfig,
-      }),
-    ],
+    plugins,
   };
 });

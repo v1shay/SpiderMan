@@ -6,6 +6,7 @@ import type { GameHud } from '@/components/game/SpiderGame';
 import { SpideyTracker } from '@/components/game/SpideyTracker';
 import SuitShowroom from '@/components/game/SuitShowroom';
 import { DISTRICTS, SUITS, type DistrictId, type SuitId } from '@/lib/game-config';
+import type { MultiplayerStatus } from '@/lib/multiplayer';
 
 const SpiderGame = lazy(() => import('@/components/game/SpiderGame'));
 
@@ -21,6 +22,7 @@ export default function Home() {
   const [loadedDistricts, setLoadedDistricts] = useState<Set<DistrictId>>(() => new Set());
   const [currentDistrict, setCurrentDistrict] = useState<DistrictId>('new-york-city');
   const [hud, setHud] = useState<GameHud>({ speed: 0, altitude: 0, fps: 60, swinging: false });
+  const [online, setOnline] = useState<{ count: number; status: MultiplayerStatus }>({ count: 1, status: 'connecting' });
   const [, setShowroomStatus] = useState({ message: 'Opening warehouse', progress: 0 });
   const activeSuit = SUITS.find((suit) => suit.id === selected) ?? SUITS[0];
   const activeDistrict = DISTRICTS.find((district) => district.id === currentDistrict) ?? DISTRICTS[0];
@@ -106,6 +108,7 @@ export default function Home() {
           onHud={setHud}
           onLoadedDistricts={setLoadedDistricts}
           onDistrictChange={setCurrentDistrict}
+          onOnlineCount={(count, networkStatus) => setOnline({ count, status: networkStatus })}
         />
       </Suspense>
 
@@ -124,7 +127,10 @@ export default function Home() {
           <header className="game-topbar">
             <div className="game-brand"><strong>{activeSuit.traversal === 'ironman' ? 'Iron Man' : 'SpiderMan'}</strong></div>
             <div className="district-readout"><Navigation aria-hidden="true" /><span><small>Current sector</small><strong>{activeDistrict.name}</strong></span></div>
-            <div className={`stream-state ${status.includes('Streaming') || status.includes('Opening') ? 'busy' : ''}`}><Radio aria-hidden="true" /><span>{status}</span></div>
+            <div className={`stream-state ${online.status === 'online' ? '' : 'busy'}`}>
+              <Radio aria-hidden="true" />
+              <span>{online.status === 'online' ? `${online.count} ${online.count === 1 ? 'player' : 'players'} online` : online.status === 'error' ? 'Multiplayer reconnecting' : 'Connecting players'}</span>
+            </div>
           </header>
 
           <aside className="telemetry" aria-label="Traversal telemetry">
