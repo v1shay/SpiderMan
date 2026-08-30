@@ -62,7 +62,7 @@ type RemoteAvatar = {
 
 type StreamedTile = {
   root: THREE.Group;
-  anchorProxy: THREE.InstancedMesh | null;
+  anchorProxy: THREE.Object3D | null;
   walkables: THREE.Object3D[];
   x: number;
   z: number;
@@ -70,7 +70,7 @@ type StreamedTile = {
 
 type DistrictStream = {
   template: THREE.Group;
-  anchorTemplate: THREE.InstancedMesh | null;
+  anchorTemplate: THREE.Object3D | null;
   baseColliders: THREE.Box3[];
   tileWidth: number;
   tileDepth: number;
@@ -184,6 +184,183 @@ function createAsphaltTexture() {
   return texture;
 }
 
+type SwingDistrictBuilding = {
+  collider: THREE.Box3;
+  facadeMatrix: THREE.Matrix4;
+  roofMatrix: THREE.Matrix4;
+  variant: number;
+};
+
+type SwingDistrictResult = {
+  colliders: THREE.Box3[];
+  extent: number;
+  buildingCount: number;
+};
+
+function createFacadeTexture(variant: number) {
+  const palettes = [
+    { wall: '#172a3d', mortar: '#29445b', dark: '#07111d', light: '#a9e5ff' },
+    { wall: '#403431', mortar: '#685149', dark: '#130e0d', light: '#ffd08e' },
+    { wall: '#202b33', mortar: '#53636c', dark: '#091014', light: '#d8f4ff' },
+    { wall: '#26314b', mortar: '#3d4f75', dark: '#080d1d', light: '#88cfff' },
+  ][variant % 4];
+  const canvas = document.createElement('canvas');
+  canvas.width = 256;
+  canvas.height = 512;
+  const context = canvas.getContext('2d');
+  if (context) {
+    context.fillStyle = palettes.wall;
+    context.fillRect(0, 0, canvas.width, canvas.height);
+    for (let floor = 0; floor < 18; floor += 1) {
+      for (let column = 0; column < 7; column += 1) {
+        const x = 10 + column * 35;
+        const y = 8 + floor * 28;
+        const lit = seeded(variant * 1000 + floor * 19 + column * 7) > .68;
+        context.fillStyle = lit ? palettes.light : palettes.dark;
+        context.fillRect(x, y, 20, 16);
+        context.fillStyle = lit ? 'rgba(255,255,255,.24)' : 'rgba(95,170,205,.09)';
+        context.fillRect(x + 2, y + 2, 3, 12);
+      }
+    }
+    context.strokeStyle = palettes.mortar;
+    context.lineWidth = 3;
+    for (let floor = 0; floor <= 18; floor += 1) {
+      const y = floor * 28;
+      context.beginPath();
+      context.moveTo(0, y);
+      context.lineTo(256, y);
+      context.stroke();
+    }
+  }
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
+  texture.anisotropy = 4;
+  return texture;
+}
+
+/**
+ * Builds a Manhattan-style traversal district around the imported landmark.
+ * The visuals, rooftop targets, and physics all share the same AABBs so there
+ * is no decorative facade that Spider-Man can pass through.
+ */
+function addProceduralSwingDistrict(
+  root: THREE.Group,
+  config: DistrictConfig,
+  landmarkBounds: THREE.Box3,
+): SwingDistrictResult {
+  const extent = 560;
+  const half = extent / 2;
+  const cellX = 56;
+  const cellZ = 64;
+  const roadX = 20;
+  const roadZ = 20;
+  const quaternion = new THREE.Quaternion();
+  const buildings: SwingDistrictBuilding[] = [];
+  const landmarkClearance = landmarkBounds.clone().expandByScalar(13);
+
+  let index = 0;
+  for (let gridX = -5; gridX < 5; gridX += 1) {
+    for (let gridZ = -4; gridZ < 4; gridZ += 1) {
+      const x = (gridX + .5) * cellX;
+      const z = (gridZ + .5) * cellZ;
+      const width = cellX - roadX - 2 - seeded(index + 20) * 5;
+      const depth = cellZ - roadZ - 2 - seeded(index + 40) * 6;
+      const skylineBand = 1 - Math.min(1, Math.hypot(x, z) / half);
+      const height = 34 + seeded(index + 60) * 50 + skylineBand * 34;
+      const worldCenter = new THREE.Vector3(x, height / 2, z)
+        .applyAxisAngle(new THREE.Vector3(0, 1, 0), config.rotation ?? 0)
+        .add(new THREE.Vector3(...config.position));
+      const collider = new THREE.Box3(
+        new THREE.Vector3(worldCenter.x - width / 2, 0, worldCenter.z - depth / 2),
+        new THREE.Vector3(worldCenter.x + width / 2, height + .4, worldCenter.z + depth / 2),
+      );
+      index += 1;
+      if (collider.intersectsBox(landmarkClearance)) continue;
+
+      const facadeMatrix = new THREE.Matrix4().compose(
+        new THREE.Vector3(x, height / 2, z),
+        quaternion,
+        new THREE.Vector3(width, height, depth),
+      );
+      const roofMatrix = new THREE.Matrix4().compose(
+        new THREE.Vector3(x, height + .2, z),
+        quaternion,
+        new THREE.Vector3(width + .35, .4, depth + .35),
+      );
+      buildings.push({ collider, facadeMatrix, roofMatrix, variant: Math.floor(seeded(index + 800) * 4) });
+    }
+  }
+
+  const district = new THREE.Group();
+  district.name = 'Collision-safe Manhattan swing grid';
+  const facadeGeometry = new THREE.BoxGeometry(1, 1, 1);
+  const roofGeometry = new THREE.BoxGeometry(1, 1, 1);
+  for (let variant = 0; variant < 4; variant += 1) {
+    const variantBuildings = buildings.filter((building) => building.variant === variant);
+    if (!variantBuildings.length) continue;
+    const facade = new THREE.InstancedMesh(
+      facadeGeometry,
+      new THREE.MeshStandardMaterial({
+        map: createFacadeTexture(variant),
+        color: '#ffffff',
+        roughness: .78,
+        metalness: .05,
+      }),
+      variantBuildings.length,
+    );
+    const roof = new THREE.InstancedMesh(
+      roofGeometry,
+      new THREE.MeshStandardMaterial({
+        color: ['#243542', '#4b403b', '#38444a', '#303c58'][variant],
+        roughness: .9,
+        metalness: .03,
+      }),
+      variantBuildings.length,
+    );
+    variantBuildings.forEach((building, instance) => {
+      facade.setMatrixAt(instance, building.facadeMatrix);
+      roof.setMatrixAt(instance, building.roofMatrix);
+    });
+    facade.instanceMatrix.needsUpdate = true;
+    roof.instanceMatrix.needsUpdate = true;
+    facade.name = `Swing tower facades ${variant + 1}`;
+    roof.name = `Clickable rooftop caps ${variant + 1}`;
+    facade.receiveShadow = true;
+    roof.receiveShadow = true;
+    district.add(facade, roof);
+  }
+
+  const avenue = new THREE.Mesh(
+    new THREE.BoxGeometry(roadX, .035, extent),
+    new THREE.MeshBasicMaterial({ color: '#202b34' }),
+  );
+  avenue.position.y = .012;
+  avenue.name = 'Central swing avenue';
+  district.add(avenue);
+  root.add(district);
+  return { colliders: buildings.map((building) => building.collider), extent, buildingCount: buildings.length };
+}
+
+function createColliderAnchorProxy(colliders: readonly THREE.Box3[], name: string) {
+  const proxyMaterial = new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false });
+  proxyMaterial.colorWrite = false;
+  const proxy = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 1), proxyMaterial, colliders.length);
+  proxy.name = name;
+  const matrix = new THREE.Matrix4();
+  const center = new THREE.Vector3();
+  const size = new THREE.Vector3();
+  colliders.forEach((collider, index) => {
+    collider.getCenter(center);
+    collider.getSize(size);
+    matrix.compose(center, new THREE.Quaternion(), size);
+    proxy.setMatrixAt(index, matrix);
+  });
+  proxy.instanceMatrix.needsUpdate = true;
+  proxy.frustumCulled = false;
+  return proxy;
+}
+
 function addAuthoredMapFloor(root: THREE.Group, width: number, depth: number, name: string) {
   const floor = new THREE.Mesh(
     new THREE.BoxGeometry(width + 12, .28, depth + 12),
@@ -254,6 +431,9 @@ function enforceBuildingSolidity(
   let corrected = false;
   for (const collider of colliders) {
     if (position.y > collider.max.y + 1.7 || position.y + 1.8 < collider.min.y) continue;
+    // The traversal solver deliberately lands on collider tops. Do not run the
+    // horizontal penetration fallback against a player standing on a rooftop.
+    if (position.y >= collider.max.y - .08) continue;
     const minX = collider.min.x - radius;
     const maxX = collider.max.x + radius;
     const minZ = collider.min.z - radius;
@@ -744,14 +924,21 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(function SpiderGam
         root.add(model);
         scene.add(root);
         root.updateWorldMatrix(true, true);
-        districtBounds.set(config.id, new THREE.Box3().setFromObject(model));
+        const landmarkBounds = new THREE.Box3().setFromObject(model);
+        districtBounds.set(config.id, landmarkBounds.clone());
         model.traverse((object) => {
           if (object.userData.walkableStreetSurface) walkableSurfaces.add(object);
         });
-        walkableSurfaces.add(addAuthoredMapFloor(root, size.x, size.z, config.name));
+        const authoredFloorExtent = config.id === 'new-york-buildings' ? 560 : 0;
+        walkableSurfaces.add(addAuthoredMapFloor(
+          root,
+          Math.max(size.x, authoredFloorExtent),
+          Math.max(size.z, authoredFloorExtent),
+          config.name,
+        ));
         walkableSurfaceList = [...walkableSurfaces];
         const baseColliders: THREE.Box3[] = [];
-        let anchorTemplate: THREE.InstancedMesh | null = null;
+        let anchorTemplate: THREE.Object3D | null = null;
         let detailedColliderCount = 0;
         if (config.collisionData) {
           const response = await fetch(config.collisionData);
@@ -809,8 +996,48 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(function SpiderGam
           baseColliders.push(meshBox);
           detailedColliderCount += 1;
         });
-        const rotatedWidth = Math.abs(Math.cos(root.rotation.y)) * size.x + Math.abs(Math.sin(root.rotation.y)) * size.z;
-        const rotatedDepth = Math.abs(Math.sin(root.rotation.y)) * size.x + Math.abs(Math.cos(root.rotation.y)) * size.z;
+        const landmarkColliderCount = detailedColliderCount;
+        let proceduralExtent = 0;
+        if (config.id === 'new-york-buildings') {
+          const procedural = addProceduralSwingDistrict(root, config, landmarkBounds);
+          proceduralExtent = procedural.extent;
+          for (const collider of procedural.colliders) {
+            addSpatialCollider(spatialColliders, collider);
+            baseColliders.push(collider);
+            indexedColliderCount += 1;
+            detailedColliderCount += 1;
+          }
+
+          const proceduralAnchors = createColliderAnchorProxy(
+            procedural.colliders,
+            `${config.name} procedural facades and clickable rooftops`,
+          );
+          if (anchorTemplate) {
+            anchorTargets.delete(anchorTemplate);
+            const combinedAnchors = new THREE.Group();
+            combinedAnchors.name = `${config.name} complete web anchor field`;
+            combinedAnchors.add(anchorTemplate, proceduralAnchors);
+            scene.add(combinedAnchors);
+            anchorTargets.add(combinedAnchors);
+            anchorTemplate = combinedAnchors;
+          } else {
+            scene.add(proceduralAnchors);
+            anchorTargets.add(proceduralAnchors);
+            anchorTemplate = proceduralAnchors;
+          }
+          renderer.domElement.dataset.proceduralBuildingCount = String(procedural.buildingCount);
+          renderer.domElement.dataset.clickableRooftopCount = String(procedural.buildingCount);
+          renderer.domElement.dataset.landmarkColliderCount = String(landmarkColliderCount);
+        }
+        districtBounds.set(config.id, new THREE.Box3().setFromObject(root));
+        const rotatedWidth = Math.max(
+          proceduralExtent,
+          Math.abs(Math.cos(root.rotation.y)) * size.x + Math.abs(Math.sin(root.rotation.y)) * size.z,
+        );
+        const rotatedDepth = Math.max(
+          proceduralExtent,
+          Math.abs(Math.sin(root.rotation.y)) * size.x + Math.abs(Math.cos(root.rotation.y)) * size.z,
+        );
         if (detailedColliderCount < 4) {
           const beforeFallback = worldColliders.length;
           addLandmarkColliders(scene, worldColliders, anchorTargets, config, rotatedWidth, rotatedDepth, size.y);
@@ -991,10 +1218,11 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(function SpiderGam
           }
         }
         if (!point) continue;
+        const hitIsRoof = Boolean(meshHit?.face && meshHit.face.normal.y > .65);
         candidates.push({
           id: meshHit ? `${meshHit.object.uuid}:${meshHit.instanceId ?? 'mesh'}` : `facade:${point.x.toFixed(1)}:${point.z.toFixed(1)}`,
           point: { x: point.x, y: point.y, z: point.z },
-          kind: point.y > traversal.position.y + 20 ? 'facade' : 'ledge',
+          kind: hitIsRoof ? 'roof' : point.y > traversal.position.y + 20 ? 'facade' : 'ledge',
           lineOfSight: true,
           weight: index === 0 ? 1.2 : .86,
         });

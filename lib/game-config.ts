@@ -61,9 +61,10 @@ export const DISTRICTS: readonly DistrictConfig[] = [
     position: [0, 0, 0], spawn: [0, 0], targetWidth: 360, sourceGroundY: 0, rotation: 0, accent: 'red', map: [47, 52],
   },
   {
-    id: 'new-york-buildings', name: 'New York Buildings', subtitle: 'Skyline District',
+    id: 'new-york-buildings', name: 'New York Buildings', subtitle: 'Landmark Swing District',
     model: '/assets/districts/new-york-buildings.glb', collisionData: '/assets/districts/new-york-buildings-collisions.json',
-    position: [0, 0, 0], spawn: [0, 0], targetWidth: 280, sourceGroundY: 0.0045, rotation: 0, accent: 'blue', map: [56, 50],
+    position: [0, 0, 0], spawn: [0, -205], targetWidth: 280, sourceGroundY: 0.0045, rotation: 0,
+    spawnYaw: Math.PI, spawnClearance: 5, accent: 'blue', map: [56, 50],
   },
   {
     id: 'street-city', name: 'Street City', subtitle: 'Tower Blocks',

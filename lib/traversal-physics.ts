@@ -400,8 +400,10 @@ export function selectTraversalAnchor(
     const alignment = dot(aim, direction);
     const heightBenefit = saturate(offset.y / 28);
     const rangeBenefit = 1 - Math.abs(range - 34) / config.anchorMaximumDistance;
-    const facadeBenefit = candidate.kind === 'facade' || candidate.kind === 'ledge' ? 0.14 : 0;
-    const score = (alignment * 2.8 + heightBenefit * 0.58 + rangeBenefit * 0.35 + facadeBenefit)
+    const surfaceBenefit = candidate.kind === 'facade' || candidate.kind === 'ledge'
+      ? 0.14
+      : candidate.kind === 'roof' || candidate.kind === 'perch' ? 0.12 : 0;
+    const score = (alignment * 2.8 + heightBenefit * 0.58 + rangeBenefit * 0.35 + surfaceBenefit)
       * Math.max(0.05, candidate.weight ?? 1);
     if (score > bestScore) {
       winner = candidate;
@@ -1005,6 +1007,14 @@ export function runTraversalPhysicsSelfTests(): TraversalSelfTestResult {
   checks.noWallBounceOrTunnel = collisionState.position.x <= wallBox.min.x - DEFAULT_TRAVERSAL_CONFIG.playerRadius + 0.001
     && collisionState.velocity.x >= -EPSILON;
 
+  let rooftopState = createTraversalState(vector(0, 16, 0), vector(2, -18, 1));
+  const rooftopBox: TraversalAabb = { id: 'rooftop', min: vector(-5, 0, -5), max: vector(5, 10, 5) };
+  for (let index = 0; index < 90; index += 1) {
+    rooftopState = stepTraversal(rooftopState, {}, { groundY: 0, colliders: [rooftopBox] }, delta).state;
+  }
+  diagnostics.rooftopLandingY = rooftopState.position.y;
+  checks.solidClickableRooftop = rooftopState.grounded && Math.abs(rooftopState.position.y - rooftopBox.max.y) < .001;
+
   const wallJumpState = createTraversalState(vector(1.54, 3, 0), vector());
   const wallJump = stepTraversal(wallJumpState, {
     jumpPressed: true,
@@ -1064,7 +1074,7 @@ export function runTraversalPhysicsSelfTests(): TraversalSelfTestResult {
   diagnostics.pointLaunchSpeed = length(launched.state.velocity);
   checks.pointLaunch = launched.events.some((item) => item.type === 'point-launch') && launched.state.pointLaunchSeconds > 0;
 
-  checks.finite = [swingState, release.state, collisionState, wallJump.state, torsoOnlyCrawl.state, feetCrawl.state, lostFeetContact.state, incidentalWallContact.state, launched.state].every((state) =>
+  checks.finite = [swingState, release.state, collisionState, rooftopState, wallJump.state, torsoOnlyCrawl.state, feetCrawl.state, lostFeetContact.state, incidentalWallContact.state, launched.state].every((state) =>
     Number.isFinite(state.position.x + state.position.y + state.position.z + state.velocity.x + state.velocity.y + state.velocity.z));
   return { passed: Object.values(checks).every(Boolean), checks, diagnostics };
 }
