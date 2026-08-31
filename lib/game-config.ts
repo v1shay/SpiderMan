@@ -1,4 +1,14 @@
-export type SuitId = 'advanced' | 'classic' | 'miles' | 'miguel' | 'ps4' | 'symbiote' | 'ironman';
+export type SuitId =
+  | 'tobey'
+  | 'spider-rigged'
+  | 'miles'
+  | 'miguel'
+  | 'pavitr'
+  | 'playstation'
+  | 'symbiote'
+  | 'iron-spider'
+  | 'spider-woman'
+  | 'ironman';
 
 export type SuitConfig = {
   id: SuitId;
@@ -7,23 +17,42 @@ export type SuitConfig = {
   model: string;
   /** Rotation that makes the imported model face Three.js -Z. */
   modelYaw: number;
+  /** Optional full exporter correction, applied to the non-animated model root. */
+  modelRotation?: [number, number, number];
   /** Corrects exporters whose skinned bind-pose bounds disagree with rendered bounds. */
   visualScale?: number;
   /** Corrects exporter-local skinned pivots after bounds normalization. */
   visualOffsetX?: number;
+  /** Corrects animation-space foot height after bounds normalization. */
+  visualOffsetY?: number;
   /** Rest-pose correction used when an asset ships in a rigid T-pose. */
   rigPreset?: 't-pose';
+  /** A rigged traversal library used only to fill missing authored states. */
+  animationSource?: string;
+  /** Removes an exporter-authored static duplicate of the skinned character. */
+  discardRigidMeshes?: boolean;
+  /** Measure the human silhouette instead of exporter props/appendages. */
+  normalizationMesh?: string;
+  normalizationExcludeBones?: string;
+  hiddenMeshes?: readonly string[];
+  unlockSwings?: number;
   traversal: 'spider' | 'ironman';
 };
 
+const traversalLibrary = '/assets/suits/spider-rigged.glb';
+
 export const SUITS: readonly SuitConfig[] = [
-  { id: 'advanced', name: 'Advanced', universe: 'Earth-616', model: '/assets/suits/advanced.glb', modelYaw: Math.PI, traversal: 'spider' },
-  { id: 'classic', name: 'Classic', universe: 'Amazing Era', model: '/assets/suits/classic.glb', modelYaw: Math.PI, traversal: 'spider' },
-  { id: 'miles', name: 'Miles Morales', universe: 'Earth-1610', model: '/assets/suits/miles.glb', modelYaw: Math.PI, traversal: 'spider' },
-  { id: 'miguel', name: 'Spider-Man 2099', universe: 'Nueva York', model: '/assets/suits/miguel-2099.glb', modelYaw: Math.PI, traversal: 'spider' },
-  { id: 'ps4', name: 'PS4 Suit', universe: 'Insomniac', model: '/assets/suits/ps4.glb', modelYaw: Math.PI * .5, rigPreset: 't-pose', traversal: 'spider' },
+  { id: 'tobey', name: 'Tobey Maguire', universe: 'Raimi Trilogy', model: '/assets/suits/tobey.glb', modelYaw: Math.PI, animationSource: traversalLibrary, traversal: 'spider' },
+  { id: 'spider-rigged', name: 'Spider-Man', universe: 'Classic Rigged', model: traversalLibrary, modelYaw: Math.PI, traversal: 'spider' },
+  { id: 'miles', name: 'Miles Morales', universe: 'Earth-1610', model: '/assets/suits/miles.glb', modelYaw: Math.PI, animationSource: traversalLibrary, discardRigidMeshes: true, traversal: 'spider' },
+  { id: 'miguel', name: 'Spider-Man 2099', universe: 'Nueva York', model: '/assets/suits/miguel-2099.glb', modelYaw: Math.PI, animationSource: traversalLibrary, traversal: 'spider' },
+  // Pavitr must use his own animation pack, never the shared retargeted library.
+  { id: 'pavitr', name: 'Pavitr Prabhakar', universe: 'Mumbattan', model: '/assets/suits/pavitr.glb', modelYaw: Math.PI, traversal: 'spider' },
+  { id: 'playstation', name: 'PlayStation Spider-Man', universe: 'Insomniac', model: '/assets/suits/playstation.glb', modelYaw: Math.PI, animationSource: traversalLibrary, traversal: 'spider' },
   { id: 'symbiote', name: 'Symbiote', universe: 'Black Suit', model: '/assets/suits/symbiote.glb', modelYaw: Math.PI, traversal: 'spider' },
-  { id: 'ironman', name: 'Iron Man', universe: 'Mark 85', model: '/assets/suits/ironman.glb', modelYaw: Math.PI, traversal: 'ironman' },
+  { id: 'iron-spider', name: 'Iron Spider', universe: 'Armored Suit', model: '/assets/suits/iron-spider.glb', modelYaw: Math.PI, normalizationMesh: 'Object_6', normalizationExcludeBones: 'bone180|shengzi', hiddenMeshes: ['Object_8', 'Object_9', 'Object_10'], animationSource: traversalLibrary, traversal: 'spider' },
+  { id: 'spider-woman', name: 'Spider-Woman', universe: 'Spider-Verse', model: '/assets/suits/spider-woman.glb', modelYaw: Math.PI, animationSource: traversalLibrary, unlockSwings: 50, traversal: 'spider' },
+  { id: 'ironman', name: 'Iron Man', universe: 'Ultimate Alliance', model: '/assets/suits/ironman-mua.glb', modelYaw: Math.PI / 2, traversal: 'ironman' },
 ] as const;
 
 export type DistrictId =

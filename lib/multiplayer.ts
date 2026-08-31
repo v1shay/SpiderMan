@@ -1,7 +1,7 @@
 'use client';
 
 import type { RealtimeChannel, SupabaseClient } from '@supabase/supabase-js';
-import type { DistrictId, SuitId } from '@/lib/game-config';
+import { SUITS as SUIT_CONFIGS, type DistrictId, type SuitId } from '@/lib/game-config';
 import { getSupabaseBrowserClient } from '@/lib/supabase-browser';
 
 export type MultiplayerStatus = 'disabled' | 'connecting' | 'online' | 'error';
@@ -24,7 +24,7 @@ type Handlers = {
   onStatus: (status: MultiplayerStatus) => void;
 };
 
-const SUITS = new Set<SuitId>(['advanced', 'classic', 'miles', 'miguel', 'ps4', 'symbiote', 'ironman']);
+const VALID_SUITS = new Set<SuitId>(SUIT_CONFIGS.map((suit) => suit.id));
 const DISTRICTS = new Set<DistrictId>(['new-york-city', 'new-york-buildings', 'street-city', 'city-night', 'backstreet']);
 const finiteTuple = (value: unknown): value is [number, number, number] => Array.isArray(value)
   && value.length === 3
@@ -36,7 +36,7 @@ function validState(value: unknown): value is NetworkPlayerState {
   return typeof state.playerId === 'string'
     && state.playerId.length >= 8
     && state.playerId.length <= 80
-    && SUITS.has(state.suitId as SuitId)
+    && VALID_SUITS.has(state.suitId as SuitId)
     && DISTRICTS.has(state.districtId as DistrictId)
     && finiteTuple(state.position)
     && finiteTuple(state.velocity)

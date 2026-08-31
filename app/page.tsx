@@ -7,13 +7,14 @@ import { SpideyTracker } from '@/components/game/SpideyTracker';
 import SuitShowroom from '@/components/game/SuitShowroom';
 import { DISTRICTS, SUITS, type DistrictId, type SuitId } from '@/lib/game-config';
 import type { MultiplayerStatus } from '@/lib/multiplayer';
+import { addSwingAttachment, emptyProgress, isSuitUnlocked, progressionEventName, readProgress, type PlayerProgress } from '@/lib/progression';
 
 const SpiderGame = lazy(() => import('@/components/game/SpiderGame'));
 
 type Phase = 'select' | 'loading' | 'game';
 
 export default function Home() {
-  const [selected, setSelected] = useState<SuitId>('advanced');
+  const [selected, setSelected] = useState<SuitId>('tobey');
   const [selectedMap, setSelectedMap] = useState<DistrictId>('new-york-city');
   const [phase, setPhase] = useState<Phase>('select');
   const [status, setStatus] = useState('Waiting for suit selection');
@@ -24,10 +25,16 @@ export default function Home() {
   const [hud, setHud] = useState<GameHud>({ speed: 0, altitude: 0, fps: 60, swinging: false });
   const [online, setOnline] = useState<{ count: number; status: MultiplayerStatus }>({ count: 1, status: 'connecting' });
   const [, setShowroomStatus] = useState({ message: 'Opening warehouse', progress: 0 });
+  const [playerProgress, setPlayerProgress] = useState<PlayerProgress>(() => typeof window === 'undefined' ? emptyProgress() : readProgress());
   const activeSuit = SUITS.find((suit) => suit.id === selected) ?? SUITS[0];
   const activeDistrict = DISTRICTS.find((district) => district.id === currentDistrict) ?? DISTRICTS[0];
 
   useEffect(() => { void import('@/lib/analytics').then(({ trackVisit }) => trackVisit()); }, []);
+  useEffect(() => {
+    const onProgress = (event: Event) => setPlayerProgress((event as CustomEvent<PlayerProgress>).detail);
+    window.addEventListener(progressionEventName, onProgress);
+    return () => window.removeEventListener(progressionEventName, onProgress);
+  }, []);
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
       if ((event.code === 'Escape' || event.code === 'KeyM') && phase === 'game') setTrackerOpen((open) => !open);
@@ -37,6 +44,7 @@ export default function Home() {
   }, [phase]);
 
   const enterCity = () => {
+    if (!isSuitUnlocked(activeSuit, playerProgress)) return;
     setLoadedDistricts(new Set());
     setCurrentDistrict(selectedMap);
     setStatus(`Preparing ${activeSuit.name} for ${DISTRICTS.find((item) => item.id === selectedMap)?.name ?? 'New York'}`);
@@ -59,7 +67,11 @@ export default function Home() {
       <main className="launch-screen">
         <SuitShowroom
           selected={selected}
-          onSelect={setSelected}
+          progress={playerProgress}
+          onSelect={(id) => {
+            const suit = SUITS.find((item) => item.id === id);
+            if (suit && isSuitUnlocked(suit, playerProgress)) setSelected(id);
+          }}
           onStatus={(message, nextProgress) => setShowroomStatus({ message, progress: Math.round(nextProgress) })}
         />
         <div className="warehouse-vignette" aria-hidden="true" />
@@ -109,6 +121,7 @@ export default function Home() {
           onLoadedDistricts={setLoadedDistricts}
           onDistrictChange={setCurrentDistrict}
           onOnlineCount={(count, networkStatus) => setOnline({ count, status: networkStatus })}
+          onSwingAttached={() => setPlayerProgress(addSwingAttachment())}
         />
       </Suspense>
 
@@ -118,7 +131,7 @@ export default function Home() {
           <div className="loading-logo"><strong>SpiderMan</strong></div>
           <div className="loading-progress"><span style={{ width: `${progress}%` }} /></div>
           <div className="loading-readout"><span>{status}</span><strong>{progress}%</strong></div>
-          <p>Loading the full-scale city and verified street checkpoints</p>
+          <p>Loading city meshes and checking rooftop contact</p>
         </section>
       )}
 
@@ -146,11 +159,11 @@ export default function Home() {
             <div><kbd>WASD</kbd><span>Move</span></div>
             <div><kbd>↑ ↓ ← →</kbd><span>Look</span></div>
             <div><kbd>Space</kbd><span>{activeSuit.traversal === 'ironman' ? 'Repulsor ascent' : 'Jump / swing'}</span></div>
-            <div><kbd>Click</kbd><span>{activeSuit.traversal === 'ironman' ? 'Toggle cruise' : 'Web / zip'}</span></div>
+            <div><kbd>Click</kbd><span>{activeSuit.traversal === 'ironman' ? 'Tap cruise / hold boost' : 'Web / zip'}</span></div>
             <div><kbd>E</kbd><span>{activeSuit.traversal === 'ironman' ? 'Toggle cruise' : 'Zip / point launch'}</span></div>
             {activeSuit.traversal === 'ironman' && <div><kbd>F</kbd><span>Hover / free fall</span></div>}
             <div><kbd>Shift</kbd><span>{activeSuit.traversal === 'ironman' ? 'Descend' : 'Dive'}</span></div>
-            {activeSuit.traversal === 'spider' && <div><kbd>Q</kbd><span>Wall crawl</span></div>}
+            {activeSuit.traversal === 'spider' && <div><kbd>Q</kbd><span>Toggle crawl · Jump to detach</span></div>}
             <div><kbd>M</kbd><span>Maps</span></div>
             <Rotate3d aria-hidden="true" />
           </aside>

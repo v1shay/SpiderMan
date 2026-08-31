@@ -33,9 +33,17 @@ button:focus-visible { outline: 3px solid var(--cyan); outline-offset: 4px; }
 .showroom-mount, .showroom-canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
 .showroom-canvas { display: block; }
 .showroom-labels { position: absolute; z-index: 4; inset: 0; overflow: hidden; pointer-events: none; }
-.showroom-suit-label { position: absolute; padding: 0; color: rgba(224, 244, 255, .78); border: 0; background: none; cursor: pointer; pointer-events: auto; transform: translate(-50%, -115%); text-transform: uppercase; white-space: nowrap; font-size: clamp(8px, .78vw, 12px); letter-spacing: .1em; text-shadow: 0 2px 4px #000, 0 0 12px #031019; transition: color .16s ease, transform .16s ease, text-shadow .16s ease; }
+.showroom-suit-label { position: absolute; max-width: 92px; padding: 0; color: rgba(224, 244, 255, .78); border: 0; background: none; cursor: pointer; pointer-events: auto; transform: translate(-50%, -115%); text-align: center; text-transform: uppercase; white-space: normal; font-size: clamp(7px, .6vw, 10px); line-height: 1.05; letter-spacing: .06em; text-shadow: 0 2px 4px #000, 0 0 12px #031019; transition: color .16s ease, transform .16s ease, text-shadow .16s ease; }
 .showroom-suit-label:hover, .showroom-suit-label.is-hovered { color: var(--cyan); transform: translate(-50%, -130%) scale(1.06); text-shadow: 0 2px 4px #000, 0 0 14px rgba(71, 223, 255, .75); }
 .showroom-suit-label.is-selected { color: white; transform: translate(-50%, -135%) scale(1.1); text-shadow: 0 2px 4px #000, 0 0 16px var(--red); }
+.showroom-suit-label.is-locked { color: #ff8d9b; cursor: not-allowed; text-shadow: 0 2px 4px #000, 0 0 14px rgba(255, 48, 73, .68); }
+.showroom-suit-label:disabled { opacity: 1; }
+.showroom-swing-progress { position: absolute; display: grid; width: clamp(64px, 6vw, 92px); gap: 4px; color: #d4f7ff; pointer-events: none; transform: translate(-50%, 3px); text-align: center; text-transform: uppercase; font-size: clamp(7px, .6vw, 9px); letter-spacing: .05em; text-shadow: 0 2px 4px #000; }
+.showroom-swing-progress[hidden] { display: none; }
+.showroom-swing-progress progress { appearance: none; display: block; width: 100%; height: 5px; overflow: hidden; border: 1px solid #416270; border-radius: 4px; background: #08151e; }
+.showroom-swing-progress progress::-webkit-progress-bar { background: #08151e; }
+.showroom-swing-progress progress::-webkit-progress-value { border-radius: 4px; background: linear-gradient(90deg, var(--red), var(--cyan)); }
+.showroom-swing-progress progress::-moz-progress-bar { border-radius: 4px; background: linear-gradient(90deg, var(--red), var(--cyan)); }
 .warehouse-vignette { position: absolute; z-index: 1; inset: 0; pointer-events: none; background: linear-gradient(180deg, rgba(2,4,7,.78), transparent 21%, transparent 64%, rgba(2,4,7,.88) 100%), radial-gradient(circle at center, transparent 25%, rgba(0,0,0,.52) 100%); }
 
 .launch-header { position: relative; z-index: 5; display: flex; align-items: flex-start; justify-content: space-between; gap: 24px; pointer-events: none; }
