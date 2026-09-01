@@ -244,10 +244,21 @@ test('W climbs upright without sideways drift and D strafes only when requested'
   for (let i = 0; i < 60; i++) state = stepTraversal(state, { move: v(1, 0, 0), wallClimb: 1 }, crawlEnvironment, 1 / 60).state;
   close(state.position.z, 0, 1e-8);
   assert.ok(outside(state, wall));
+  assert.ok(state.position.y > 11, `crawl should cover more than 7m in its first second, got ${state.position.y.toFixed(2)}`);
+  assert.ok(state.velocity.y > 8 && state.velocity.y <= defaults.wallCrawlSpeed + 1e-6);
   const height = state.position.y;
   for (let i = 0; i < 60; i++) state = stepTraversal(state, { wallStrafe: 1 }, crawlEnvironment, 1 / 60).state;
   assert.ok(state.position.z > 4);
-  assert.ok(state.position.y - height < .6, 'only inertial settling after releasing W');
+  assert.ok(state.position.y - height < .8, 'only inertial settling after releasing W');
+});
+
+test('diagonal crawl is responsive but cannot exceed cardinal crawl speed', () => {
+  let state = beginCrawl();
+  for (let i = 0; i < 120; i++) state = stepTraversal(state,
+    { wallClimb: 1, wallStrafe: 1 }, crawlEnvironment, 1 / 120).state;
+  assert.ok(Math.hypot(state.velocity.y, state.velocity.z) <= defaults.wallCrawlSpeed + 1e-6);
+  assert.ok(state.position.y > 9 && state.position.z > 5, 'diagonal crawl moves on both facade axes');
+  assert.ok(outside(state, wall));
 });
 
 test('a wall bump cannot initiate crawling; Q requires actual feet contact', () => {

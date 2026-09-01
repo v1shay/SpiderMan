@@ -4,6 +4,8 @@ import { animateRigBones, boneRole, collectRigBones, freezeClipPose, type Proced
 import { createWallCrawlClip } from './wall-crawl-animation.ts';
 import { PavitrAnimationGraph } from './pavitr-animation.ts';
 import { IronManAnimationGraph } from './ironman-animation.ts';
+import { SymbioteAnimationGraph } from './symbiote-animation.ts';
+import { MuaSpiderAnimationGraph } from './mua-spider-animation.ts';
 
 const canonical = (name: string) => name.toLowerCase().replace(/[^a-z0-9]/g, '');
 const findClip = (clips: readonly THREE.AnimationClip[], names: readonly string[]) => {
@@ -55,6 +57,8 @@ export class AvatarAnimator {
   private handSamples: { mesh: THREE.SkinnedMesh; left: number[]; right: number[] }[] = [];
   private pavitr?: PavitrAnimationGraph;
   private ironman?: IronManAnimationGraph;
+  private symbiote?: SymbioteAnimationGraph;
+  private muaSpider?: MuaSpiderAnimationGraph;
   private bodySupportTime = 0;
   private inverse = new THREE.Matrix4();
   private point = new THREE.Vector3();
@@ -94,7 +98,8 @@ export class AvatarAnimator {
     // that holding that frame is a running animation; use the local gait when
     // there is no motion, without borrowing another character's clips.
     this.run = run && (suit.id !== 'pavitr' || hasMotion(run)) ? run : undefined;
-    const authoredPerch = suit.id === 'tobey' ? findClip(this.clips, ['mixamocomlayer0'])
+    const authoredPerch = suit.id === 'venom' ? undefined
+      : suit.id === 'tobey' ? findClip(this.clips, ['mixamocomlayer0'])
       : suit.id === 'pavitr' ? findClip(this.clips, ['specialattack'])
       : suit.id === 'playstation' ? findClip(this.clips, ['swingtoland'])
         : suit.id === 'symbiote' ? findClip(this.clips, ['swingtoland'])
@@ -122,7 +127,7 @@ export class AvatarAnimator {
     }
     // Deliberately exclude attacks, root-motion acrobatics and fly-offscreen
     // clips from a tightly spaced selection lineup.
-    this.emotes = this.clips.filter((clip) => /(?:shellfidget|fidgetvictoryin|hiphop|silly1|silly2)$/.test(canonical(clip.name)));
+    this.emotes = this.clips.filter((clip) => /(?:shellfidget|fidgetvictoryin|hiphop|silly1|silly2|scream)$/.test(canonical(clip.name)));
     if (suit.id === 'pavitr') {
       const passive = findClip(this.clips, ['passive']);
       if (passive) this.emotes.push(passive);
@@ -133,10 +138,17 @@ export class AvatarAnimator {
       this.ironman = new IronManAnimationGraph(this.clips);
       this.clips.push(...this.ironman.derived);
     }
+    if (suit.id === 'symbiote') this.symbiote = new SymbioteAnimationGraph(this.clips);
+    if (suit.id === 'mua-spider') {
+      this.muaSpider = new MuaSpiderAnimationGraph(this.clips);
+      this.clips.push(...this.muaSpider.derived);
+    }
     // Register only after native perch/emote selection so the new crawl does
     // not silently replace an unrelated suit's spawn or lobby animation.
     if (suit.traversal === 'spider') {
-      this.crawl = findClip(this.clips, ['lowcrawl', 'crawl']);
+      // Symbiote's Low Crawl is a ground-combat animation. Preserve the new
+      // facade-calibrated cycle instead of rotating that clip onto a wall.
+      this.crawl = suit.id === 'symbiote' ? undefined : findClip(this.clips, ['lowcrawl', 'crawl']);
       if (!this.crawl || !hasMotion(this.crawl)) {
         this.crawl = createWallCrawlClip(root, this.bones, suit.id === 'pavitr');
         this.clips.push(this.crawl);
@@ -152,7 +164,7 @@ export class AvatarAnimator {
       const joints = object.geometry.getAttribute('skinIndex');
       const weights = object.geometry.getAttribute('skinWeight');
       if (!joints || !weights) return;
-      if (this.pavitr || this.ironman) {
+      if (this.pavitr || this.ironman || this.muaSpider) {
         // Entry includes a handstand. Sample each joint's extremities, including
         // palms and head, so inverted poses never use the shoes as their floor.
         const selected = new Set<number>();
@@ -227,7 +239,10 @@ export class AvatarAnimator {
       case 'run': return this.run;
       case 'swing': return this.swingDown && this.swingUp ? this.swingRising ? this.swingUp : this.swingDown : this.hang;
       case 'zip': return findClip(this.clips, ['jumpup']) ?? this.hang;
-      case 'jump': return findClip(this.clips, ['jumpup', 'jump']);
+      // Venom's supplied Jump has its own heavy squat/launch silhouette. Keep
+      // it authored-first instead of letting the appended shared `jumpUp`
+      // clip win only because its alias appears earlier in the generic list.
+      case 'jump': return this.suit.id === 'venom' ? findClip(this.clips, ['jump']) : findClip(this.clips, ['jumpup', 'jump']);
       case 'fall': return findClip(this.clips, ['jumpdown', 'bracedrop']);
       case 'dive': return findClip(this.clips, ['bracedrop', 'jumpdown']);
       case 'crawl': case 'wall': return this.crawl;
@@ -256,7 +271,10 @@ export class AvatarAnimator {
     this.stateTime += delta;
     this.pose = motion.pose;
     this.root.position.y = this.baseY;
-    const native = this.pavitr?.select(delta, motion) ?? this.ironman?.select(delta, motion);
+    const native = this.pavitr?.select(delta, motion)
+      ?? this.ironman?.select(delta, motion)
+      ?? this.symbiote?.select(delta, motion)
+      ?? this.muaSpider?.select(delta, motion);
     const clip = native?.clip ?? this.choose(motion);
     // The outgoing inverted pose still contributes during the crossfade.
     this.bodySupportTime = native?.bodySupport ? .22 : Math.max(0, this.bodySupportTime - delta);

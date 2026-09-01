@@ -254,6 +254,7 @@ export interface TraversalConfig {
   wallRunSpeed: number;
   wallRunLift: number;
   wallCrawlSpeed: number;
+  wallMantleSpeed: number;
   wallJumpOutSpeed: number;
   wallJumpUpSpeed: number;
   wallContactGrace: number;
@@ -298,7 +299,10 @@ export const DEFAULT_TRAVERSAL_CONFIG: Readonly<TraversalConfig> = Object.freeze
   wallRunMinimumSpeed: 7,
   wallRunSpeed: 15,
   wallRunLift: 5.5,
-  wallCrawlSpeed: 5.2,
+  // Crawling is traversal, not a slow inspection mode. This reaches the new
+  // target smoothly, so attaching never produces a one-frame velocity spike.
+  wallCrawlSpeed: 8.5,
+  wallMantleSpeed: 5.2,
   wallJumpOutSpeed: 12,
   wallJumpUpSpeed: 12.8,
   wallContactGrace: 0.14,
@@ -904,7 +908,8 @@ function applyWallTraversal(
   const tangent = normalize(cross(UP, normal), vector(1, 0, 0));
   const strafe = clamp(value(input.wallStrafe), -1, 1);
   const climb = clamp(value(input.wallClimb), -1, 1);
-  const desired = add(scale(tangent, config.wallCrawlSpeed * strafe), vector(0, climb * config.wallCrawlSpeed, 0));
+  const desiredDirection = add(scale(tangent, strafe), vector(0, climb, 0));
+  const desired = scale(normalize(desiredDirection), config.wallCrawlSpeed * Math.min(1, length(desiredDirection)));
   state.velocity = lerpVector(state.velocity, desired, 1 - Math.exp(-12 * delta));
 }
 
@@ -917,7 +922,7 @@ function applyMantle(state: TraversalState, config: TraversalConfig, delta: numb
   // Rise completely above the rim before crossing it. Both segments are swept
   // by the same world collision controller as ordinary locomotion.
   const movement = offset.y > .035 ? vector(0, offset.y, 0) : offset;
-  state.velocity = scale(normalize(movement), Math.min(config.wallCrawlSpeed, length(movement) / Math.max(.001, delta)));
+  state.velocity = scale(normalize(movement), Math.min(config.wallMantleSpeed, length(movement) / Math.max(.001, delta)));
   state.grounded = false;
 }
 

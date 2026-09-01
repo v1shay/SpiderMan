@@ -37,7 +37,7 @@ const check = (condition, message) => {
   if (!condition && !failures.includes(message)) failures.push(message);
 };
 const canonical = name => name.toLowerCase().replace(/[^a-z0-9]/g, '');
-const isEmote = name => /(?:shellfidget|fidgetvictoryin|hiphop|silly1|silly2|menuaction|menugoodbye)$/.test(canonical(name));
+const isEmote = name => /(?:shellfidget|fidgetvictoryin|hiphop|silly1|silly2|scream)$/.test(canonical(name));
 const isRunning = name => /^(?:run|runaboveground|walk|bullywalking)$/.test(canonical(name));
 const vec = new THREE.Vector3();
 const inverse = new THREE.Matrix4();
@@ -276,16 +276,17 @@ async function gameplay(suit) {
   const idle = checkIdle(test);
   const perchMotion = { pose: 'perch', grounded: true };
   const perch = advance(test, perchMotion, 2, 'perch');
-  const perchClip = test.animator.clips.find(clip => clip.name === 'rooftop-perch');
+  const perchClip = test.animator.clips.find(clip => clip.name === (suit.id === 'mua-spider' ? 'mua-native:perch' : 'rooftop-perch'));
   if (perchClip) {
-    check(test.animator.activeClip === 'rooftop-perch', `${suit.id}: authored rooftop perch not selected`);
-    const sourceNames = suit.id === 'tobey' ? ['mixamocomlayer0']
+    check(test.animator.activeClip === perchClip.name, `${suit.id}: authored rooftop perch not selected`);
+    const sourceNames = suit.id === 'mua-spider' ? ['idle']
+      : suit.id === 'tobey' ? ['mixamocomlayer0']
       : suit.id === 'pavitr' ? ['specialattack']
       : ['playstation', 'symbiote'].includes(suit.id) ? ['swingtoland'] : ['swingend', 'lowcrawl', 'crawl'];
     const source = sourceNames.map(name => test.animator.clips.find(clip => canonical(clip.name).endsWith(name))).find(Boolean);
     check(Boolean(source), `${suit.id}: authored perch has no identifiable source clip`);
     if (source) {
-      const sample = suit.id === 'tobey' ? 1.473 : suit.id === 'pavitr' ? 2.3075 : ['playstation', 'symbiote'].includes(suit.id) ? 1.52
+      const sample = suit.id === 'mua-spider' ? .568 : suit.id === 'tobey' ? 1.473 : suit.id === 'pavitr' ? 2.3075 : ['playstation', 'symbiote'].includes(suit.id) ? 1.52
         : canonical(source.name) === 'swingend' ? 1.568 : .568;
       const expected = freezeClipPose(source, Math.min(sample, source.duration), 'expected');
       check(perchClip.tracks.every((track, index) => track.name === expected.tracks[index]?.name

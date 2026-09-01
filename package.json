@@ -14,10 +14,12 @@
     "test:avatar-motion": "node --experimental-strip-types scripts/verify-avatar-motion.mjs",
     "test:pavitr": "node --experimental-strip-types scripts/verify-pavitr-native.mjs",
     "test:ironman": "node --experimental-strip-types scripts/verify-ironman-native.mjs",
+    "test:symbiote": "node --experimental-strip-types scripts/verify-symbiote-native.mjs",
+    "test:new-spiders": "node --experimental-strip-types scripts/verify-new-spiders.mjs",
     "test:traversal": "node --experimental-strip-types scripts/verify-traversal.mjs",
     "test:traversal-animation": "node --experimental-strip-types scripts/verify-traversal-animation.mjs",
     "test:swing-assistance": "node --experimental-strip-types scripts/verify-swing-assistance.mjs && node --experimental-strip-types scripts/verify-repeating-world.mjs",
-    "test:wall": "node --experimental-strip-types scripts/verify-wall-surface.mjs && node --experimental-strip-types scripts/verify-wall-pose.mjs",
+    "test:wall": "node --experimental-strip-types scripts/verify-wall-surface.mjs && node --experimental-strip-types scripts/verify-wall-pose.mjs && node --experimental-strip-types scripts/verify-wall-camera.mjs",
     "test:surfaces": "node --experimental-strip-types scripts/verify-mesh-world.mjs && node --experimental-strip-types scripts/verify-map-surfaces.mjs",
     "format": "oxfmt",
     "verify:services": "node --env-file=.env.local scripts/verify-services.mjs"

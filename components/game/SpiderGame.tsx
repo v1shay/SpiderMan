@@ -26,6 +26,7 @@ import { WallPose } from '@/lib/wall-pose';
 import { findMantleTarget, probeWallFeet } from '@/lib/wall-surface';
 import { updateIronFlight, type IronFlightMode } from '@/lib/ironman-flight';
 import { IronManRepulsors } from '@/lib/ironman-repulsors';
+import { wallCameraOffset } from '@/lib/wall-camera';
 
 export type GameHud = { speed: number; altitude: number; fps: number; swinging: boolean };
 export type SpiderGameHandle = { travelTo: (id: DistrictId) => void };
@@ -767,6 +768,8 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(function SpiderGam
     let cameraYaw = initialDistrict.spawnYaw ?? 0;
     let cameraPitch = initialDistrict.spawnPitch ?? .08;
     let wallCameraBlend = 0;
+    let wallCameraYawAnchor = cameraYaw;
+    let wallCameraWasRequested = false;
     const wallCameraNormal = new THREE.Vector3(0, 0, 1);
     let avatar: AvatarRig | null = null;
     let avatarPose: ProceduralPose = 'idle';
@@ -1994,7 +1997,11 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(function SpiderGam
       const wallCameraRequested = traversal.mode === 'wallCrawl'
         && traversal.wallCrawlActive
         && Boolean(wallNormal);
-      if (wallCameraRequested && wallNormal && wallCameraBlend < .001) wallCameraNormal.copy(wallNormal);
+      if (wallCameraRequested && wallNormal && !wallCameraWasRequested) {
+        wallCameraNormal.copy(wallNormal);
+        wallCameraYawAnchor = cameraYaw;
+      }
+      wallCameraWasRequested = wallCameraRequested;
       wallCameraBlend = damp(wallCameraBlend, wallCameraRequested ? 1 : 0, wallCameraRequested ? 5.5 : 11, delta);
       if (wallNormal) wallCameraNormal.lerp(wallNormal, 1 - Math.exp(-10 * delta)).normalize();
       const target = player.position.clone().add(new THREE.Vector3(
@@ -2018,9 +2025,9 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(function SpiderGam
       ));
       if (wallCameraBlend > .001) {
         const wallTarget = player.position.clone().add(new THREE.Vector3(0, 1.2, 0));
-        const wallDesired = player.position.clone()
-          .addScaledVector(wallCameraNormal, 5.4)
-          .add(new THREE.Vector3(0, 2.2, 0));
+        const wallDesired = player.position.clone().add(
+          wallCameraOffset(wallCameraNormal, cameraYaw - wallCameraYawAnchor, cameraPitch),
+        );
         target.lerp(wallTarget, wallCameraBlend);
         desired.lerp(wallDesired, wallCameraBlend);
       }
@@ -2075,6 +2082,7 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(function SpiderGam
         renderer.domElement.dataset.grappleLineVisible = String(grappleLineVisible);
         renderer.domElement.dataset.wallContact = traversal.wall ? `${traversal.wall.normal.x.toFixed(2)},${traversal.wall.normal.y.toFixed(2)},${traversal.wall.normal.z.toFixed(2)}` : '';
         renderer.domElement.dataset.wallCameraBlend = wallCameraBlend.toFixed(2);
+        renderer.domElement.dataset.wallCameraYawDelta = (cameraYaw - wallCameraYawAnchor).toFixed(2);
         renderer.domElement.dataset.wallTopClearance = Number.isFinite(wallTopClearance) ? wallTopClearance.toFixed(2) : '';
         hudAccumulator = 0;
       }

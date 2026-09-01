@@ -8,6 +8,8 @@ export type SuitId =
   | 'symbiote'
   | 'iron-spider'
   | 'spider-woman'
+  | 'mua-spider'
+  | 'venom'
   | 'ironman';
 
 export type SuitConfig = {
@@ -52,6 +54,8 @@ export const SUITS: readonly SuitConfig[] = [
   { id: 'symbiote', name: 'Symbiote', universe: 'Black Suit', model: '/assets/suits/symbiote.glb', modelYaw: Math.PI, traversal: 'spider' },
   { id: 'iron-spider', name: 'Iron Spider', universe: 'Armored Suit', model: '/assets/suits/iron-spider.glb', modelYaw: Math.PI, normalizationMesh: 'Object_6', normalizationExcludeBones: 'bone180|shengzi', hiddenMeshes: ['Object_8', 'Object_9', 'Object_10'], animationSource: traversalLibrary, traversal: 'spider' },
   { id: 'spider-woman', name: 'Spider-Woman', universe: 'Spider-Verse', model: '/assets/suits/spider-woman.glb', modelYaw: Math.PI, animationSource: traversalLibrary, unlockSwings: 50, traversal: 'spider' },
+  { id: 'mua-spider', name: 'Ultimate Alliance Spider-Man', universe: 'Marvel Ultimate Alliance', model: '/assets/suits/ultimate-alliance-spider.glb', modelYaw: Math.PI / 2, traversal: 'spider' },
+  { id: 'venom', name: 'Venom Spider-Man', universe: 'PlayStation', model: '/assets/suits/venom.glb', modelYaw: Math.PI, animationSource: traversalLibrary, traversal: 'spider' },
   { id: 'ironman', name: 'Iron Man', universe: 'Ultimate Alliance', model: '/assets/suits/ironman-mua.glb', modelYaw: Math.PI / 2, traversal: 'ironman' },
 ] as const;
 

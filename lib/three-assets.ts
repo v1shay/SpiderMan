@@ -276,12 +276,12 @@ export function freezeClipPose(clip: THREE.AnimationClip, time: number, name: st
 
 export function suitAnimationClips(source: readonly THREE.AnimationClip[], suit: SuitConfig) {
   const clips = poseOnlyClips(source);
-  if (suit.id === 'ironman') {
+  if (suit.id === 'ironman' || suit.id === 'mua-spider') {
     // MUA uses additional locomotion roots above the pelvis. Their authored
     // rotations carry the flying pose; translation must not bypass physics.
     for (const clip of clips) clip.tracks = clip.tracks.filter(track => !/^(?:ActorRoot_\d+|Motion_\d+|Bip01_02)\.position$/.test(track.name));
   }
-  if (suit.id !== 'playstation') return clips;
+  if (suit.id !== 'playstation' && suit.id !== 'venom') return clips;
   const jump = clips.find((clip) => /jump/i.test(clip.name));
   if (!jump) return clips;
   // This exporter has a horizontal bind pose. Jump's first frame is the
@@ -299,7 +299,7 @@ export function suitAnimationClips(source: readonly THREE.AnimationClip[], suit:
 }
 
 export function applySuitRestPose(root: THREE.Object3D, suit: SuitConfig, clips: readonly THREE.AnimationClip[]) {
-  if (!['playstation', 'pavitr', 'ironman'].includes(suit.id)) return;
+  if (!['playstation', 'venom', 'pavitr', 'ironman'].includes(suit.id)) return;
   // Pavitr's exported rest pose is crouched/twisted. Measuring that pose makes
   // his actual Shell_Idle stand 64% taller than the rest of the lineup.
   const stand = suit.id === 'ironman' ? clips.find(clip => clip.name === 'menu_idle') : suit.id === 'pavitr'
