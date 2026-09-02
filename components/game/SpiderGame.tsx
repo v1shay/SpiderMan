@@ -147,7 +147,7 @@ const networkPose = (mode: string): ProceduralPose => mode === 'iron-hover' ? 'h
   : mode === 'swing' ? 'swing'
   : mode === 'doubleJump' ? 'backflip'
   : mode === 'webZip' || mode === 'pointLaunch' ? 'zip'
-    : mode === 'wallRun' ? 'wall'
+    : mode === 'wallRun' ? 'run'
       : mode === 'wallCrawl' ? 'crawl'
         : mode === 'dive' ? 'dive'
           : mode === 'run' ? 'run'
@@ -1448,25 +1448,28 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(function SpiderGam
       camera.lookAt(raceStart.clone().add(new THREE.Vector3(0, 1.35, 0)));
     };
 
-    const showRaceSegment = (checkpoint: number, currentPosition = player.position) => {
-      const to = raceRoute[checkpoint];
+    const showFinishGuide = (currentPosition = player.position) => {
+      const finishIndex = raceRoute.length - 1;
+      const to = raceRoute[finishIndex];
       if (!to) { activeRaceGuide.visible = false; return; }
       activeGuideGeometry.setPositions(raceGuidanceLine(currentPosition, to));
       activeRaceGuide.computeLineDistances();
       activeRaceGuide.visible = true;
       renderer.domElement.dataset.raceGuideAttached = 'true';
       renderer.domElement.dataset.raceGuidePoints = '2';
+      renderer.domElement.dataset.raceGuideTarget = 'finish';
+      renderer.domElement.dataset.raceGuideTargetId = String(raceNodeIds[finishIndex] ?? '');
     };
 
     const drawRaceCourse = () => {
       const coursePoints = [raceStart, ...raceRoute, raceStart];
       raceGuideGeometry.setPositions(coursePoints.flatMap(point => [point.x, point.y, point.z]));
       raceGuide.computeLineDistances();
-      // Only the live player-to-gate tether is rendered. The full octagonal
-      // route overwhelmed the city and became misleading across streamed tiles.
+      // Only the live player-to-finish tether is rendered. Checkpoints remain
+      // authoritative for race progress but do not bend the visual heading.
       raceGuide.visible = false;
       raceDirectionArrows.clear();
-      showRaceSegment(0);
+      showFinishGuide();
     };
 
     const configureWindTunnels = (coursePoints: THREE.Vector3[], config: DistrictConfig) => {
@@ -2198,6 +2201,7 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(function SpiderGam
         traversal.zip = null;
         traversal.wall = null;
         traversal.wallCrawlActive = false;
+        traversal.wallRunActive = false;
         traversal.mantle = null;
         traversal.swingNeedsRelease = false;
         ironFlightMode = 'grounded';
@@ -2237,7 +2241,7 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(function SpiderGam
         : mode === 'swing' ? 'swing'
           : mode === 'doubleJump' ? 'backflip'
           : mode === 'webZip' || mode === 'pointLaunch' ? 'zip'
-            : mode === 'wallRun' ? 'wall'
+            : mode === 'wallRun' ? 'run'
               : mode === 'wallCrawl' ? 'crawl'
                 : mode === 'mantle' ? 'perch'
                 : mode === 'dive' ? 'dive'
@@ -2247,12 +2251,29 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(function SpiderGam
       renderer.domElement.dataset.animationState = mode;
       avatarPose = pose;
       const anchor = context.webAnchor ?? traversal.zip?.surfacePoint ?? traversal.zip?.target;
-      avatar.animator.update(delta, { pose, grounded: player.grounded, speed: mode === 'wallCrawl' ? player.velocity.length() : context.horizontalSpeed, verticalSpeed: player.velocity.y, tension: context.webTension,
+      avatar.animator.update(delta, { pose, grounded: player.grounded, speed: mode === 'wallCrawl' || mode === 'wallRun' ? player.velocity.length() : context.horizontalSpeed, verticalSpeed: player.velocity.y, tension: context.webTension,
         crawlDirection: player.velocity.y < -.1 ? -1 : 1,
         boost: isIronMan && ironFlightMode === 'cruise' && pointerHeld,
         anchor: anchor ? new THREE.Vector3(anchor.x, anchor.y, anchor.z) : null });
       if (mode === 'wallCrawl' && traversal.wall?.feetTouching) avatar.wallPose.apply(avatar.surfaceFrame, avatar.animator.bones, traversal.wall);
+      if (mode === 'wallRun' && traversal.wall) {
+        const surfaceUp = new THREE.Vector3(traversal.wall.normal.x, 0, traversal.wall.normal.z).normalize();
+        const runForward = player.velocity.clone().addScaledVector(surfaceUp, -player.velocity.dot(surfaceUp));
+        if (runForward.lengthSq() < .01) runForward.set(0, 1, 0);
+        runForward.normalize();
+        const surfaceBack = runForward.clone().negate();
+        const surfaceRight = new THREE.Vector3().crossVectors(surfaceUp, surfaceBack).normalize();
+        const worldFrame = new THREE.Quaternion().setFromRotationMatrix(
+          new THREE.Matrix4().makeBasis(surfaceRight, surfaceUp, surfaceBack),
+        );
+        const rootWorld = avatar.root.getWorldQuaternion(new THREE.Quaternion());
+        avatar.surfaceFrame.quaternion.copy(rootWorld.invert().multiply(worldFrame));
+        avatar.surfaceFrame.position.copy(surfaceUp).multiplyScalar(-.43).applyQuaternion(
+          avatar.root.getWorldQuaternion(new THREE.Quaternion()).invert(),
+        );
+      }
       renderer.domElement.dataset.wallCrawlActive = String(traversal.wallCrawlActive);
+      renderer.domElement.dataset.wallRunActive = String(traversal.wallRunActive);
       renderer.domElement.dataset.wallFootGap = mode === 'wallCrawl' ? avatar.wallPose.footGap.toFixed(3) : '';
       renderer.domElement.dataset.wallBodyClearance = mode === 'wallCrawl' ? avatar.wallPose.bodyClearance.toFixed(3) : '';
       renderer.domElement.dataset.activeAnimation = avatar.animator.activeClip;
@@ -2408,11 +2429,11 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(function SpiderGam
         let wallSkimTriggered = false;
         meshWallContact = null;
         const blocked = Boolean(hit.wallNormal) || hit.blocked && !hit.grounded;
-        if (hit.wallNormal) meshWallContact = { point: position.clone(), normal: hit.wallNormal, feetTouching: hit.feetTouching, colliderId: 'rendered-facade' };
+        if (hit.wallNormal) meshWallContact = { point: position.clone(), normal: hit.wallNormal, feetTouching: true, colliderId: 'rendered-facade' };
         // A feet-level probe maintains real facade contact at collision-skin distance.
         const previousWall = traversal.wall;
         const contactNormal = meshWallContact?.normal ?? previousWall?.normal;
-        if (contactNormal) meshWallContact = probeWallFeet(position, contactNormal, raycastWorld);
+        if (contactNormal) meshWallContact = probeWallFeet(position, contactNormal, raycastWorld) ?? meshWallContact;
         const support = velocity.y <= .1 ? meshSupportAt(position, .015, .51) : null;
         const supportY = support ? capsuleSupportHeight(support) : null;
         traversal.grounded = Boolean(supportY !== null && Math.abs(position.y - supportY) < .045);
@@ -2430,23 +2451,35 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(function SpiderGam
         setTraversalKinematics(traversal, position, velocity);
         if (meshWallContact) traversal.wall = { ...meshWallContact, feetTouching: meshWallContact.feetTouching === true, contactSeconds: previousWall?.contactSeconds ?? 0, graceSeconds: .14 };
         else traversal.wall = null;
-        if (!meshWallContact?.feetTouching) traversal.wallCrawlActive = false;
+        if (!meshWallContact) { traversal.wallCrawlActive = false; traversal.wallRunActive = false; }
         const wallApproachSpeed = hit.wallNormal ? -attemptedVelocity.dot(hit.wallNormal) : 0;
         const automaticWallAttach = hero.traversal === 'spider'
-          && Boolean(meshWallContact?.feetTouching)
-          && wallApproachSpeed > 1.25
+          && Boolean(hit.wallNormal && meshWallContact)
+          && wallApproachSpeed > .35
           && traversal.wallAttachCooldownSeconds <= 0
-          && !traversal.swing && !traversal.zip && !traversal.mantle
-          && !frameInput.jumpPressed && !frameInput.swingPressed && !frameInput.swingHeld && !frameInput.zipPressed;
+          && !traversal.mantle
+          && !frameInput.jumpPressed && !frameInput.zipPressed;
         if (automaticWallAttach && traversal.wall) {
+          const interruptedSwing = Boolean(traversal.swing);
+          const incomingSpeed = attemptedVelocity.length();
+          traversal.swing = null;
+          traversal.zip = null;
+          traversal.mantle = null;
+          pointerZipActive = false;
+          traversal.swingNeedsRelease ||= interruptedSwing || swingHeld;
+          traversal.swingRetryAfter = Math.max(traversal.swingRetryAfter ?? 0, elapsedTime + .18);
+          traversal.wall.feetTouching = true;
           const normal = new THREE.Vector3(traversal.wall.normal.x, 0, traversal.wall.normal.z).normalize();
-          const inwardSpeed = velocity.dot(normal);
-          if (inwardSpeed < 0) velocity.addScaledVector(normal, -inwardSpeed);
-          velocity.y = Math.max(traversal.grounded ? 1.2 : 0, velocity.y);
+          const planeVelocity = attemptedVelocity.clone().addScaledVector(normal, -attemptedVelocity.dot(normal));
+          if (planeVelocity.lengthSq() < .04) planeVelocity.set(0, 1, 0);
+          velocity.copy(planeVelocity.normalize().multiplyScalar(Math.max(7, incomingSpeed)));
           traversal.grounded = false;
-          traversal.wallCrawlActive = true;
+          traversal.wallCrawlActive = false;
+          traversal.wallRunActive = true;
+          wallSkimSeconds = 0;
           setTraversalKinematics(traversal, position, velocity);
           renderer.domElement.dataset.lastWallAttach = elapsedTime.toFixed(3);
+          renderer.domElement.dataset.wallTraversalSource = 'impact';
         }
         if (hit.wallNormal && traversal.swing && swingHeld && !traversal.wallCrawlActive
           && elapsedTime >= wallSkimCooldownUntil) {
@@ -2462,6 +2495,7 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(function SpiderGam
             traversal.swingRetryAfter = elapsedTime + .18;
             traversal.wall = null;
             traversal.wallCrawlActive = false;
+            traversal.wallRunActive = false;
             wallSkimSeconds = .38;
             wallSkimStrength = skim.strength;
             wallSkimCooldownUntil = elapsedTime + .52;
@@ -2603,6 +2637,7 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(function SpiderGam
         traversal.zip = null;
         traversal.wall = null;
         traversal.wallCrawlActive = false;
+        traversal.wallRunActive = false;
         traversal.mantle = null;
         meshWallContact = null;
         result.context = refreshTraversalContext(traversal, frameInput, traversalOverrides);
@@ -2611,7 +2646,7 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(function SpiderGam
       if (raceRoute.length) {
         // Update every frame so the first endpoint remains physically attached
         // to Spider-Man rather than being left at the previous checkpoint.
-        showRaceSegment(raceState.checkpoint, player.position);
+        showFinishGuide(player.position);
         const raceTime = elapsedTime - raceState.startedAt;
         sampleRaceTrack(raceSamples, {
           t: raceTime,
@@ -2625,7 +2660,7 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(function SpiderGam
         const raceEvent = advanceSwingRace(raceState, player.position, raceRoute, elapsedTime, gateRadius);
         if (raceEvent) {
           raceMarkers.children.forEach((marker, index) => setCheckpointActive(marker as THREE.Group, index === raceState.checkpoint));
-          showRaceSegment(raceState.checkpoint);
+          showFinishGuide();
           if (raceEvent.finished && raceEvent.duration !== null) {
             lastRaceFinish = raceEvent.duration;
             raceLap += 1;
@@ -2645,7 +2680,7 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(function SpiderGam
             resetRacePlayer(elapsedTime);
             result.context = refreshTraversalContext(traversal, frameInput, traversalOverrides);
             raceMarkers.children.forEach((marker, index) => setCheckpointActive(marker as THREE.Group, index === 0));
-            showRaceSegment(0);
+            showFinishGuide();
           }
         }
       }
@@ -2731,8 +2766,8 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(function SpiderGam
           wallTopClearance = Math.min(wallTopClearance, collider.max.y - player.position.y);
         }
       }
-      const wallCameraRequested = traversal.mode === 'wallCrawl'
-        && traversal.wallCrawlActive
+      const wallCameraRequested = ((traversal.mode === 'wallCrawl' && traversal.wallCrawlActive)
+        || (traversal.mode === 'wallRun' && traversal.wallRunActive))
         && Boolean(wallNormal);
       if (wallCameraRequested && wallNormal && !wallCameraWasRequested) {
         wallCameraNormal.copy(wallNormal);

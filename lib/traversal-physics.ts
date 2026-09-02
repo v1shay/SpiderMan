@@ -169,6 +169,8 @@ export interface TraversalState {
   perchSeconds: number;
   heading: number;
   wallCrawlActive: boolean;
+  /** Momentum-preserving facade run entered by impact; independent from Q crawl. */
+  wallRunActive: boolean;
   /** Prevents jump/swing detachment from immediately re-latching on the same facade. */
   wallAttachCooldownSeconds: number;
   mantle: { target: Vector3Like; elapsed: number } | null;
@@ -450,6 +452,7 @@ export function createTraversalState(position: Vector3Like = vector(), velocity:
     perchSeconds: 0,
     heading: 0,
     wallCrawlActive: false,
+    wallRunActive: false,
     wallAttachCooldownSeconds: 0,
     mantle: null,
   };
@@ -570,6 +573,7 @@ function attachSwing(
   };
   state.zip = null;
   state.wallCrawlActive = false;
+  state.wallRunActive = false;
   state.mantle = null;
   state.perchSeconds = 0;
   if (state.grounded && state.elapsed >= (state.swingGroundLaunchAfter ?? 0)) {
@@ -652,6 +656,7 @@ function startZip(state: TraversalState, target: WebAnchorCandidate, config: Tra
   state.swing = null;
   state.swingNeedsRelease = true;
   state.wallCrawlActive = false;
+  state.wallRunActive = false;
   state.mantle = null;
   state.perchSeconds = 0;
   if (target.point.y > state.position.y + 1) {
@@ -930,7 +935,7 @@ function applyWallTraversal(
   delta: number,
 ): void {
   const wall = state.wall;
-  if (!wall || !wall.feetTouching || !state.wallCrawlActive || state.swing || state.zip || state.mantle) return;
+  if (!wall || !state.wallCrawlActive || state.swing || state.zip || state.mantle) return;
   if (state.grounded) {
     // Q at the base of a facade should flow directly from pavement to wall
     // traversal instead of requiring an awkward jump before the wall sticks.
@@ -950,25 +955,66 @@ function applyWallTraversal(
   state.velocity = lerpVector(state.velocity, desired, 1 - Math.exp(-12 * delta));
 }
 
+function applyWallRun(
+  state: TraversalState,
+  input: TraversalInput,
+  config: TraversalConfig,
+  delta: number,
+): void {
+  const wall = state.wall;
+  if (!wall || !state.wallRunActive || state.swing || state.zip || state.mantle) return;
+  state.grounded = false;
+  const normal = normalize(horizontal(wall.normal));
+  const tangent = normalize(cross(UP, normal), vector(1, 0, 0));
+  let planeVelocity = reject(state.velocity, normal);
+  const inwardSpeed = dot(state.velocity, normal);
+  if (inwardSpeed < 0) state.velocity = subtract(state.velocity, scale(normal, inwardSpeed));
+  const currentSpeed = Math.max(config.wallRunMinimumSpeed, length(planeVelocity));
+  const strafe = clamp(value(input.wallStrafe), -1, 1);
+  const climb = clamp(value(input.wallClimb), -1, 1);
+  const desiredInput = add(scale(tangent, strafe), scale(UP, climb));
+  if (lengthSquared(desiredInput) > 1e-6) {
+    const desired = scale(normalize(desiredInput), Math.max(config.wallRunSpeed, currentSpeed));
+    planeVelocity = lerpVector(planeVelocity, desired, 1 - Math.exp(-10 * delta));
+  } else {
+    planeVelocity = scale(planeVelocity, Math.exp(-.32 * delta));
+  }
+  state.velocity = add(planeVelocity, scale(normal, -config.wallStickAcceleration * delta));
+}
+
 function shouldAutoAttachWall(
   state: TraversalState,
   contact: SurfaceContact | WallRuntime | null | undefined,
   approachVelocity: Vector3Like,
 ): boolean {
-  if (!contact?.feetTouching || state.wallAttachCooldownSeconds > 0 || state.swing || state.zip || state.mantle) return false;
+  if (!contact || state.wallAttachCooldownSeconds > 0 || state.mantle) return false;
   if (Math.abs(contact.normal.y) >= .45) return false;
   const normal = normalize(horizontal(contact.normal));
-  return dot(approachVelocity, normal) < -1.25;
+  return dot(approachVelocity, normal) < -.35;
 }
 
-function attachToWall(state: TraversalState): void {
-  if (!state.wall?.feetTouching) return;
+function attachToWall(state: TraversalState, config: TraversalConfig): void {
+  if (!state.wall) return;
+  const interruptedSwing = Boolean(state.swing);
+  state.swing = null;
+  state.zip = null;
+  state.mantle = null;
+  state.swingNeedsRelease ||= interruptedSwing;
+  state.swingRetryAfter = Math.max(state.swingRetryAfter ?? 0, state.elapsed + .18);
+  state.wall.feetTouching = true;
   const normal = normalize(horizontal(state.wall.normal));
+  const incomingSpeed = length(state.velocity);
   const inwardSpeed = dot(state.velocity, normal);
   if (inwardSpeed < 0) state.velocity = subtract(state.velocity, scale(normal, inwardSpeed));
-  state.velocity.y = Math.max(state.grounded ? 1.2 : 0, state.velocity.y);
+  let planeDirection = normalize(reject(state.velocity, normal), UP);
+  // A head-on street collision has no tangent component; redirect it upward
+  // instead of deleting its momentum. Glancing/swing impacts retain their
+  // measured direction along the facade.
+  if (lengthSquared(reject(state.velocity, normal)) < .04) planeDirection = copy(UP);
+  state.velocity = scale(planeDirection, Math.max(config.wallRunMinimumSpeed, incomingSpeed));
   state.grounded = false;
-  state.wallCrawlActive = true;
+  state.wallCrawlActive = false;
+  state.wallRunActive = true;
 }
 
 function applyMantle(state: TraversalState, config: TraversalConfig, delta: number) {
@@ -1147,7 +1193,9 @@ function createContext(state: TraversalState, input: TraversalInput, config: Tra
   const speed = length(state.velocity);
   const horizontalSpeed = length(horizontal(state.velocity));
   const forward = normalize(horizontal(state.velocity), normalize(horizontal(input.cameraForward ?? vector(0, 0, -1))));
-  const desiredYaw = state.wallCrawlActive && state.wall ? Math.atan2(state.wall.normal.x, state.wall.normal.z) : Math.atan2(-forward.x, -forward.z);
+  const desiredYaw = (state.wallCrawlActive || state.wallRunActive) && state.wall
+    ? Math.atan2(state.wall.normal.x, state.wall.normal.z)
+    : Math.atan2(-forward.x, -forward.z);
   state.heading = dampAngle(state.heading, desiredYaw, state.grounded ? 14 : 7, delta);
   const cameraForward = normalize(horizontal(input.cameraForward ?? forward), forward);
   const lateral = dot(cross(cameraForward, forward), UP);
@@ -1210,7 +1258,8 @@ function updateMode(state: TraversalState, input: TraversalInput): void {
   else if (state.swing) state.mode = 'swing';
   else if (state.zip) state.mode = 'webZip';
   else if (state.mantle) state.mode = 'mantle';
-  else if (state.wall && state.wall.feetTouching && state.wallCrawlActive) state.mode = 'wallCrawl';
+  else if (state.wall && state.wallCrawlActive) state.mode = 'wallCrawl';
+  else if (state.wall && state.wallRunActive) state.mode = 'wallRun';
   else if (state.grounded && state.landingSeconds > 0) state.mode = 'land';
   else if (state.grounded) state.mode = horizontalSpeed > 0.55 ? 'run' : 'idle';
   else if (input.diveHeld && state.velocity.y < 1) state.mode = 'dive';
@@ -1288,19 +1337,24 @@ function stepTraversalTick(
 
   const enteredWall = shouldAutoAttachWall(state, environment.wallContact, state.velocity);
   if (environment.wallContact !== undefined) updateWallFromContact(state, environment.wallContact, config, delta, events);
-  if (enteredWall) attachToWall(state);
+  if (enteredWall) attachToWall(state, config);
   if (!input.swingHeld && !input.swingPressed) state.swingNeedsRelease = false;
   if (input.wallCrawlPressed) {
     state.wallCrawlActive = !state.wallCrawlActive && Boolean(state.wall?.feetTouching) && !state.swing && !state.zip;
-    if (state.wallCrawlActive) state.velocity = vector();
+    if (state.wallCrawlActive) {
+      state.wallRunActive = false;
+      state.velocity = vector();
+    }
   }
-  if (input.jumpPressed || input.swingPressed || input.swingHeld || input.zipPressed || input.zipHeld) {
+  const freshSwingPress = Boolean(input.swingPressed && !state.swingNeedsRelease);
+  if (input.jumpPressed || freshSwingPress || input.zipPressed) {
     if (input.jumpPressed && state.mantle) state.coyoteSeconds = config.coyoteTime;
     state.wallAttachCooldownSeconds = Math.max(state.wallAttachCooldownSeconds, .34);
     state.wallCrawlActive = false;
+    state.wallRunActive = false;
     state.mantle = null;
   }
-  if (!state.wall?.feetTouching) state.wallCrawlActive = false;
+  if (!state.wall) { state.wallCrawlActive = false; state.wallRunActive = false; }
 
   if ((input.swingPressed || input.swingHeld) && !input.swingReleased && !state.swing && !state.zip
     && !state.swingNeedsRelease && state.elapsed >= (state.swingRetryAfter ?? 0)) {
@@ -1342,7 +1396,7 @@ function stepTraversalTick(
     state.jumpBufferSeconds = 0;
     events.push(event('jump', state, { strength: config.jumpSpeed }));
   } else if (state.jumpBufferSeconds > 0 && !state.grounded && state.coyoteSeconds <= 0
-    && state.airJumpsRemaining > 0 && !state.swing && !state.zip && !state.wallCrawlActive && !state.mantle) {
+    && state.airJumpsRemaining > 0 && !state.swing && !state.zip && !state.wallCrawlActive && !state.wallRunActive && !state.mantle) {
     const direction = normalize(horizontal(input.move ?? input.cameraForward ?? state.velocity), vector(0, 0, -1));
     const horizontalSpeed = length(horizontal(state.velocity));
     const boost = Math.max(0, Math.min(config.doubleJumpForwardBoost, config.maximumSpeed - horizontalSpeed));
@@ -1365,14 +1419,15 @@ function stepTraversalTick(
     events.push(event('point-launch', state, { strength: length(state.velocity) }));
   }
 
-  if (state.grounded && !state.swing && !state.zip && !state.wallCrawlActive && !state.mantle) applyGroundMovement(state, move, config, delta);
-  else if (!state.swing && !state.zip && !state.wallCrawlActive && !state.mantle) applyAirMovement(state, move, config, delta);
+  if (state.grounded && !state.swing && !state.zip && !state.wallCrawlActive && !state.wallRunActive && !state.mantle) applyGroundMovement(state, move, config, delta);
+  else if (!state.swing && !state.zip && !state.wallCrawlActive && !state.wallRunActive && !state.mantle) applyAirMovement(state, move, config, delta);
 
   applyWallTraversal(state, input, config, delta);
+  applyWallRun(state, input, config, delta);
   if (state.mantle) applyMantle(state, config, delta);
   else if (state.swing) applySwing(state, input, environment, config, delta);
   else if (state.zip) applyZip(state, input, config, delta, events);
-  else if (!state.grounded && !state.wallCrawlActive) {
+  else if (!state.grounded && !state.wallCrawlActive && !state.wallRunActive) {
     const gravityMultiplier = input.diveHeld && state.velocity.y < 1 ? config.diveGravityMultiplier : 1;
     state.velocity.y -= config.gravity * gravityMultiplier * delta;
     if (input.diveHeld) {
@@ -1390,12 +1445,13 @@ function stepTraversalTick(
   // position must not turn an airborne swing into a running animation.
   const support = resolveMotion(state, environment, config, 0);
   updateWallFromContact(state, support.wall ?? ropeCollision?.wall ?? collision.wall ?? environment.wallContact ?? null, config, delta, events);
-  if (!state.wall?.feetTouching) state.wallCrawlActive = false;
+  if (!state.wall) { state.wallCrawlActive = false; state.wallRunActive = false; }
   state.grounded = support.grounded;
-  if (shouldAutoAttachWall(state, state.wall, collisionApproachVelocity)) attachToWall(state);
+  if (shouldAutoAttachWall(state, state.wall, collisionApproachVelocity)) attachToWall(state, config);
   if (state.mantle && distance(state.position, state.mantle.target) < .09) {
     state.mantle = null;
     state.wallCrawlActive = false;
+    state.wallRunActive = false;
     state.velocity = vector();
     state.perchSeconds = .2;
   }
@@ -1515,9 +1571,10 @@ export function runTraversalPhysicsSelfTests(): TraversalSelfTestResult {
     groundY: 0,
     wallContact: { point: vector(2, 3, 0), normal: vector(-1, 0, 0), colliderId: 'wall', feetTouching: true },
   }, delta);
-  const lostFeetContact = stepTraversal(feetCrawl.state, {
-    wallClimb: 1,
-  }, { groundY: 0 }, delta);
+  let lostFeetContact = stepTraversal(feetCrawl.state, { wallClimb: 1 }, { groundY: 0 }, delta);
+  for (let index = 0; index < 24; index++) {
+    lostFeetContact = stepTraversal(lostFeetContact.state, { wallClimb: 1 }, { groundY: 0 }, delta);
+  }
   checks.wallCrawlWithFeet = feetCrawl.state.mode === 'wallCrawl';
   checks.wallCrawlStopsWithoutFeet = lostFeetContact.state.mode !== 'wallCrawl';
 
@@ -1535,7 +1592,7 @@ export function runTraversalPhysicsSelfTests(): TraversalSelfTestResult {
     && !pavementToWallCrawl.state.grounded
     && pavementToWallCrawl.state.velocity.y > 0;
 
-  const incidentalWallState = createTraversalState(vector(1.54, 6, 0), vector(0, -4, -18));
+  const incidentalWallState = createTraversalState(vector(1.54, 6, 0), vector(8, -4, -18));
   const incidentalWallContact = stepTraversal(incidentalWallState, {
     move: vector(0, 0, -1),
     wallCrawlPressed: false,
@@ -1543,9 +1600,10 @@ export function runTraversalPhysicsSelfTests(): TraversalSelfTestResult {
     groundY: 0,
     wallContact: { point: vector(2, 5.9, 0), normal: vector(-1, 0, 0), colliderId: 'wall', feetTouching: true },
   }, delta);
-  checks.incidentalWallContactDoesNotStick = incidentalWallContact.state.mode !== 'wallCrawl'
-    && incidentalWallContact.state.mode !== 'wallRun'
-    && incidentalWallContact.state.velocity.y < incidentalWallState.velocity.y;
+  checks.incidentalWallContactBecomesRun = incidentalWallContact.state.mode === 'wallRun'
+    && incidentalWallContact.state.wallRunActive
+    && !incidentalWallContact.state.wallCrawlActive
+    && length(incidentalWallContact.state.velocity) >= length(incidentalWallState.velocity) * .9;
 
   const zipTarget: WebAnchorCandidate = { id: 'perch', point: vector(0, 12, -12), kind: 'perch' };
   const zipState = createTraversalState(vector(0, 12, -7), vector(0, 0, -18));

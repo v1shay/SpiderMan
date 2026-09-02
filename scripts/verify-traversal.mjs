@@ -234,14 +234,16 @@ test('low swing braking has a per-attachment budget and never generates ascent',
   close(state.velocity.y, -10 - 29 / 120, .000001);
 });
 
-test('predictive assistance cannot override a wall or trigger wall crawling', () => {
+test('predictive assistance cannot cross a wall and impact selects run rather than crawl', () => {
   const state = descendingSwing();
   state.velocity = v(220, -12);
   const result = stepTraversal(state, { swingHeld: true, wallCrawlPressed: false },
     { sampleGround: () => 0, colliders: [wall] }, .05, assistedConfig);
   assert.ok(outside(result.state, wall));
   assert.ok(result.state.position.x <= wall.min.x - defaults.playerRadius);
-  assert.equal(result.state.mode === 'wallCrawl' || result.state.mode === 'wallRun', false);
+  assert.equal(result.state.mode, 'wallRun');
+  assert.equal(result.state.wallRunActive, true);
+  assert.equal(result.state.wallCrawlActive, false);
 });
 
 const touch = { point: v(5, 4.18, 0), normal: v(-1, 0, 0), feetTouching: true };
@@ -282,16 +284,37 @@ test('diagonal crawl is responsive but cannot exceed cardinal crawl speed', () =
   assert.ok(outside(state, wall));
 });
 
-test('an inward feet-level wall bump auto-attaches, while torso contact cannot', () => {
+test('any inward facade bump auto-attaches into a momentum wall run, not crawl', () => {
   const torso = stepTraversal(createTraversalState(v(4.54, 4), v(8, 0, 0)), {},
     { groundY: -100, wallContact: { ...touch, feetTouching: false } }, 1 / 60);
+  assert.equal(torso.state.wallRunActive, true);
   assert.equal(torso.state.wallCrawlActive, false);
+  assert.equal(torso.state.mode, 'wallRun');
+  assert.ok(Math.hypot(...Object.values(torso.state.velocity)) >= 7);
   const feet = stepTraversal(createTraversalState(v(4.54, 4), v(8, 0, 0)), {},
     { groundY: -100, wallContact: { ...touch, feetTouching: true } }, 1 / 60);
-  assert.equal(feet.state.wallCrawlActive, true);
-  assert.equal(feet.state.mode, 'wallCrawl');
+  assert.equal(feet.state.wallRunActive, true);
+  assert.equal(feet.state.mode, 'wallRun');
+  const crawl = stepTraversal(feet.state, { wallCrawlPressed: true }, crawlEnvironment, 1 / 60);
+  assert.equal(crawl.state.wallRunActive, false);
+  assert.equal(crawl.state.wallCrawlActive, true);
+  assert.equal(crawl.state.mode, 'wallCrawl');
   const midair = stepTraversal(createTraversalState(v(0, 4)), { wallCrawlPressed: true }, { groundY: -100 }, 1 / 60);
   assert.equal(midair.state.wallCrawlActive, false);
+});
+
+test('a swing impact preserves speed in wall run and waits for a fresh swing press to leave', () => {
+  const state = createTraversalState(v(4.54, 4), v(8, 3, -12));
+  const incomingSpeed = Math.hypot(...Object.values(state.velocity));
+  state.swing = { anchor: v(12, 20), anchorId: 'wall', ropeLength: 20, maximumLength: 30, attachedSeconds: .4, groundAssistImpulse: 0 };
+  const impact = stepTraversal(state, { swingHeld: true },
+    { groundY: -100, wallContact: { ...touch, feetTouching: false } }, 1 / 60);
+  assert.equal(impact.state.wallRunActive, true);
+  assert.equal(impact.state.wallCrawlActive, false);
+  assert.equal(impact.state.mode, 'wallRun');
+  assert.equal(impact.state.swing, null);
+  assert.equal(impact.state.swingNeedsRelease, true);
+  assert.ok(Math.hypot(...Object.values(impact.state.velocity)) >= incomingSpeed * .9);
 });
 
 test('jump detaches crawl with outward momentum and does not relatch on another contact', () => {
@@ -315,9 +338,11 @@ test('swing and zip both exit crawl without needing another Q press', () => {
   assert.equal(zip.state.wallCrawlActive, false);
 });
 
-test('a lost foot contact drops the crawl latch immediately', () => {
+test('losing the facade drops wall walking after the short contact grace', () => {
   const state = beginCrawl();
-  const result = stepTraversal(state, {}, { groundY: -100, wallContact: null }, 1 / 60);
+  let result = stepTraversal(state, {}, { groundY: -100, wallContact: null }, 1 / 60);
+  assert.equal(result.state.wallCrawlActive, true);
+  for (let index = 0; index < 20; index++) result = stepTraversal(result.state, {}, { groundY: -100, wallContact: null }, 1 / 60);
   assert.equal(result.state.wallCrawlActive, false);
   assert.notEqual(result.state.mode, 'wallCrawl');
 });
