@@ -62,6 +62,27 @@ test('floor collision does not sink or retain downward velocity', () => {
   assert.equal(result.state.grounded, true);
 });
 
+test('double jump fires once in air, boosts upward, and recharges only on support', () => {
+  const state = createTraversalState(v());
+  state.grounded = true;
+  const first = stepTraversal(state, { jumpPressed: true, cameraForward: v(0, 0, -1) }, { groundY: 0 }, 1 / 60);
+  assert.ok(first.events.some(event => event.type === 'jump'));
+  assert.equal(first.state.airJumpsRemaining, 1);
+  const second = stepTraversal(first.state, { jumpPressed: true, move: v(0, 0, -1) }, { groundY: 0 }, 1 / 60);
+  assert.ok(second.events.some(event => event.type === 'double-jump'));
+  assert.equal(second.state.mode, 'doubleJump');
+  assert.equal(second.state.airJumpsRemaining, 0);
+  assert.ok(second.state.velocity.y >= defaults.doubleJumpSpeed - defaults.gravity / 60 - .01);
+  const clearBuffer = stepTraversal(second.state, {}, { groundY: 0 }, 1 / 60);
+  const denied = stepTraversal(clearBuffer.state, { jumpPressed: true }, { groundY: 0 }, 1 / 60);
+  assert.equal(denied.events.some(event => event.type === 'double-jump'), false);
+  denied.state.position.y = 0;
+  denied.state.velocity = v();
+  denied.state.grounded = true;
+  const landed = stepTraversal(denied.state, {}, { groundY: 0 }, 1 / 60);
+  assert.equal(landed.state.airJumpsRemaining, 1);
+});
+
 test('bounded spawn repair chooses a real roof, not a horizontal wall ejection', () => {
   const result = stepTraversal(createTraversalState(v(0, 9.9)), {}, { groundY: 0, colliders: [roof] }, 1 / 120, inert);
   close(result.state.position.y, 10, .00001);
@@ -261,12 +282,14 @@ test('diagonal crawl is responsive but cannot exceed cardinal crawl speed', () =
   assert.ok(outside(state, wall));
 });
 
-test('a wall bump cannot initiate crawling; Q requires actual feet contact', () => {
-  for (const feetTouching of [false, true]) {
-    const result = stepTraversal(createTraversalState(v(4.54, 4)), {},
-      { groundY: -100, wallContact: { ...touch, feetTouching } }, 1 / 60);
-    assert.equal(result.state.wallCrawlActive, false);
-  }
+test('an inward feet-level wall bump auto-attaches, while torso contact cannot', () => {
+  const torso = stepTraversal(createTraversalState(v(4.54, 4), v(8, 0, 0)), {},
+    { groundY: -100, wallContact: { ...touch, feetTouching: false } }, 1 / 60);
+  assert.equal(torso.state.wallCrawlActive, false);
+  const feet = stepTraversal(createTraversalState(v(4.54, 4), v(8, 0, 0)), {},
+    { groundY: -100, wallContact: { ...touch, feetTouching: true } }, 1 / 60);
+  assert.equal(feet.state.wallCrawlActive, true);
+  assert.equal(feet.state.mode, 'wallCrawl');
   const midair = stepTraversal(createTraversalState(v(0, 4)), { wallCrawlPressed: true }, { groundY: -100 }, 1 / 60);
   assert.equal(midair.state.wallCrawlActive, false);
 });
@@ -278,6 +301,7 @@ test('jump detaches crawl with outward momentum and does not relatch on another 
   assert.ok(result.events.some(event => event.type === 'wall-jump'));
   const next = stepTraversal(result.state, {}, crawlEnvironment, 1 / 60);
   assert.notEqual(next.state.mode, 'wallCrawl');
+  assert.ok(next.state.wallAttachCooldownSeconds > 0, 'camera/crawl latch stays released while clearing the facade');
 });
 
 test('swing and zip both exit crawl without needing another Q press', () => {
@@ -339,13 +363,12 @@ test('click zip completes once without orbiting or inheriting a held swing', () 
   }
 });
 
-test('holding swing on a supported floor launches once without requiring jump or W', () => {
+test('holding swing on a supported floor skids without an artificial bunny hop', () => {
   let state = createTraversalState(v());
   state.grounded = true;
   const anchor = { point: v(18, 48, -25), kind: 'facade' };
   let jumps = 0;
   let attachments = 0;
-  let landings = 0;
   let peakHeight = 0;
   for (let tick = 0; tick < 180; tick++) {
     const result = stepTraversal(state, { swingHeld: true, cameraForward: v(0, 0, -1) },
@@ -353,20 +376,17 @@ test('holding swing on a supported floor launches once without requiring jump or
     state = result.state;
     jumps += result.events.filter(event => event.type === 'jump').length;
     attachments += result.events.filter(event => event.type === 'web-attached').length;
-    landings += result.events.filter(event => event.type === 'land').length;
     peakHeight = Math.max(peakHeight, state.position.y);
     if (tick === 0) {
-      assert.equal(state.grounded, false);
-      assert.ok(state.velocity.y > 15);
-      assert.ok(state.position.y > 0 && state.position.y < .2, 'launch must integrate, not teleport');
+      assert.ok(state.velocity.y < 2, 'ground attachment cannot inject a bunny-hop impulse');
+      assert.ok(state.position.y >= 0 && state.position.y < .2, 'rope loading may integrate a few centimetres but cannot bunny hop');
     }
   }
-  assert.equal(jumps, 1);
+  assert.equal(jumps, 0);
   assert.equal(attachments, 1);
-  assert.equal(landings, 0);
   assert.ok(state.position.y > 3 && peakHeight > 6);
   assert.ok(Math.hypot(...Object.values(state.velocity)) > 32);
-  console.log(`  Ground hold: peak ${peakHeight.toFixed(2)}m, speed ${Math.hypot(...Object.values(state.velocity)).toFixed(2)}m/s, zero landings`);
+  console.log(`  Ground skid: peak ${peakHeight.toFixed(2)}m, speed ${Math.hypot(...Object.values(state.velocity)).toFixed(2)}m/s, ${jumps} fake jumps`);
 });
 
 test('roof hold push-off uses the roof as support and blocked/no anchors cannot launch', () => {
@@ -375,7 +395,7 @@ test('roof hold push-off uses the roof as support and blocked/no anchors cannot 
   const input = { swingHeld: true, cameraForward: v(0, 0, -1) };
   const anchor = { point: v(18, 50, -25), kind: 'facade' };
   const launched = stepTraversal(state, input, { groundY: 0, colliders: [roof], anchorCandidates: [anchor] }, 1 / 120);
-  assert.ok(launched.state.position.y > 10 && launched.state.velocity.y > 15);
+  assert.ok(launched.state.swing && launched.state.velocity.y < 2, 'rooftop swing begins as a skid, not a forced hop');
   assert.ok(outside(launched.state, roof));
   for (const candidates of [[], [{ ...anchor, lineOfSight: false }]]) {
     const blocked = stepTraversal(state, input, { groundY: 0, colliders: [roof], anchorCandidates: candidates }, 1 / 120);
@@ -451,8 +471,9 @@ test('timed multi-swing course retains momentum and height over twelve seconds',
     assert.ok(Math.hypot(...Object.values(state.velocity)) <= defaults.maximumSpeed + .001);
   }
   assert.ok(attachments >= 6 && releases >= 5);
-  assert.ok(-state.position.z > 330 && peakHeight > 30 && airTicks / 1440 > .9);
   console.log(`  Chained course: ${attachments} attachments, ${releases} releases, ${(-state.position.z).toFixed(1)}m forward, ${peakHeight.toFixed(1)}m peak, ${(airTicks / 14.4).toFixed(1)}% airborne`);
+  assert.ok(-state.position.z > 300 && peakHeight > 30 && airTicks / 1440 > .9,
+    'natural rope tension still carries a fast, high, mostly-airborne chained course without a fake ground jump');
 });
 
 test('web-zip stall watchdog ends an obstructed pull rather than pulling forever', () => {

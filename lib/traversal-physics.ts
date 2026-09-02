@@ -16,6 +16,7 @@ export type TraversalMode =
   | 'idle'
   | 'run'
   | 'jump'
+  | 'doubleJump'
   | 'fall'
   | 'dive'
   | 'swing'
@@ -30,6 +31,7 @@ export type TraversalMode =
 
 export type TraversalEventType =
   | 'jump'
+  | 'double-jump'
   | 'land'
   | 'web-attached'
   | 'web-released'
@@ -114,6 +116,10 @@ export interface SwingRuntime {
   attachedSeconds: number;
   tension: number;
   pressure: number;
+  /** Highest speed reached on this attachment; spent as bounded release assist. */
+  peakSpeed?: number;
+  /** Highest rope load reached on this attachment. */
+  peakTension?: number;
   /** Cumulative low-swing braking impulse; never grants upward velocity. */
   groundAssistImpulse?: number;
   /** Validated ground push-off takes up initial slack above its support plane. */
@@ -153,12 +159,18 @@ export interface TraversalState {
   airSeconds: number;
   coyoteSeconds: number;
   jumpBufferSeconds: number;
+  /** One rechargeable aerial jump; restored only by verified support. */
+  airJumpsRemaining: number;
+  /** Presentation window for the native/procedural backflip. */
+  doubleJumpSeconds: number;
   landingSeconds: number;
   pointLaunchSeconds: number;
   wallJumpSeconds: number;
   perchSeconds: number;
   heading: number;
   wallCrawlActive: boolean;
+  /** Prevents jump/swing detachment from immediately re-latching on the same facade. */
+  wallAttachCooldownSeconds: number;
   mantle: { target: Vector3Like; elapsed: number } | null;
   swingNeedsRelease?: boolean;
   /** One ground push-off per cooldown, never a per-frame hovering force. */
@@ -227,6 +239,8 @@ export interface TraversalConfig {
   runSpeed: number;
   maximumSpeed: number;
   jumpSpeed: number;
+  doubleJumpSpeed: number;
+  doubleJumpForwardBoost: number;
   coyoteTime: number;
   jumpBufferTime: number;
   playerRadius: number;
@@ -273,6 +287,8 @@ export const DEFAULT_TRAVERSAL_CONFIG: Readonly<TraversalConfig> = Object.freeze
   runSpeed: 13,
   maximumSpeed: 68,
   jumpSpeed: 11.5,
+  doubleJumpSpeed: 13.8,
+  doubleJumpForwardBoost: 4.8,
   coyoteTime: 0.12,
   jumpBufferTime: 0.13,
   playerRadius: 0.46,
@@ -285,8 +301,8 @@ export const DEFAULT_TRAVERSAL_CONFIG: Readonly<TraversalConfig> = Object.freeze
   swingPumpAcceleration: 24,
   swingSteerAcceleration: 15,
   swingReelSpeed: 9,
-  swingReleaseBoost: 13,
-  swingReleaseLift: 8.5,
+  swingReleaseBoost: 16,
+  swingReleaseLift: 12,
   zipAcceleration: 92,
   zipDamping: 4.8,
   zipMaximumSpeed: 52,
@@ -426,12 +442,15 @@ export function createTraversalState(position: Vector3Like = vector(), velocity:
     airSeconds: 0,
     coyoteSeconds: 0,
     jumpBufferSeconds: 0,
+    airJumpsRemaining: 1,
+    doubleJumpSeconds: 0,
     landingSeconds: 0,
     pointLaunchSeconds: 0,
     wallJumpSeconds: 0,
     perchSeconds: 0,
     heading: 0,
     wallCrawlActive: false,
+    wallAttachCooldownSeconds: 0,
     mantle: null,
   };
 }
@@ -546,6 +565,8 @@ function attachSwing(
     attachedSeconds: 0,
     tension: 0,
     pressure: 0,
+    peakSpeed: length(state.velocity),
+    peakTension: 0,
   };
   state.zip = null;
   state.wallCrawlActive = false;
@@ -556,18 +577,19 @@ function attachSwing(
       Math.max(config.swingMinimumLength, initialLength * .56), initialLength);
     const direction = normalize(horizontal(input.move ?? vector()),
       normalize(horizontal(input.cameraForward ?? state.velocity), vector(0, 0, -1)));
-    const minimumForwardSpeed = config.runSpeed * .85;
+    const minimumForwardSpeed = config.runSpeed * 1.08;
     if (length(horizontal(state.velocity)) < minimumForwardSpeed) {
       const push = Math.min(minimumForwardSpeed, Math.max(0, minimumForwardSpeed - dot(state.velocity, direction)));
       state.velocity = add(state.velocity, scale(direction, push));
     }
-    state.velocity.y = Math.max(state.velocity.y, config.jumpSpeed * 1.35);
-    state.grounded = false;
+    // Do not inject a jump. While the rope takes up slack, verified pavement
+    // acts as a frictionless contact plane; the web's real tension is solely
+    // responsible for lifting Spider-Man into the arc.
+    state.velocity.y = Math.max(0, state.velocity.y);
     state.coyoteSeconds = 0;
     state.jumpBufferSeconds = 0;
     state.landingSeconds = 0;
     state.swingGroundLaunchAfter = state.elapsed + 1.1;
-    events.push(event('jump', state, { strength: state.velocity.y }));
   }
   events.push(event('web-attached', state, { anchorId: anchor.id }));
 }
@@ -587,13 +609,26 @@ function releaseSwing(
   // Timing earns assistance; rapid attach/release taps never manufacture lift.
   const charge = saturate((swing.attachedSeconds - 0.16) / 0.64);
   const motionSpeed = length(tangentVelocity);
-  const loadedArc = saturate(swing.tension * 1.7 + saturate(motionSpeed / 42) * .35);
+  const loadedArc = saturate(Math.max(swing.tension, swing.peakTension ?? 0) * 1.7 + saturate(motionSpeed / 42) * .35);
   const assistance = charge * (.25 + loadedArc * .75) * (.5 + saturate(motionSpeed / 34) * .5);
   const forwardAgreement = saturate(dot(motionDirection, cameraForward) * 0.5 + 0.5);
-  const upwardArc = saturate(tangentVelocity.y / 16);
-  state.velocity = add(state.velocity, scale(normalize(lerpVector(motionDirection, cameraForward, 0.12)), config.swingReleaseBoost * assistance * (0.4 + upwardArc * 0.6) * (0.72 + forwardAgreement * 0.28)));
-  state.velocity.y += config.swingReleaseLift * assistance * upwardArc;
-  state.swingReleaseSeconds = .32 * assistance;
+  const upwardArc = saturate((tangentVelocity.y + 3) / 19);
+  const durationEnergy = saturate((swing.attachedSeconds - .28) / 1.55);
+  const speedEnergy = saturate(((swing.peakSpeed ?? motionSpeed) - 18) / 38);
+  const ropeEnergy = saturate((swing.maximumLength - 16) / 56);
+  const storedEnergy = durationEnergy * (.12 + speedEnergy * .58 + ropeEnergy * .3);
+  const launchAssist = saturate(assistance * .72 + storedEnergy * .62);
+  state.velocity = add(state.velocity, scale(
+    normalize(lerpVector(motionDirection, cameraForward, 0.12)),
+    config.swingReleaseBoost * launchAssist * (.48 + upwardArc * .52) * (.72 + forwardAgreement * .28),
+  ));
+  // A long, fast, loaded arc stores a bounded launch reserve. Good upswing
+  // timing spends more of it vertically, while releasing near the bottom
+  // still carries momentum instead of dropping Spider-Man onto the pavement.
+  state.velocity.y += config.swingReleaseLift * (
+    assistance * (.18 + upwardArc * .82) + storedEnergy * (.42 + upwardArc * .88)
+  );
+  state.swingReleaseSeconds = .44 * Math.max(assistance, storedEnergy);
   const releasedStrength = swing.tension;
   const releasedAnchor = swing.anchorId;
   state.swing = null;
@@ -729,6 +764,8 @@ function applySwing(
   state.velocity.y -= config.gravity * delta;
   applyLowSwingGroundAssistance(state, input, environment, config, delta);
   swing.tension = saturate((springAcceleration + lengthSquared(reject(state.velocity, radial)) / Math.max(swing.ropeLength, 1)) / 70);
+  swing.peakSpeed = Math.max(swing.peakSpeed ?? 0, length(state.velocity));
+  swing.peakTension = Math.max(swing.peakTension ?? 0, swing.tension);
 }
 
 /**
@@ -911,6 +948,27 @@ function applyWallTraversal(
   const desiredDirection = add(scale(tangent, strafe), vector(0, climb, 0));
   const desired = scale(normalize(desiredDirection), config.wallCrawlSpeed * Math.min(1, length(desiredDirection)));
   state.velocity = lerpVector(state.velocity, desired, 1 - Math.exp(-12 * delta));
+}
+
+function shouldAutoAttachWall(
+  state: TraversalState,
+  contact: SurfaceContact | WallRuntime | null | undefined,
+  approachVelocity: Vector3Like,
+): boolean {
+  if (!contact?.feetTouching || state.wallAttachCooldownSeconds > 0 || state.swing || state.zip || state.mantle) return false;
+  if (Math.abs(contact.normal.y) >= .45) return false;
+  const normal = normalize(horizontal(contact.normal));
+  return dot(approachVelocity, normal) < -1.25;
+}
+
+function attachToWall(state: TraversalState): void {
+  if (!state.wall?.feetTouching) return;
+  const normal = normalize(horizontal(state.wall.normal));
+  const inwardSpeed = dot(state.velocity, normal);
+  if (inwardSpeed < 0) state.velocity = subtract(state.velocity, scale(normal, inwardSpeed));
+  state.velocity.y = Math.max(state.grounded ? 1.2 : 0, state.velocity.y);
+  state.grounded = false;
+  state.wallCrawlActive = true;
 }
 
 function applyMantle(state: TraversalState, config: TraversalConfig, delta: number) {
@@ -1145,7 +1203,8 @@ function createContext(state: TraversalState, input: TraversalInput, config: Tra
 
 function updateMode(state: TraversalState, input: TraversalInput): void {
   const horizontalSpeed = length(horizontal(state.velocity));
-  if (state.pointLaunchSeconds > 0) state.mode = 'pointLaunch';
+  if (state.doubleJumpSeconds > 0) state.mode = 'doubleJump';
+  else if (state.pointLaunchSeconds > 0) state.mode = 'pointLaunch';
   else if (state.wallJumpSeconds > 0) state.mode = 'wallJump';
   else if (state.perchSeconds > 0) state.mode = 'perch';
   else if (state.swing) state.mode = 'swing';
@@ -1218,20 +1277,26 @@ function stepTraversalTick(
   state.elapsed += delta;
   state.coyoteSeconds = state.grounded ? config.coyoteTime : Math.max(0, state.coyoteSeconds - delta);
   state.jumpBufferSeconds = input.jumpPressed ? config.jumpBufferTime : Math.max(0, state.jumpBufferSeconds - delta);
+  if (state.grounded) state.airJumpsRemaining = 1;
   state.landingSeconds = Math.max(0, state.landingSeconds - delta);
   state.pointLaunchSeconds = Math.max(0, state.pointLaunchSeconds - delta);
   state.wallJumpSeconds = Math.max(0, state.wallJumpSeconds - delta);
+  state.doubleJumpSeconds = Math.max(0, state.doubleJumpSeconds - delta);
   state.perchSeconds = Math.max(0, state.perchSeconds - delta);
   state.swingReleaseSeconds = Math.max(0, (state.swingReleaseSeconds ?? 0) - delta);
+  state.wallAttachCooldownSeconds = Math.max(0, state.wallAttachCooldownSeconds - delta);
 
+  const enteredWall = shouldAutoAttachWall(state, environment.wallContact, state.velocity);
   if (environment.wallContact !== undefined) updateWallFromContact(state, environment.wallContact, config, delta, events);
+  if (enteredWall) attachToWall(state);
   if (!input.swingHeld && !input.swingPressed) state.swingNeedsRelease = false;
   if (input.wallCrawlPressed) {
     state.wallCrawlActive = !state.wallCrawlActive && Boolean(state.wall?.feetTouching) && !state.swing && !state.zip;
     if (state.wallCrawlActive) state.velocity = vector();
   }
-  if (input.jumpPressed || input.swingPressed || input.swingHeld || input.zipPressed) {
+  if (input.jumpPressed || input.swingPressed || input.swingHeld || input.zipPressed || input.zipHeld) {
     if (input.jumpPressed && state.mantle) state.coyoteSeconds = config.coyoteTime;
+    state.wallAttachCooldownSeconds = Math.max(state.wallAttachCooldownSeconds, .34);
     state.wallCrawlActive = false;
     state.mantle = null;
   }
@@ -1276,6 +1341,19 @@ function stepTraversalTick(
     state.coyoteSeconds = 0;
     state.jumpBufferSeconds = 0;
     events.push(event('jump', state, { strength: config.jumpSpeed }));
+  } else if (state.jumpBufferSeconds > 0 && !state.grounded && state.coyoteSeconds <= 0
+    && state.airJumpsRemaining > 0 && !state.swing && !state.zip && !state.wallCrawlActive && !state.mantle) {
+    const direction = normalize(horizontal(input.move ?? input.cameraForward ?? state.velocity), vector(0, 0, -1));
+    const horizontalSpeed = length(horizontal(state.velocity));
+    const boost = Math.max(0, Math.min(config.doubleJumpForwardBoost, config.maximumSpeed - horizontalSpeed));
+    state.velocity = add(state.velocity, scale(direction, boost));
+    state.velocity.y = Math.max(config.doubleJumpSpeed, state.velocity.y + config.doubleJumpSpeed * .52);
+    state.grounded = false;
+    state.airJumpsRemaining -= 1;
+    state.jumpBufferSeconds = 0;
+    state.doubleJumpSeconds = .92;
+    state.landingSeconds = 0;
+    events.push(event('double-jump', state, { strength: length(state.velocity) }));
   }
 
   if (state.perchSeconds > 0 && input.jumpPressed) {
@@ -1305,6 +1383,7 @@ function stepTraversalTick(
 
   clampVelocity(state, config.maximumSpeed);
   const incomingVerticalSpeed = state.velocity.y;
+  const collisionApproachVelocity = copy(state.velocity);
   const collision = resolveMotion(state, environment, config, delta);
   const ropeCollision = enforceRopeConstraint(state, environment, config, events);
   // Validate support after rope motion; a grounded flag from the pre-correction
@@ -1313,6 +1392,7 @@ function stepTraversalTick(
   updateWallFromContact(state, support.wall ?? ropeCollision?.wall ?? collision.wall ?? environment.wallContact ?? null, config, delta, events);
   if (!state.wall?.feetTouching) state.wallCrawlActive = false;
   state.grounded = support.grounded;
+  if (shouldAutoAttachWall(state, state.wall, collisionApproachVelocity)) attachToWall(state);
   if (state.mantle && distance(state.position, state.mantle.target) < .09) {
     state.mantle = null;
     state.wallCrawlActive = false;
@@ -1339,7 +1419,11 @@ function stepTraversalTick(
     state.landingSeconds = clamp(Math.abs(incomingVerticalSpeed) / 25 + 0.12, 0.12, 0.34);
     events.push(event('land', state, { strength: saturate(Math.abs(incomingVerticalSpeed) / 30) }));
   }
-  if (state.grounded) state.airSeconds = 0;
+  if (state.grounded) {
+    state.airSeconds = 0;
+    state.airJumpsRemaining = 1;
+    state.doubleJumpSeconds = 0;
+  }
   else state.airSeconds += delta;
   updateMode(state, input);
   return { state, context: createContext(state, input, config, delta), events };

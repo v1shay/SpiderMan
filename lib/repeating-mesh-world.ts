@@ -45,6 +45,26 @@ export class RepeatingMeshWorld {
     return this.offsets(position, position, radius + .01).every(offset => this.query.isCapsuleClear(local.copy(position).sub(offset), radius, height, checkInterior));
   }
 
+  /**
+   * Resolve overlapping/coplanar street shells across the union of repeated
+   * tiles. This is a positional collision skin only: velocity is untouched, so
+   * ground-level swinging skids instead of acquiring a synthetic bunny hop.
+   */
+  private applySupportClearance(position: THREE.Vector3, radius: number, height: number) {
+    if (this.isCapsuleClear(position, radius, height, false)) return true;
+    const support = this.supportAt(position, .08, radius + .08);
+    if (!support) return false;
+    const originalY = position.y;
+    const supportedY = capsuleSupportHeight(support, radius);
+    if (Math.abs(originalY - supportedY) > .085) return false;
+    for (let lift = 0; lift <= .06 + 1e-7; lift += .006) {
+      position.y = Math.max(originalY, supportedY) + lift;
+      if (this.isCapsuleClear(position, radius, height, false)) return true;
+    }
+    position.y = originalY;
+    return false;
+  }
+
   sweepCapsule(from: MeshPoint, to: MeshPoint, velocity: MeshPoint, radius = .46, height = 2.05): MeshSweepResult {
     const position = new THREE.Vector3().copy(from), correctedVelocity = new THREE.Vector3().copy(velocity);
     const movement = new THREE.Vector3().copy(to).sub(position);
@@ -53,7 +73,9 @@ export class RepeatingMeshWorld {
     if (offsets.length === 1) {
       const offset = offsets[0];
       const hit = this.query.sweepCapsule(position.clone().sub(offset), new THREE.Vector3().copy(to).sub(offset), velocity, radius, height);
-      hit.position.add(offset); return hit;
+      hit.position.add(offset);
+      this.applySupportClearance(hit.position, radius, height);
+      return hit;
     }
     const requested = Math.max(1, Math.ceil(movement.length() / .16));
     const steps = Math.min(requested, 2048), step = movement.multiplyScalar(1 / requested);
@@ -82,6 +104,7 @@ export class RepeatingMeshWorld {
         correctedVelocity.set(0, 0, 0); blocked = true; break;
       }
       position.copy(desired);
+      this.applySupportClearance(position, radius, height);
       if (wallNormal) {
         const incoming = step.dot(wallNormal);
         if (incoming < 0) step.addScaledVector(wallNormal, -incoming);
@@ -89,7 +112,22 @@ export class RepeatingMeshWorld {
     }
     const support = correctedVelocity.y <= .1 ? this.supportAt(position, .015, radius + .035) : null;
     grounded = Boolean(support && Math.abs(position.y - capsuleSupportHeight(support, radius)) <= .035);
-    if (grounded && support) { position.y = capsuleSupportHeight(support, radius); correctedVelocity.y = Math.max(0, correctedVelocity.y); }
+    if (grounded && support) {
+      const unsnappedY = position.y, supportedY = capsuleSupportHeight(support, radius);
+      position.y = supportedY;
+      if (!this.isCapsuleClear(position, radius, height, false)) {
+        let foundClearSkin = false;
+        for (let lift = .006; lift <= .06 + 1e-7; lift += .006) {
+          position.y = supportedY + lift;
+          if (this.isCapsuleClear(position, radius, height, false)) { foundClearSkin = true; break; }
+        }
+        if (!foundClearSkin) {
+          position.y = Math.max(unsnappedY, supportedY);
+          grounded = this.isCapsuleClear(position, radius, height, false);
+        }
+      }
+      correctedVelocity.y = Math.max(0, correctedVelocity.y);
+    }
     return { position, velocity: correctedVelocity, grounded, wallNormal, feetTouching, blocked, contacts };
   }
 }

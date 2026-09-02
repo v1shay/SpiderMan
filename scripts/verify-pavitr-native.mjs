@@ -94,6 +94,7 @@ for (const release of ['releaseFlip', 'releaseTurn']) {
   advance({ pose: 'fall', grounded: false, verticalSpeed: -8 }, 1.4, 'pavitr-native:fall');
   advance({ pose: 'perch', grounded: true }, 1.2, 'pavitr-native:landing');
 }
+advance({ pose: 'backflip', grounded: false, verticalSpeed: 14 }, .45, 'pavitr-native:releaseFlip');
 advance({ pose: 'zip', grounded: false, speed: 50 }, .5, 'pavitr-native:zip');
 advance({ pose: 'jump', grounded: false, verticalSpeed: 30 }, 2, 'pavitr-native:fall');
 assert.equal(animator.activeClip, 'pavitr-native:fall', 'completed release restarted a takeoff animation');

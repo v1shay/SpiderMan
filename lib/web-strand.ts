@@ -2,7 +2,10 @@ import * as THREE from 'three';
 
 export const WEB_STRAND_MODEL = '/assets/effects/spiderman-web.glb';
 export const WEB_STRAND_DIAMETER = .02;
-export const WEB_STRAND_MAX_SEGMENTS = 12;
+// A gameplay anchor can sit 150 m away. Twenty repeated 8 m authored pieces
+// cover that range without stretching the source UVs or spawning 20 draw calls
+// (the pieces remain instanced per source mesh).
+export const WEB_STRAND_MAX_SEGMENTS = 20;
 const SEGMENT_LENGTH = 8;
 const JOINT_OVERLAP = .012;
 const Y_AXIS = new THREE.Vector3(0, 1, 0);
@@ -37,12 +40,19 @@ export class WebStrand {
     this.group.name = 'downloaded-spiderman-web';
     this.group.visible = false;
     sourceScene.updateWorldMatrix(true, true);
-    const sourceMeshes: THREE.Mesh[] = [];
+    const sourceCandidates: THREE.Mesh[] = [];
     sourceScene.traverseVisible(object => {
       if (object instanceof THREE.Mesh && !(object instanceof THREE.SkinnedMesh)
-        && object.geometry.getAttribute('position')) sourceMeshes.push(object);
+        && object.geometry.getAttribute('position')) sourceCandidates.push(object);
     });
-    if (!sourceMeshes.length) throw new Error('Spider-Man web asset contains no renderable tube meshes');
+    if (!sourceCandidates.length) throw new Error('Spider-Man web asset contains no renderable tube meshes');
+    // The download contains two overlapping full-length strands: a 22k-tri
+    // sculpt and its 2.5k-tri textured game mesh. Repeating the sculpt twenty
+    // times costs nearly 500k triangles for a line only pixels wide, so prefer
+    // the authored realtime strand when one is present.
+    const realtimeMeshes = sourceCandidates.filter(mesh =>
+      (mesh.geometry.index?.count ?? mesh.geometry.getAttribute('position').count) / 3 <= 6_000);
+    const sourceMeshes = realtimeMeshes.length ? realtimeMeshes : sourceCandidates;
     for (const mesh of sourceMeshes) this.sourceBounds.union(new THREE.Box3().setFromObject(mesh));
     const dimensions = this.sourceBounds.getSize(new THREE.Vector3());
     const axes = [dimensions.x, dimensions.y, dimensions.z];

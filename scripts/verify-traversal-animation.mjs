@@ -171,6 +171,9 @@ for (const suit of suits) {
     for (let cycle = 0; cycle < 3; cycle++) {
       advance(test, `run-${cycle}`, { pose: 'run', grounded: true, speed: 12 }, 30);
       advance(test, `jump-${cycle}`, { pose: 'jump', grounded: false, speed: 19, verticalSpeed: 14 }, 25);
+      advance(test, `double-jump-${cycle}`, { pose: 'backflip', grounded: false, speed: 25, verticalSpeed: 14 }, 55);
+      const ownsBackflip = test.animator.clips.some(clip => /(?:jumpdouble|swingend|swingtoland|basicsidehandspring|pavitr-native:release|jump)$/i.test(canonical(clip.name)));
+      if (ownsBackflip) check(test.animator.activeClip !== 'procedural:backflip', `${suit.id}: authored double-jump animation was not selected`);
       advance(test, `swing-down-${cycle}`, { ...swing, verticalSpeed: -18 }, 36);
       advance(test, `swing-up-${cycle}`, { ...swing, verticalSpeed: 18 }, 36);
       advance(test, `release-${cycle}`, { pose: 'jump', grounded: false, speed: 46, verticalSpeed: 22 }, 27);

@@ -83,6 +83,7 @@ export class PavitrAnimationGraph {
     if (this.release) return { clip: this.segments.fall, loop: THREE.LoopPingPong, rate: .55 };
     switch (motion.pose) {
       case 'jump': return once(this.segments.leap);
+      case 'backflip': return once(this.releaseCount++ % 2 ? this.segments.releaseTurn : this.segments.releaseFlip, 1.12);
       case 'zip': return once(this.segments.zip, 1.3);
       case 'fall': return { clip: this.segments.fall, loop: THREE.LoopPingPong, rate: .55 };
       case 'dive': return once(this.segments.dive);

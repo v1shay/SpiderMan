@@ -77,6 +77,7 @@ export class AvatarAnimator {
   private hang?: THREE.AnimationClip;
   private swingDown?: THREE.AnimationClip;
   private swingUp?: THREE.AnimationClip;
+  private backflip?: THREE.AnimationClip;
   private overlays: { bone: THREE.Bone; before: THREE.Quaternion }[] = [];
   activeClip = 'procedural';
   contactError = 0;
@@ -125,6 +126,10 @@ export class AvatarAnimator {
         this.clips.push(this.hang);
       }
     }
+    this.backflip = suit.id === 'pavitr' ? findClip(this.clips, ['basicsidehandspringrm', 'entry'])
+      : suit.id === 'mua-spider' ? findClip(this.clips, ['jumpdouble_start'])
+        : suit.id === 'symbiote' || suit.id === 'playstation' ? findClip(this.clips, ['swingtoland', 'jump'])
+          : findClip(this.clips, ['jumpdouble_start', 'swingend', 'backflip', 'jumpup', 'jump']);
     // Deliberately exclude attacks, root-motion acrobatics and fly-offscreen
     // clips from a tightly spaced selection lineup.
     this.emotes = this.clips.filter((clip) => /(?:shellfidget|fidgetvictoryin|hiphop|silly1|silly2|scream)$/.test(canonical(clip.name)));
@@ -243,6 +248,7 @@ export class AvatarAnimator {
       // it authored-first instead of letting the appended shared `jumpUp`
       // clip win only because its alias appears earlier in the generic list.
       case 'jump': return this.suit.id === 'venom' ? findClip(this.clips, ['jump']) : findClip(this.clips, ['jumpup', 'jump']);
+      case 'backflip': return this.backflip;
       case 'fall': return findClip(this.clips, ['jumpdown', 'bracedrop']);
       case 'dive': return findClip(this.clips, ['bracedrop', 'jumpdown']);
       case 'crawl': case 'wall': return this.crawl;
@@ -283,7 +289,7 @@ export class AvatarAnimator {
     if (action !== this.current) {
       this.current?.fadeOut(.16);
       if (action) {
-        const once = motion.lobby ? this.emotes.includes(clip!) : ['jump', 'fall', 'zip', 'dive'].includes(motion.pose);
+        const once = motion.lobby ? this.emotes.includes(clip!) : ['jump', 'backflip', 'fall', 'zip', 'dive'].includes(motion.pose);
         action.reset().setLoop(native?.loop ?? (once ? THREE.LoopOnce : THREE.LoopRepeat), Infinity);
         action.clampWhenFinished = native ? native.loop === THREE.LoopOnce : once;
         action.enabled = true;
@@ -294,7 +300,8 @@ export class AvatarAnimator {
     if (action) {
       const rate = motion.pose === 'crawl' || motion.pose === 'wall' ? THREE.MathUtils.clamp((motion.speed ?? 0) / 4, 0, 1.5) * (motion.crawlDirection ?? 1)
         : motion.pose === 'run' ? THREE.MathUtils.clamp((motion.speed ?? 8) / 9, .65, 1.65)
-        : motion.pose === 'swing' ? .85 + (motion.tension ?? 0) * .25 : 1;
+        : motion.pose === 'swing' ? .85 + (motion.tension ?? 0) * .25
+          : motion.pose === 'backflip' ? 1.12 : 1;
       action.setEffectiveTimeScale(native?.rate ?? rate);
       if (clip === this.swingDown || clip === this.swingUp) {
         action.setEffectiveTimeScale(0);
@@ -308,7 +315,7 @@ export class AvatarAnimator {
     this.activeClip = clip?.name ?? `procedural:${motion.pose}`;
     if (!action) {
       const fallback = motion.lobby && this.elapsed % 14 > 9 ? 'emote' : motion.pose;
-      animateRigBones(this.bones, fallback, this.elapsed, delta, this.suit.rigPreset);
+      animateRigBones(this.bones, fallback, fallback === 'backflip' ? this.stateTime : this.elapsed, delta, this.suit.rigPreset);
     }
     if (action && motion.pose === 'swing') {
       const trough = (1 - THREE.MathUtils.clamp(Math.abs(motion.verticalSpeed ?? 0) / 5, 0, 1)) * (motion.tension ?? 0);

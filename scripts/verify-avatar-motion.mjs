@@ -315,7 +315,7 @@ async function gameplay(suit) {
       if (swingClip?.name === 'arc-upswing') check(action.time <= .451, `${suit.id}: attached upswing entered released backflip frames`);
       if (swingClip?.name === 'arc-downswing') check(action.time >= .7 && action.time <= 1.901, `${suit.id}: downswing left verified safe pose interval`);
     }
-    for (const pose of ['jump', 'fall', 'dive', 'zip']) advance(test, { pose, grounded: false, speed: 26, verticalSpeed: -10 }, .5, `${pose}-${repeat}`);
+    for (const pose of ['jump', 'backflip', 'fall', 'dive', 'zip']) advance(test, { pose, grounded: false, speed: 26, verticalSpeed: -10 }, .5, `${pose}-${repeat}`);
     advance(test, perchMotion, 1.5, `land-${repeat}`);
     if (suit.traversal === 'spider') check(Math.abs(test.root.position.y - beforeY) < .003, `${suit.id}: landing/perch offset changes across repeated swing cycles`);
   }

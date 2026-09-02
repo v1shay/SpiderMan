@@ -37,6 +37,7 @@ const graph = new MuaSpiderAnimationGraph(clips);
 const select = (pose, extra = {}) => graph.select(1 / 60, { pose, grounded: false, ...extra });
 assert.equal(select('run').clip.name, 'run');
 assert.equal(select('jump').clip.name, 'jump_start');
+assert.equal(select('backflip').clip.name, 'jumpdouble_start');
 assert.equal(select('swing', { tension: .7 }).clip.name, 'power_8_loop');
 assert.equal(select('zip').clip.name, 'power_8_start');
 assert.equal(select('fall').clip.name, 'power_10');

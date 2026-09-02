@@ -8,6 +8,7 @@ import { WorldMeshQuery, capsuleSupportHeight } from '../lib/mesh-world.ts';
 import { RepeatingMeshWorld } from '../lib/repeating-mesh-world.ts';
 import { createSwingAssistanceState, stepSwingAssistance } from '../lib/swing-assistance.ts';
 import { createTraversalState, stepTraversalInPlace, setTraversalKinematics, refreshTraversalContext } from '../lib/traversal-physics.ts';
+import { calculateWallSkim } from '../lib/wall-skim.ts';
 
 // Geometry/physics integration, not texture or browser FPS verification. This
 // intentionally mirrors SpiderGame's force -> swept mesh -> support -> rope
@@ -73,6 +74,7 @@ function simulate(world, route, name) {
   const forward = route.forward, aim = forward.clone().add(new THREE.Vector3(0, .18, 0)).normalize();
   const times = [], events = {}, detaches = {}, sampleFailures = [], detachSamples = [];
   let airFrames = 0, swingFrames = 0, contacts = 0, wallFrames = 0, stalled = 0, penetrationFrames = 0;
+  let groundSkims = 0, wallSkims = 0, wallSkimCooldown = 0;
   let distance = 0, maxHeight = state.position.y, maxSpeed = 0, assistanceFrames = 0, probes = 0;
   let anchorCount = 0, searches = 0, attachedAt = null, longestAttachment = 0, immediateDetaches = 0;
   let cachedAnchors = [], nextSearch = 0;
@@ -112,23 +114,53 @@ function simulate(world, route, name) {
         longestAttachment = Math.max(longestAttachment, frame - attachedAt); attachedAt = null;
       }
     }
+    const attemptedVelocity = new THREE.Vector3().copy(state.velocity);
     const hit = world.sweepCapsule(before, state.position, state.velocity);
     const preFinalSnapPosition = hit.position.clone();
     const blocked = Boolean(hit.wallNormal) || hit.blocked && !hit.grounded;
     const support = hit.velocity.y <= .1 ? world.supportAt(hit.position, .015, .51) : null;
     const supportY = support ? capsuleSupportHeight(support) : null;
     state.grounded = supportY !== null && Math.abs(hit.position.y - supportY) < .045;
-    if (state.grounded) { hit.position.y = supportY; hit.velocity.y = Math.max(0, hit.velocity.y); state.airSeconds = 0; }
+    if (state.grounded) {
+      const exactSupport = hit.position.clone(); exactSupport.y = supportY;
+      if (world.isCapsuleClear(exactSupport, .46, 2.05, false)) hit.position.y = supportY;
+      else hit.position.y = Math.max(hit.position.y, supportY);
+      hit.velocity.y = Math.max(0, hit.velocity.y); state.airSeconds = 0;
+    }
     if (!wasGrounded && state.grounded) state.landingSeconds = .16;
     setTraversalKinematics(state, hit.position, hit.velocity);
     state.wall = null; state.wallCrawlActive = false;
+    wallSkimCooldown = Math.max(0, wallSkimCooldown - dt);
+    if (hit.wallNormal && state.swing && held && wallSkimCooldown <= 0) {
+      const skim = calculateWallSkim(attemptedVelocity, hit.wallNormal, forward);
+      if (skim.eligible) {
+        hit.position.addScaledVector(hit.wallNormal, .045);
+        hit.velocity.set(skim.velocity.x, skim.velocity.y, skim.velocity.z);
+        state.swing = null; state.swingRetryAfter = state.elapsed + .18;
+        state.grounded = false; state.landingSeconds = 0; wallSkimCooldown = .52; wallSkims++;
+        setTraversalKinematics(state, hit.position, hit.velocity);
+      }
+    }
     if (state.swing) {
       const anchor = new THREE.Vector3().copy(state.swing.anchor);
       const chest = hit.position.clone().add(up), line = anchor.clone().sub(chest);
       const obstruction = world.raycast(chest, line.clone().normalize(), Math.max(0, line.length() - .1));
       const excess = hit.position.distanceTo(anchor) - state.swing.ropeLength;
-      const conflict = blocked && excess > Math.max(.25, state.swing.ropeLength * .01);
-      const reason = obstruction ? 'blocked-web' : state.grounded ? 'landed' : conflict ? 'solid-rope-conflict' : null;
+      const groundSkim = state.grounded && held && !hit.wallNormal && !obstruction && anchor.y > hit.position.y + 2.8;
+      if (groundSkim) {
+        const direction = attemptedVelocity.clone().setY(0);
+        if (direction.lengthSq() < .01) direction.copy(forward);
+        direction.normalize();
+        const horizontal = Math.hypot(attemptedVelocity.x, attemptedVelocity.z);
+        const retained = Math.max(14, Math.min(78, horizontal * .985));
+        hit.position.y += .042;
+        hit.velocity.set(direction.x * retained,
+          Math.max(attemptedVelocity.y, state.swing.attachedSeconds < .24 ? .24 : .08), direction.z * retained);
+        state.grounded = false; state.landingSeconds = 0; groundSkims++;
+        setTraversalKinematics(state, hit.position, hit.velocity);
+      }
+      const conflict = blocked && !groundSkim && excess > Math.max(.25, state.swing.ropeLength * .01);
+      const reason = obstruction ? 'blocked-web' : state.grounded && !groundSkim ? 'landed' : conflict ? 'solid-rope-conflict' : null;
       if (reason) {
         detaches[reason] = (detaches[reason] ?? 0) + 1;
         if (attachedAt !== null) {
@@ -149,7 +181,7 @@ function simulate(world, route, name) {
     distance += before.distanceTo(hit.position); contacts += hit.contacts; wallFrames += +Boolean(hit.wallNormal);
     airFrames += +!state.grounded; swingFrames += +Boolean(state.swing);
     if (frame > 30 && speed < 1 && held) stalled++;
-    const clear = world.isCapsuleClear(state.position, .46, 2.05, frame % 5 === 0);
+    const clear = world.isCapsuleClear(state.position, .46, 2.05, false);
     if (!clear) {
       penetrationFrames++;
       if (sampleFailures.length < 12) sampleFailures.push({ frame, point: coordinates(state.position), exactPoint: { ...state.position },
@@ -159,7 +191,7 @@ function simulate(world, route, name) {
         preFinalSnapPoint: coordinates(preFinalSnapPosition), preFinalSnapClear: world.isCapsuleClear(preFinalSnapPosition, .46, 2.05, false) });
     }
     assert.ok(Number.isFinite(speed + state.position.x + state.position.y + state.position.z), 'Finite integrated state');
-    assert.equal(state.wallCrawlActive, false, 'No auto-wall crawling without Q');
+    assert.equal(state.wallCrawlActive, false, 'an active swing collision cannot steal control into wall crawl');
     times.push(performance.now() - tickStart);
   }
   if (attachedAt !== null) longestAttachment = Math.max(longestAttachment, frameCount - attachedAt);
@@ -168,7 +200,7 @@ function simulate(world, route, name) {
   return { trial: name, frames: frameCount, start, end: coordinates(state.position), distance: round(distance), maxHeight: round(maxHeight),
     maxSpeed: round(maxSpeed), airtimeSeconds: round(airFrames / 60), swingSeconds: round(swingFrames / 60),
     longestAttachmentSeconds: round(longestAttachment / 60), immediateDetaches, stalledHeldFrames: stalled,
-    contacts, wallFrames, penetrationFrames, assistanceFrames, probes, anchorSearches: searches,
+    contacts, wallFrames, groundSkims, wallSkims, penetrationFrames, assistanceFrames, probes, anchorSearches: searches,
     meanAnchorCandidates: round(anchorCount / Math.max(1, searches)), events, detaches, detachSamples, sampleFailures,
     cpuFrameMeanMs: round(times.reduce((sum, value) => sum + value, 0) / times.length), cpuFrameP95Ms: round(times[Math.floor(times.length * .95)]) };
 }

@@ -2,16 +2,18 @@
 
 import { useEffect, useRef, useState } from 'react';
 import Image from 'next/image';
-import { Map as MapIcon, Volume2, X } from 'lucide-react';
+import { Navigation, Volume2, X } from 'lucide-react';
 import type { Map as MapLibreMap, Marker, StyleSpecification } from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { DISTRICTS, type DistrictId } from '@/lib/game-config';
+import type { RaceHud } from './SpiderGame';
 import styles from './SpideyTracker.module.css';
 
 type Props = {
   open: boolean;
   current: DistrictId;
   loaded: ReadonlySet<DistrictId>;
+  race: RaceHud | null;
   onClose: () => void;
   onOpen: () => void;
   onTravel: (id: DistrictId) => void;
@@ -101,7 +103,7 @@ function createTrackerStyle(sourceStyle: StyleSpecification): StyleSpecification
   return style;
 }
 
-export function SpideyTracker({ open, current, loaded, onClose, onOpen, onTravel }: Props) {
+export function SpideyTracker({ open, current, loaded, race, onClose, onOpen, onTravel }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MapLibreMap | null>(null);
   const markersRef = useRef(new Map<DistrictId, { marker: Marker; element: HTMLButtonElement }>());
@@ -211,10 +213,17 @@ export function SpideyTracker({ open, current, loaded, onClose, onOpen, onTravel
 
   if (!open) {
     return (
-      <button className={styles.trigger} type="button" onClick={onOpen} aria-label="Open Maps">
-        <MapIcon aria-hidden="true" />
-        <span>Maps</span>
-        <small>M</small>
+      <button className={styles.trigger} type="button" onClick={onOpen} aria-label="Open Spidey Tracker">
+        <span className={styles.miniRadar} aria-hidden="true">
+          <i className={styles.miniSweep} style={{ transform: `translateX(-50%) rotate(${race?.bearing ?? 0}rad)` }} />
+          <Navigation />
+          <b />
+        </span>
+        <span className={styles.miniReadout}>
+          <small>Spidey Tracker</small>
+          <strong>{race ? `CP ${String(race.checkpoint).padStart(2, '0')} · ${Math.round(race.distance)}m` : 'Route linking'}</strong>
+        </span>
+        <kbd>M</kbd>
       </button>
     );
   }

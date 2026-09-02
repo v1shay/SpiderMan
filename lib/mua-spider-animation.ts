@@ -55,6 +55,7 @@ export class MuaSpiderAnimationGraph {
       case 'perch': selection = { clip: this.native.perch, loop: THREE.LoopRepeat, rate: 1 }; break;
       case 'run': selection = { clip: this.native.run, loop: THREE.LoopRepeat, rate: THREE.MathUtils.clamp((motion.speed ?? 8) / 9, .7, 1.7) }; break;
       case 'jump': selection = once(['swing', 'zip'].includes(this.previousPose) ? this.native.doubleJump : this.native.jump, 1.08); break;
+      case 'backflip': selection = once(this.native.doubleJump, 1.12); break;
       case 'swing': selection = { clip: this.native.swing, loop: THREE.LoopRepeat, rate: 1 }; break;
       case 'zip': selection = once(this.native.zip, 1.2); break;
       case 'fall': selection = once(this.native.aerial, .9); break;

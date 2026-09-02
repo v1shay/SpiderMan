@@ -67,7 +67,7 @@ for (const [pose, name] of Object.entries(SYMBIOTE_NATIVE_ROUTES)) {
   const selection = route(pose, pose === 'swing' ? { tension: .5 } : {});
   assert.ok(selection, `${pose} did not select a native animation`);
   assert.strictEqual(selection.clip, routedSource[name].clip, `${pose} copied/retargeted ${name} instead of using its source identity`);
-  assert.equal(selection.loop, THREE.LoopRepeat, `${pose} truncated the complete native action`);
+  assert.equal(selection.loop, pose === 'backflip' ? THREE.LoopOnce : THREE.LoopRepeat, `${pose} uses the wrong native playback mode`);
 }
 assert.equal(route('swing', { tension: 0 }).rate, .9);
 assert.equal(route('swing', { tension: 1 }).rate, 1.1);

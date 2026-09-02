@@ -1,6 +1,6 @@
 'use client';
 
-import { Activity, Gauge, Map, Move3d, Navigation, Play, Radio, Rotate3d } from 'lucide-react';
+import { Activity, ChevronDown, Flag, Gauge, Lock, Map, Move3d, Navigation, Play, Radio, Rotate3d, Timer, UserRound, Wind, X } from 'lucide-react';
 import { lazy, Suspense, useEffect, useState } from 'react';
 import type { GameHud } from '@/components/game/SpiderGame';
 import { SpideyTracker } from '@/components/game/SpideyTracker';
@@ -8,6 +8,7 @@ import SuitShowroom from '@/components/game/SuitShowroom';
 import { DISTRICTS, SUITS, type DistrictId, type SuitId } from '@/lib/game-config';
 import type { MultiplayerStatus } from '@/lib/multiplayer';
 import { addSwingAttachment, emptyProgress, isSuitUnlocked, progressionEventName, readProgress, type PlayerProgress } from '@/lib/progression';
+import { formatRaceTime } from '@/lib/swing-race';
 
 const SpiderGame = lazy(() => import('@/components/game/SpiderGame'));
 
@@ -20,9 +21,10 @@ export default function Home() {
   const [status, setStatus] = useState('Waiting for suit selection');
   const [progress, setProgress] = useState(0);
   const [trackerOpen, setTrackerOpen] = useState(false);
+  const [switcherOpen, setSwitcherOpen] = useState(false);
   const [loadedDistricts, setLoadedDistricts] = useState<Set<DistrictId>>(() => new Set());
   const [currentDistrict, setCurrentDistrict] = useState<DistrictId>('new-york-city');
-  const [hud, setHud] = useState<GameHud>({ speed: 0, altitude: 0, fps: 60, swinging: false });
+  const [hud, setHud] = useState<GameHud>({ speed: 0, altitude: 0, fps: 60, swinging: false, boosting: false, wallSkimming: false, race: null });
   const [online, setOnline] = useState<{ count: number; status: MultiplayerStatus }>({ count: 1, status: 'connecting' });
   const [, setShowroomStatus] = useState({ message: 'Opening warehouse', progress: 0 });
   const [playerProgress, setPlayerProgress] = useState<PlayerProgress>(() => typeof window === 'undefined' ? emptyProgress() : readProgress());
@@ -37,11 +39,16 @@ export default function Home() {
   }, []);
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
-      if ((event.code === 'Escape' || event.code === 'KeyM') && phase === 'game') setTrackerOpen((open) => !open);
+      if (phase !== 'game') return;
+      if (event.code === 'Escape' && switcherOpen) {
+        setSwitcherOpen(false);
+        return;
+      }
+      if (event.code === 'Escape' || event.code === 'KeyM') setTrackerOpen((open) => !open);
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [phase]);
+  }, [phase, switcherOpen]);
 
   const enterCity = () => {
     if (!isSuitUnlocked(activeSuit, playerProgress)) return;
@@ -60,6 +67,17 @@ export default function Home() {
     setProgress(1);
     setPhase('loading');
     setTrackerOpen(false);
+  };
+
+  const switchCharacter = (id: SuitId) => {
+    const suit = SUITS.find((item) => item.id === id);
+    if (!suit || !isSuitUnlocked(suit, playerProgress)) return;
+    setSwitcherOpen(false);
+    if (id === selected) return;
+    setSelected(id);
+    setStatus(`Suiting up as ${suit.name}`);
+    setProgress(1);
+    setPhase('loading');
   };
 
   if (phase === 'select') {
@@ -138,7 +156,45 @@ export default function Home() {
       {phase === 'game' && (
         <>
           <header className="game-topbar">
-            <div className="game-brand"><strong>{activeSuit.traversal === 'ironman' ? 'Iron Man' : 'SpiderMan'}</strong></div>
+            <div className="character-switcher">
+              <button
+                type="button"
+                className="character-switcher-trigger"
+                aria-expanded={switcherOpen}
+                aria-controls="character-switcher-menu"
+                onClick={() => setSwitcherOpen((open) => !open)}
+              >
+                <span className="character-switcher-icon"><UserRound aria-hidden="true" /></span>
+                <span className="character-switcher-current"><small>Character</small><strong>{activeSuit.name}</strong></span>
+                <ChevronDown className="character-switcher-chevron" aria-hidden="true" />
+              </button>
+              {switcherOpen && (
+                <section id="character-switcher-menu" className="character-switcher-menu" aria-label="Choose character">
+                  <header><span><small>Active hero</small><strong>{activeSuit.name}</strong></span><button type="button" aria-label="Close character switcher" onClick={() => setSwitcherOpen(false)}><X aria-hidden="true" /></button></header>
+                  <div className="character-switcher-grid">
+                    {SUITS.map((suit, index) => {
+                      const unlocked = isSuitUnlocked(suit, playerProgress);
+                      return (
+                        <button
+                          key={suit.id}
+                          type="button"
+                          className="character-switcher-option"
+                          data-selected={suit.id === selected}
+                          disabled={!unlocked}
+                          aria-label={unlocked ? `Switch to ${suit.name}` : `${suit.name}, locked`}
+                          onClick={() => switchCharacter(suit.id)}
+                        >
+                          <span>{String(index + 1).padStart(2, '0')}</span>
+                          <span><strong>{suit.name}</strong><small>{unlocked ? suit.universe : `${suit.unlockSwings ?? 0} swings to unlock`}</small></span>
+                          {!unlocked && <Lock aria-hidden="true" />}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <p>Changing heroes reloads the current district at its safe rooftop spawn.</p>
+                </section>
+              )}
+            </div>
             <div className="district-readout"><Navigation aria-hidden="true" /><span><small>Current sector</small><strong>{activeDistrict.name}</strong></span></div>
             <div className={`stream-state ${online.status === 'online' ? '' : 'busy'}`}>
               <Radio aria-hidden="true" />
@@ -152,23 +208,38 @@ export default function Home() {
             <div><Activity aria-hidden="true" /><span><strong>{hud.fps}</strong><small>fps</small></span></div>
           </aside>
 
+          {hud.race && (
+            <section className="race-hud" aria-label="Swing race status">
+              <div className="race-gate"><Flag aria-hidden="true" /><span><small>Checkpoint</small><strong>{String(hud.race.checkpoint).padStart(2, '0')} / {String(hud.race.total).padStart(2, '0')}</strong></span></div>
+              <div className="race-clock"><Timer aria-hidden="true" /><span><small>Lap {String(hud.race.lap).padStart(2, '0')}</small><strong>{formatRaceTime(hud.race.elapsed)}</strong></span></div>
+              <div className="race-best"><small>{hud.race.ghostActive ? 'Ghost · best run' : 'First run · set the ghost'}</small><strong>{formatRaceTime(hud.race.best)}</strong></div>
+              <div className="checkpoint-pointer" style={{ transform: `rotate(${hud.race.bearing}rad)` }} aria-hidden="true"><Navigation /></div>
+              <div className="checkpoint-distance"><strong>{Math.round(hud.race.distance)}</strong><small>m to gate</small></div>
+              {hud.race.lastFinish !== null && <div className="race-finish"><span>Lap complete</span><strong>{formatRaceTime(hud.race.lastFinish)}</strong></div>}
+            </section>
+          )}
+
           <div className={`swing-indicator ${hud.swinging ? 'active' : ''}`}><span className="web-orb" /><div><small>Web line</small><strong>{hud.swinging ? 'Attached' : 'Ready'}</strong></div></div>
+          <div className={`traversal-boost ${hud.boosting || hud.wallSkimming ? 'active' : ''}`}>
+            <Wind aria-hidden="true" />
+            <span>{hud.wallSkimming ? 'Wall kick' : hud.boosting ? 'Wind boost' : 'Flow ready'}</span>
+          </div>
           <div className="reticle" aria-hidden="true"><span /><i /></div>
 
           <aside className="controls-card">
             <div><kbd>WASD</kbd><span>Move</span></div>
             <div><kbd>↑ ↓ ← →</kbd><span>Look</span></div>
-            <div><kbd>Space</kbd><span>{activeSuit.traversal === 'ironman' ? 'Repulsor ascent' : 'Jump / swing'}</span></div>
+            <div><kbd>Space</kbd><span>{activeSuit.traversal === 'ironman' ? 'Repulsor ascent' : 'Jump / double jump / swing'}</span></div>
             <div><kbd>Click</kbd><span>{activeSuit.traversal === 'ironman' ? 'Tap cruise / hold boost' : 'Web / zip'}</span></div>
             <div><kbd>E</kbd><span>{activeSuit.traversal === 'ironman' ? 'Toggle cruise' : 'Zip / point launch'}</span></div>
             {activeSuit.traversal === 'ironman' && <div><kbd>F</kbd><span>Hover / free fall</span></div>}
             <div><kbd>Shift</kbd><span>{activeSuit.traversal === 'ironman' ? 'Descend' : 'Dive'}</span></div>
             {activeSuit.traversal === 'spider' && <div><kbd>Q</kbd><span>Toggle crawl · Jump to detach</span></div>}
-            <div><kbd>M</kbd><span>Maps</span></div>
+            <div><kbd>M</kbd><span>Spidey Tracker</span></div>
             <Rotate3d aria-hidden="true" />
           </aside>
 
-          <SpideyTracker open={trackerOpen} current={currentDistrict} loaded={loadedDistricts} onClose={() => setTrackerOpen(false)} onOpen={() => setTrackerOpen(true)} onTravel={travelTo} />
+          <SpideyTracker open={trackerOpen} current={currentDistrict} loaded={loadedDistricts} race={hud.race} onClose={() => setTrackerOpen(false)} onOpen={() => setTrackerOpen(true)} onTravel={travelTo} />
         </>
       )}
     </main>

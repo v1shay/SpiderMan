@@ -4,6 +4,10 @@ import { forwardRef, useEffect, useImperativeHandle, useRef } from 'react';
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.js';
+import { clone as cloneSkeleton } from 'three/examples/jsm/utils/SkeletonUtils.js';
+import { Line2 } from 'three/examples/jsm/lines/Line2.js';
+import { LineGeometry } from 'three/examples/jsm/lines/LineGeometry.js';
+import { LineMaterial } from 'three/examples/jsm/lines/LineMaterial.js';
 import { getDistrict, getSuit, type DistrictConfig, type DistrictId, type SuitId } from '@/lib/game-config';
 import { SpiderMultiplayer, type MultiplayerStatus, type NetworkPlayerState } from '@/lib/multiplayer';
 import {
@@ -27,8 +31,46 @@ import { findMantleTarget, probeWallFeet } from '@/lib/wall-surface';
 import { updateIronFlight, type IronFlightMode } from '@/lib/ironman-flight';
 import { IronManRepulsors } from '@/lib/ironman-repulsors';
 import { wallCameraOffset } from '@/lib/wall-camera';
+import { WebStrand, WEB_STRAND_MODEL } from '@/lib/web-strand';
+import { createCinematicCameraState, stepCinematicCamera } from '@/lib/cinematic-camera';
+import { stepWindTunnels, type WindTunnelField } from '@/lib/wind-tunnel';
+import { calculateWallSkim } from '@/lib/wall-skim';
+import { findTrafficLanes, trafficPose, type TrafficLane } from '@/lib/city-traffic';
+import { deterministicRaceNodes, deterministicTileId } from '@/lib/deterministic-world';
+import {
+  advanceSwingRace,
+  courseTileKeys,
+  createSwingRaceState,
+  interpolateRaceSample,
+  parseRaceBest,
+  raceGuidanceLine,
+  raceStorageKey,
+  sampleRaceTrack,
+  type RaceBest,
+  type RaceSample,
+} from '@/lib/swing-race';
 
-export type GameHud = { speed: number; altitude: number; fps: number; swinging: boolean };
+export type RaceHud = {
+  checkpoint: number;
+  total: number;
+  lap: number;
+  elapsed: number;
+  best: number | null;
+  delta: number | null;
+  distance: number;
+  bearing: number;
+  ghostActive: boolean;
+  lastFinish: number | null;
+};
+export type GameHud = {
+  speed: number;
+  altitude: number;
+  fps: number;
+  swinging: boolean;
+  boosting: boolean;
+  wallSkimming: boolean;
+  race: RaceHud | null;
+};
 export type SpiderGameHandle = { travelTo: (id: DistrictId) => void };
 
 type Props = {
@@ -50,6 +92,11 @@ type AvatarRig = {
   wallPose: WallPose;
   animator: AvatarAnimator;
   repulsors: IronManRepulsors | null;
+};
+
+type RaceGhost = {
+  root: THREE.Group;
+  animator: AvatarAnimator;
 };
 
 type CollisionMetadata = {
@@ -83,6 +130,7 @@ type StreamedTile = {
 };
 
 type DistrictStream = {
+  districtId: DistrictId;
   template: THREE.Group;
   anchorTemplate: THREE.Object3D | null;
   baseColliders: THREE.Box3[];
@@ -97,6 +145,7 @@ const networkPose = (mode: string): ProceduralPose => mode === 'iron-hover' ? 'h
   : mode === 'iron-cruise' || mode === 'iron-boost' ? 'fly'
   : mode === 'iron-freefall' ? 'fall'
   : mode === 'swing' ? 'swing'
+  : mode === 'doubleJump' ? 'backflip'
   : mode === 'webZip' || mode === 'pointLaunch' ? 'zip'
     : mode === 'wallRun' ? 'wall'
       : mode === 'wallCrawl' ? 'crawl'
@@ -119,6 +168,56 @@ const clamp = (value: number, min: number, max: number) => Math.max(min, Math.mi
 const damp = (from: number, to: number, lambda: number, delta: number) => THREE.MathUtils.lerp(from, to, 1 - Math.exp(-lambda * delta));
 const dampYaw = (from: number, to: number, lambda: number, delta: number) => from + Math.atan2(Math.sin(to - from), Math.cos(to - from)) * (1 - Math.exp(-lambda * delta));
 const colliderCellKey = (x: number, z: number) => `${x}:${z}`;
+
+const TRAFFIC_MODELS = [
+  { url: '/assets/vehicles/dodge-car.glb', name: 'Dodge', color: '#77202d', detailDistance: 38 },
+  { url: '/assets/vehicles/hennessey-venom.glb', name: 'Hennessey Venom', color: '#202830', detailDistance: 58 },
+  { url: '/assets/vehicles/futuristic-car.glb', name: 'Futuristic Car', color: '#1e6077', detailDistance: 64 },
+  { url: '/assets/vehicles/hoonicorn.glb', name: 'Hoonicorn', color: '#37383b', detailDistance: 38 },
+  { url: '/assets/vehicles/vintage-car.glb', name: 'Vintage Car', color: '#69472e', detailDistance: 56, prune: /shadowplane|vintage_lantern/i },
+] as const;
+
+type TrafficSource = {
+  config: typeof TRAFFIC_MODELS[number];
+  root: THREE.Group;
+  clips: THREE.AnimationClip[];
+};
+
+type TrafficVehicle = {
+  root: THREE.Group;
+  lane: TrafficLane;
+  speed: number;
+  offset: number;
+  mixer: THREE.AnimationMixer | null;
+  wheels: THREE.Object3D[];
+};
+
+function createCheckpointMarker() {
+  const root = new THREE.Group();
+  root.name = 'Swing race checkpoint';
+  const rings = new THREE.Group();
+  rings.name = 'Checkpoint gate plane';
+  const material = new THREE.MeshBasicMaterial({ color: '#42e6ff', transparent: true, opacity: .86, depthWrite: false });
+  const outer = new THREE.Mesh(new THREE.TorusGeometry(1, .075, 8, 40), material);
+  const inner = new THREE.Mesh(new THREE.TorusGeometry(.8, .022, 6, 32), material.clone());
+  const beacon = new THREE.Mesh(
+    new THREE.CylinderGeometry(.018, .018, 15, 6),
+    new THREE.MeshBasicMaterial({ color: '#56ebff', transparent: true, opacity: .35, depthWrite: false }),
+  );
+  beacon.position.y = 8;
+  rings.add(outer, inner);
+  root.add(rings, beacon);
+  root.userData.rings = rings;
+  root.userData.materials = [outer.material, inner.material, beacon.material];
+  return root;
+}
+
+function setCheckpointActive(marker: THREE.Group, active: boolean) {
+  marker.visible = active;
+  for (const material of marker.userData.materials as THREE.MeshBasicMaterial[]) {
+    material.opacity = active ? (material === marker.userData.materials[2] ? .35 : .9) : .12;
+  }
+}
 
 function addSpatialCollider(index: Map<string, THREE.Box3[]>, collider: THREE.Box3) {
   const minX = Math.floor(collider.min.x / COLLIDER_CELL_SIZE);
@@ -772,6 +871,8 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(function SpiderGam
     let wallCameraWasRequested = false;
     const wallCameraNormal = new THREE.Vector3(0, 0, 1);
     let avatar: AvatarRig | null = null;
+    let raceGhost: RaceGhost | null = null;
+    let webStrand: WebStrand | null = null;
     let avatarPose: ProceduralPose = 'idle';
     let multiplayer: SpiderMultiplayer | null = null;
     let multiplayerStatus: MultiplayerStatus = 'connecting';
@@ -782,6 +883,63 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(function SpiderGam
     const remoteStates = new Map<string, NetworkPlayerState>();
     const remoteLoads = new Map<string, Promise<void>>();
     let currentDistrict: DistrictId = props.districtId;
+    const raceMarkers = new THREE.Group();
+    raceMarkers.name = 'Swing race course';
+    scene.add(raceMarkers);
+    const raceGuideGeometry = new LineGeometry();
+    const raceGuideMaterial = new LineMaterial({
+      color: '#38dfff', linewidth: 3.4, transparent: true, opacity: .58,
+      dashed: true, dashSize: 2.6, gapSize: 1.25, depthTest: false, depthWrite: false,
+    });
+    const raceGuide = new Line2(raceGuideGeometry, raceGuideMaterial);
+    raceGuide.name = 'Hidden complete swing race path';
+    raceGuide.renderOrder = 4;
+    raceGuide.visible = false;
+    scene.add(raceGuide);
+    const activeGuideGeometry = new LineGeometry();
+    const activeGuideMaterial = new LineMaterial({
+      color: '#ffffff', linewidth: 5.8, transparent: true, opacity: .96,
+      dashed: true, dashSize: 3.2, gapSize: .72, depthTest: false, depthWrite: false,
+    });
+    const activeRaceGuide = new Line2(activeGuideGeometry, activeGuideMaterial);
+    activeRaceGuide.name = 'Current swing race segment';
+    activeRaceGuide.renderOrder = 5;
+    activeRaceGuide.visible = false;
+    scene.add(activeRaceGuide);
+    const raceDirectionArrows = new THREE.Group();
+    raceDirectionArrows.name = 'Swing race direction chevrons';
+    scene.add(raceDirectionArrows);
+    const windTunnelVisuals = new THREE.Group();
+    windTunnelVisuals.name = 'Traversal wind tunnels';
+    scene.add(windTunnelVisuals);
+    const trafficGroup = new THREE.Group();
+    trafficGroup.name = 'Animated city traffic';
+    scene.add(trafficGroup);
+    let trafficSources: TrafficSource[] = [];
+    let trafficVehicles: TrafficVehicle[] = [];
+    let trafficLanes: TrafficLane[] = [];
+    let trafficLoading: Promise<TrafficSource[]> | null = null;
+    let windTunnelFields: WindTunnelField[] = [];
+    let windBoostStrength = 0;
+    let activeWindTunnel = -1;
+    let raceRoute: THREE.Vector3[] = [];
+    let raceNodeIds: number[] = [];
+    let raceCourseTiles = new Set<string>();
+    let raceStart = initialSpawn.clone();
+    let raceState = createSwingRaceState(0);
+    let raceSamples: RaceSample[] = [];
+    let raceBest: RaceBest | null = null;
+    let raceLap = 1;
+    let lastRaceFinish: number | null = null;
+    let raceFinishVisibleUntil = -1;
+    const cinematicCamera = createCinematicCameraState();
+    let wallSkimSeconds = 0;
+    let wallSkimStrength = 0;
+    let wallSkimCooldownUntil = 0;
+    const wallSkimDirection = new THREE.Vector3(0, 0, -1);
+    const wallSkimNormal = new THREE.Vector3(0, 0, 1);
+    let previousPlayerYaw = 0;
+    let manualCameraUntil = 0;
     let hudAccumulator = 0;
     let fpsAccumulator = 0;
     let fpsFrames = 0;
@@ -805,6 +963,7 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(function SpiderGam
     let cruiseTogglePressed = false;
     let ironFlightMode: IronFlightMode = 'grounded';
     let spacePressedAt = -10;
+    let spaceSwingBlockedUntilRelease = false;
     const swingAssistance = createSwingAssistanceState();
     let anchorSearchAt = -10;
     let cachedAnchors: WebAnchorCandidate[] = [];
@@ -826,6 +985,8 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(function SpiderGam
       const width = Math.max(1, mount.clientWidth);
       const height = Math.max(1, mount.clientHeight);
       renderer.setSize(width, height, false);
+      raceGuideMaterial.resolution.set(width, height);
+      activeGuideMaterial.resolution.set(width, height);
       camera.aspect = width / height;
       camera.updateProjectionMatrix();
     };
@@ -840,6 +1001,176 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(function SpiderGam
         if (report) callbacksRef.current.onStatus(`Streaming ${label}`, start + (end - start) * clamp(ratio, 0, 1));
       }, reject);
     });
+
+    const createTrafficProxy = (color: string) => {
+      const proxy = new THREE.Group();
+      proxy.name = 'Low latency traffic silhouette';
+      const paint = new THREE.MeshStandardMaterial({ color, roughness: .48, metalness: .42 });
+      const glass = new THREE.MeshStandardMaterial({ color: '#183044', roughness: .18, metalness: .55 });
+      const light = new THREE.MeshBasicMaterial({ color: '#fff3bd' });
+      const body = new THREE.Mesh(new THREE.BoxGeometry(1.86, .54, 4.35), paint);
+      body.position.y = .55;
+      const cabin = new THREE.Mesh(new THREE.BoxGeometry(1.56, .58, 2.15), glass);
+      cabin.position.set(0, 1.03, -.18);
+      cabin.rotation.x = -.035;
+      const headlights = new THREE.Mesh(new THREE.BoxGeometry(1.35, .12, .035), light);
+      headlights.position.set(0, .62, 2.19);
+      proxy.add(body, cabin, headlights);
+      return proxy;
+    };
+
+    const loadTrafficSources = () => {
+      if (trafficLoading) return trafficLoading;
+      trafficLoading = Promise.all(TRAFFIC_MODELS.map(async (config) => {
+        try {
+          const gltf = await loadModel<{ scene: THREE.Group; animations: THREE.AnimationClip[] }>(config.url, config.name, 0, 0, false);
+          if (disposed) return null;
+          const model = gltf.scene;
+          const pruned: THREE.Object3D[] = [];
+          if ('prune' in config) model.traverse((object) => { if (config.prune.test(object.name)) pruned.push(object); });
+          for (const object of pruned) object.parent?.remove(object);
+          model.updateWorldMatrix(true, true);
+          let box = new THREE.Box3().setFromObject(model);
+          const center = box.getCenter(new THREE.Vector3());
+          const size = box.getSize(new THREE.Vector3());
+          const frontNodes: THREE.Object3D[] = [];
+          model.traverse((object) => { if (/front|headlight|hood/i.test(object.name)) frontNodes.push(object); });
+          const front = new THREE.Vector3();
+          let frontSamples = 0;
+          for (const node of frontNodes) {
+            const nodeBox = new THREE.Box3().setFromObject(node);
+            if (nodeBox.isEmpty()) continue;
+            front.add(nodeBox.getCenter(new THREE.Vector3()));
+            frontSamples += 1;
+          }
+          if (frontSamples) front.multiplyScalar(1 / frontSamples).sub(center);
+          const sourceFrontYaw = front.lengthSq() > .01
+            ? Math.atan2(front.x, front.z)
+            : size.x > size.z ? Math.PI / 2 : 0;
+          model.rotation.y -= sourceFrontYaw;
+          model.updateWorldMatrix(true, true);
+          box = new THREE.Box3().setFromObject(model);
+          const rotatedSize = box.getSize(new THREE.Vector3());
+          model.scale.multiplyScalar(4.65 / Math.max(rotatedSize.x, rotatedSize.z, .001));
+          model.updateWorldMatrix(true, true);
+          box = new THREE.Box3().setFromObject(model);
+          const normalizedCenter = box.getCenter(new THREE.Vector3());
+          model.position.x -= normalizedCenter.x;
+          model.position.z -= normalizedCenter.z;
+          model.position.y -= box.min.y;
+          prepareMaterials(model, renderer, 'baked');
+          model.traverse((object) => {
+            if (!(object instanceof THREE.Mesh)) return;
+            object.castShadow = false;
+            object.receiveShadow = false;
+            object.frustumCulled = true;
+          });
+          const root = new THREE.Group();
+          root.name = `${config.name} normalized traffic source`;
+          root.add(model);
+          root.updateWorldMatrix(true, true);
+          return { config, root, clips: gltf.animations ?? [] } satisfies TrafficSource;
+        } catch (error) {
+          console.warn(`[traffic] ${config.name} unavailable`, error);
+          return null;
+        }
+      })).then((sources) => {
+        trafficSources = sources.filter(Boolean) as TrafficSource[];
+        renderer.domElement.dataset.trafficModelCount = String(trafficSources.length);
+        return trafficSources;
+      });
+      return trafficLoading;
+    };
+
+    const configureTraffic = (config: DistrictConfig) => {
+      const world = repeatingWorlds.get(config.id);
+      const stream = districtStreams.get(config.id);
+      trafficGroup.clear();
+      trafficVehicles = [];
+      trafficLanes = [];
+      if (!world || !stream || !trafficSources.length) return;
+      const bounds = world.query.bounds;
+      const highY = Math.max(18, bounds.max.y + 18);
+      const maximumDrop = highY - bounds.min.y + 20;
+      const driveableY = (x: number, z: number, requireClearance = true) => {
+        const support = world.raycast({ x, y: highY, z }, { x: 0, y: -1, z: 0 }, maximumDrop, .78);
+        if (!support || support.point.y > GROUND_Y + 2.2) return null;
+        if (requireClearance && !world.isCapsuleClear({ x, y: support.point.y + .02, z }, .72, 1.42, false)) return null;
+        return support.point.y + .025;
+      };
+      const trafficBounds = { minX: bounds.min.x, maxX: bounds.max.x, minZ: bounds.min.z, maxZ: bounds.max.z };
+      trafficLanes = findTrafficLanes(trafficBounds, (x, z) => driveableY(x, z), {
+        candidates: 11,
+        samples: 48,
+        maximum: 6,
+        minimumLength: clamp(config.targetWidth * .08, 13, 28),
+      });
+      if (trafficLanes.length < 2) {
+        trafficLanes = findTrafficLanes(trafficBounds, (x, z) => driveableY(x, z, false), {
+          candidates: 13,
+          samples: 54,
+          maximum: 6,
+          minimumLength: clamp(config.targetWidth * .055, 10, 22),
+        });
+      }
+      if (!trafficLanes.length) {
+        renderer.domElement.dataset.trafficLaneCount = '0';
+        renderer.domElement.dataset.trafficVehicleCount = '0';
+        return;
+      }
+      const count = Math.min(10, Math.max(6, trafficLanes.length * 2));
+      for (let index = 0; index < count; index += 1) {
+        const source = trafficSources[index % trafficSources.length];
+        const high = cloneSkeleton(source.root) as THREE.Group;
+        const wheels: THREE.Object3D[] = [];
+        high.traverse((object) => { if (/wheel|tire/i.test(object.name)) wheels.push(object); });
+        let mixer: THREE.AnimationMixer | null = null;
+        if (source.clips.length) {
+          mixer = new THREE.AnimationMixer(high);
+          const action = mixer.clipAction(source.clips[0]);
+          action.setEffectiveTimeScale(.62);
+          action.play();
+        }
+        const lod = new THREE.LOD();
+        lod.name = `${source.config.name} traffic LOD`;
+        lod.addLevel(high, 0);
+        lod.addLevel(createTrafficProxy(source.config.color), source.config.detailDistance);
+        const root = new THREE.Group();
+        root.name = `Traffic vehicle ${index + 1}: ${source.config.name}`;
+        root.add(lod);
+        trafficGroup.add(root);
+        const lane = trafficLanes[index % trafficLanes.length];
+        trafficVehicles.push({
+          root,
+          lane,
+          speed: 4.2 + index % 4 * .72,
+          offset: lane.length * ((index * .37) % 1),
+          mixer,
+          wheels: source.clips.length ? [] : wheels,
+        });
+      }
+      renderer.domElement.dataset.trafficLaneCount = String(trafficLanes.length);
+      renderer.domElement.dataset.trafficVehicleCount = String(trafficVehicles.length);
+      renderer.domElement.dataset.trafficMode = 'street-grounded-lod';
+    };
+
+    const updateTraffic = (delta: number) => {
+      const stream = districtStreams.get(currentDistrict);
+      if (!stream || !trafficVehicles.length) return;
+      const tileX = stream.centerX * stream.tileWidth;
+      const tileZ = stream.centerZ * stream.tileDepth;
+      for (let index = 0; index < trafficVehicles.length; index += 1) {
+        const vehicle = trafficVehicles[index];
+        const pose = trafficPose(vehicle.lane, elapsedTime, vehicle.speed, vehicle.offset);
+        const x = pose.x + tileX;
+        const z = pose.z + tileZ;
+        vehicle.root.position.set(x, groundYAt({ x, y: pose.y, z }) + .025, z);
+        vehicle.root.rotation.y = pose.yaw;
+        vehicle.root.visible = vehicle.root.position.distanceToSquared(player.position) < 360 * 360;
+        vehicle.mixer?.update(delta);
+        for (const wheel of vehicle.wheels) wheel.rotation.x -= vehicle.speed * delta / .34;
+      }
+    };
 
     const removeRemoteAvatar = (playerId: string) => {
       const remote = remoteAvatars.get(playerId);
@@ -1016,6 +1347,11 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(function SpiderGam
         stream.template.position.y,
         stream.template.position.z + z * stream.tileDepth,
       );
+      const permanentTileId = deterministicTileId(stream.districtId, x, z);
+      root.userData.worldTileX = x;
+      root.userData.worldTileZ = z;
+      root.userData.worldTileId = permanentTileId;
+      root.name = `${stream.template.name} · tile ${permanentTileId}`;
       scene.add(root);
       root.updateMatrixWorld(true);
 
@@ -1054,6 +1390,8 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(function SpiderGam
       const centerX = Math.round((position.x - config.position[0]) / stream.tileWidth);
       const centerZ = Math.round((position.z - config.position[2]) / stream.tileDepth);
       const desired = new Set<string>([tileKey(centerX, centerZ)]);
+      // Race coordinates and collision exist mathematically at every tile, but
+      // heavy visual clones are mounted only when the player approaches them.
       const localX = position.x - config.position[0] - centerX * stream.tileWidth;
       const localZ = position.z - config.position[2] - centerZ * stream.tileDepth;
       const edgeX = Math.abs(localX) > stream.tileWidth * .3 ? Math.sign(localX) : 0;
@@ -1084,7 +1422,165 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(function SpiderGam
       stream.centerX = centerX;
       stream.centerZ = centerZ;
       renderer.domElement.dataset.streamCenter = `${centerX}:${centerZ}`;
+      renderer.domElement.dataset.streamTileId = String(deterministicTileId(district, centerX, centerZ));
       renderer.domElement.dataset.streamedTileCount = String(stream.tiles.size);
+    };
+
+    const resetRacePlayer = (now: number) => {
+      player.position.copy(raceStart);
+      player.velocity.set(0, 0, 0);
+      player.grounded = true;
+      Object.assign(traversal, createTraversalState(raceStart));
+      traversal.grounded = true;
+      traversal.mode = 'idle';
+      cameraYaw = spawnViewYaw(raceStart, getDistrict(currentDistrict).spawnYaw ?? 0);
+      cameraPitch = getDistrict(currentDistrict).spawnPitch ?? .08;
+      traversal.heading = cameraYaw;
+      player.facing = cameraYaw;
+      meshWallContact = null;
+      pointerZipActive = false;
+      wallCameraBlend = 0;
+      camera.up.set(0, 1, 0);
+      raceState = createSwingRaceState(now, raceStart);
+      raceSamples = [];
+      const offset = new THREE.Vector3(Math.sin(cameraYaw) * 9, 4, Math.cos(cameraYaw) * 9);
+      camera.position.copy(raceStart).add(offset);
+      camera.lookAt(raceStart.clone().add(new THREE.Vector3(0, 1.35, 0)));
+    };
+
+    const showRaceSegment = (checkpoint: number, currentPosition = player.position) => {
+      const to = raceRoute[checkpoint];
+      if (!to) { activeRaceGuide.visible = false; return; }
+      activeGuideGeometry.setPositions(raceGuidanceLine(currentPosition, to));
+      activeRaceGuide.computeLineDistances();
+      activeRaceGuide.visible = true;
+      renderer.domElement.dataset.raceGuideAttached = 'true';
+      renderer.domElement.dataset.raceGuidePoints = '2';
+    };
+
+    const drawRaceCourse = () => {
+      const coursePoints = [raceStart, ...raceRoute, raceStart];
+      raceGuideGeometry.setPositions(coursePoints.flatMap(point => [point.x, point.y, point.z]));
+      raceGuide.computeLineDistances();
+      // Only the live player-to-gate tether is rendered. The full octagonal
+      // route overwhelmed the city and became misleading across streamed tiles.
+      raceGuide.visible = false;
+      raceDirectionArrows.clear();
+      showRaceSegment(0);
+    };
+
+    const configureWindTunnels = (coursePoints: THREE.Vector3[], config: DistrictConfig) => {
+      windTunnelVisuals.traverse((object) => {
+        if (!(object instanceof THREE.Mesh)) return;
+        object.geometry.dispose();
+        const materials = Array.isArray(object.material) ? object.material : [object.material];
+        materials.forEach((material) => material.dispose());
+      });
+      windTunnelVisuals.clear();
+      windTunnelFields = [];
+      const candidates = coursePoints.slice(0, -1).map((from, index) => ({
+        from,
+        to: coursePoints[index + 1],
+        index,
+        length: from.distanceTo(coursePoints[index + 1]),
+      })).filter((segment) => segment.length > 18 && segment.index > 0);
+      // Spread two boosts around the lap instead of stacking them into one
+      // avenue. Their velocity-only fields are resolved before the exact mesh
+      // sweep, so buildings remain authoritative even at full boost.
+      const selected = [candidates[Math.floor(candidates.length * .18)], candidates[Math.floor(candidates.length * .63)]]
+        .filter((segment, index, entries) => segment && entries.indexOf(segment) === index);
+      selected.forEach((segment, tunnelIndex) => {
+        if (!segment) return;
+        const direction = segment.to.clone().sub(segment.from).normalize();
+        const center = segment.from.clone().lerp(segment.to, .5);
+        const halfLength = clamp(segment.length * .2, 8, 30);
+        const radius = clamp(config.targetWidth / 42, 5.5, 10.5);
+        windTunnelFields.push({
+          center: { x: center.x, y: center.y, z: center.z },
+          direction: { x: direction.x, y: direction.y, z: direction.z },
+          halfLength,
+          radius,
+          acceleration: 54,
+          maximumSpeed: 96,
+        });
+
+        const visual = new THREE.Group();
+        visual.name = `Wind tunnel ${tunnelIndex + 1}`;
+        const shell = new THREE.Mesh(
+          new THREE.CylinderGeometry(radius, radius, halfLength * 2, 18, 1, true),
+          new THREE.MeshBasicMaterial({ color: tunnelIndex ? '#7a7dff' : '#35e7ff', transparent: true, opacity: .075,
+            wireframe: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide }),
+        );
+        shell.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), direction);
+        visual.add(shell);
+        const ringMaterial = new THREE.MeshBasicMaterial({ color: tunnelIndex ? '#9291ff' : '#75f2ff', transparent: true,
+          opacity: .56, depthWrite: false, blending: THREE.AdditiveBlending });
+        const ringCount = Math.max(5, Math.min(10, Math.ceil(halfLength * 2 / 6)));
+        for (let index = 0; index < ringCount; index += 1) {
+          const ring = new THREE.Mesh(new THREE.TorusGeometry(radius, .075, 4, 28), ringMaterial);
+          ring.position.copy(direction).multiplyScalar(-halfLength + index / Math.max(1, ringCount - 1) * halfLength * 2);
+          ring.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), direction);
+          ring.userData.windPhase = index / ringCount;
+          visual.add(ring);
+        }
+        visual.position.copy(center);
+        windTunnelVisuals.add(visual);
+      });
+      renderer.domElement.dataset.windTunnelCount = String(windTunnelFields.length);
+    };
+
+    const configureRaceCourse = (config: DistrictConfig, now: number) => {
+      const world = repeatingWorlds.get(config.id);
+      const stream = districtStreams.get(config.id);
+      if (!world || !stream) return;
+      raceStart = safeSpawn(config);
+      const clearance = clamp(Math.min(stream.tileWidth, stream.tileDepth) * .045, 3.4, 13);
+      const highY = Math.max(world.query.bounds.max.y + 90, raceStart.y + 180);
+      const nodes = deterministicRaceNodes(config.id, raceStart, stream.tileWidth, stream.tileDepth, {
+        count: 8,
+        minimumRadius: config.id === 'backstreet' ? 12 : 30,
+        maximumRadius: 108,
+      });
+      raceNodeIds = nodes.map((node) => node.id);
+      raceRoute = nodes.map((node, index) => {
+        const point = new THREE.Vector3(node.x, raceStart.y + clearance, node.z);
+        const support = world.raycast({ x: point.x, y: highY, z: point.z }, { x: 0, y: -1, z: 0 }, highY + 200, .55);
+        if (support) point.y = Math.max(GROUND_Y + clearance, support.point.y + clearance + (index % 2 ? 2.4 : 0));
+        return point;
+      });
+      const coursePoints = [raceStart, ...raceRoute, raceStart];
+      configureWindTunnels(coursePoints, config);
+      raceCourseTiles = courseTileKeys(
+        coursePoints,
+        stream.tileWidth,
+        stream.tileDepth,
+        { x: config.position[0], y: 0, z: config.position[2] },
+      );
+      raceMarkers.clear();
+      raceRoute.forEach((point, index) => {
+        const marker = createCheckpointMarker();
+        marker.userData.checkpointId = raceNodeIds[index];
+        marker.position.copy(point);
+        const next = raceRoute[(index + 1) % raceRoute.length];
+        (marker.userData.rings as THREE.Group).quaternion.setFromUnitVectors(
+          new THREE.Vector3(0, 0, 1), next.clone().sub(point).normalize(),
+        );
+        marker.scale.setScalar(clamp(config.targetWidth / 75, 2.8, 5.4));
+        setCheckpointActive(marker, index === 0);
+        raceMarkers.add(marker);
+      });
+      drawRaceCourse();
+      raceBest = parseRaceBest(localStorage.getItem(raceStorageKey(config.id, props.suitId)));
+      raceLap = 1;
+      if (raceGhost) raceGhost.root.visible = Boolean(raceBest);
+      resetRacePlayer(now);
+      renderer.domElement.dataset.raceCheckpoints = String(raceRoute.length);
+      renderer.domElement.dataset.raceCourse = config.id;
+      renderer.domElement.dataset.raceBest = raceBest?.duration.toFixed(3) ?? '';
+      renderer.domElement.dataset.raceLogicalTiles = [...raceCourseTiles].join('|');
+      renderer.domElement.dataset.raceNodeIds = raceNodeIds.join('|');
+      renderer.domElement.dataset.raceRouteHash = String(deterministicTileId(`${config.id}:route`, raceNodeIds[0] ?? 0, raceNodeIds.at(-1) ?? 0));
+      updateWorldStreaming(config.id, raceStart);
     };
 
     const loadDistrict = (config: DistrictConfig, report = true) => {
@@ -1283,7 +1779,11 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(function SpiderGam
         }
         anchorTargetList = [...anchorTargets];
         const baseWalkables = tileWalkables(root);
+        root.userData.worldTileX = 0;
+        root.userData.worldTileZ = 0;
+        root.userData.worldTileId = deterministicTileId(config.id, 0, 0);
         districtStreams.set(config.id, {
+          districtId: config.id,
           template: root,
           anchorTemplate,
           baseColliders,
@@ -1350,9 +1850,50 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(function SpiderGam
       const animator = new AvatarAnimator(gltf.scene, suit, clips);
       const repulsors = suit.traversal === 'ironman' ? new IronManRepulsors(root, animator.bones) : null;
       avatar = { root, model: gltf.scene, animator, surfaceFrame, wallPose: new WallPose(gltf.scene), repulsors };
+      const ghostModel = cloneSkeleton(gltf.scene) as THREE.Group;
+      ghostModel.traverse((object) => {
+        if (!(object instanceof THREE.Mesh)) return;
+        const source = Array.isArray(object.material) ? object.material : [object.material];
+        const materials = source.map((material) => {
+          const copy = material.clone();
+          copy.transparent = true;
+          copy.opacity = .26;
+          copy.depthWrite = false;
+          copy.blending = THREE.NormalBlending;
+          if ('color' in copy && copy.color instanceof THREE.Color) copy.color.set('#9da9b2');
+          if ('emissive' in copy && copy.emissive instanceof THREE.Color) copy.emissive.set('#4c555b');
+          return copy;
+        });
+        object.material = Array.isArray(object.material) ? materials : materials[0];
+        object.castShadow = false;
+        object.receiveShadow = false;
+        object.renderOrder = 3;
+      });
+      const ghostRoot = new THREE.Group();
+      ghostRoot.name = `Best run ghost: ${suit.name}`;
+      ghostRoot.add(ghostModel);
+      ghostRoot.visible = false;
+      scene.add(ghostRoot);
+      raceGhost = { root: ghostRoot, animator: new AvatarAnimator(ghostModel, suit, clips) };
       renderer.domElement.dataset.suit = suit.id;
       renderer.domElement.dataset.animationClips = animator.clips.map((clip) => clip.name).join('|');
       renderer.domElement.dataset.rigRoles = [...new Set(animator.bones.map((entry) => entry.role))].join('|');
+    };
+
+    const loadWebEffect = async () => {
+      try {
+        const gltf = await loadModel<{ scene: THREE.Group }>(WEB_STRAND_MODEL, 'textured web strand', 40, 52, false);
+        if (disposed) return;
+        prepareMaterials(gltf.scene, renderer, 'character');
+        webStrand = new WebStrand(gltf.scene);
+        scene.add(webStrand.group);
+        renderer.domElement.dataset.webRender = 'downloaded-3d-model';
+        renderer.domElement.dataset.webSourceTriangles = String(webStrand.sourceTriangleCount);
+        renderer.domElement.dataset.webMaximumTriangles = String(webStrand.maximumTriangles);
+      } catch (error) {
+        console.warn('[web] downloaded strand unavailable; keeping line fallback', error);
+        renderer.domElement.dataset.webRender = 'line-fallback';
+      }
     };
 
     const readPointer = (event: PointerEvent) => {
@@ -1527,11 +2068,29 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(function SpiderGam
       const firstPress = !keys.has(event.code);
       keys.add(event.code);
       if (['Space', 'KeyE', 'KeyF', 'ShiftLeft', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(event.code)) event.preventDefault();
-      if (event.code === 'Space' && firstPress) { jumpPressed = true; spacePressedAt = elapsedTime; }
+      if (event.code === 'Space' && firstPress) {
+        jumpPressed = true;
+        spacePressedAt = elapsedTime;
+        const active = getSuit(props.suitId);
+        // An airborne tap is the double-jump command. If the key is held a
+        // fraction too long, do not silently turn that same press into a web
+        // attachment; releasing Space arms swinging again.
+        spaceSwingBlockedUntilRelease = active.traversal === 'spider' && !traversal.grounded
+          && !traversal.swing && !traversal.zip && traversal.airJumpsRemaining > 0;
+      }
       if (event.code === 'KeyQ' && firstPress) wallCrawlPressed = true;
       if (event.code === 'KeyE' && firstPress) { zipPressed = true; zipReleased = false; }
       if (event.code === 'KeyF' && firstPress) hoverTogglePressed = true;
       if (event.code === 'KeyE' && firstPress) cruiseTogglePressed = true;
+      if (process.env.NODE_ENV !== 'production' && event.code === 'KeyN' && firstPress
+        && new URLSearchParams(location.search).has('raceTest') && raceRoute[raceState.checkpoint]) {
+        player.position.copy(raceRoute[raceState.checkpoint]);
+        player.velocity.set(0, 0, 0);
+        player.grounded = false;
+        setTraversalKinematics(traversal, player.position, player.velocity);
+        traversal.grounded = false;
+        renderer.domElement.dataset.raceDebugGate = String(raceState.checkpoint + 1);
+      }
       if (process.env.NODE_ENV !== 'production' && event.code === 'KeyT' && firstPress) {
         const stream = districtStreams.get(currentDistrict);
         if (stream) {
@@ -1549,6 +2108,7 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(function SpiderGam
     };
     const onKeyUp = (event: KeyboardEvent) => {
       keys.delete(event.code);
+      if (event.code === 'Space') spaceSwingBlockedUntilRelease = false;
       if (event.code === 'KeyE') zipReleased = true;
     };
     const clearKeys = () => {
@@ -1560,6 +2120,7 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(function SpiderGam
       hoverTogglePressed = false;
       cruiseTogglePressed = false;
       wallCrawlPressed = false;
+      spaceSwingBlockedUntilRelease = false;
     };
     // Opt-in, visible development controls exercise the real input/mesh/render
     // loop. No browser-injected game state and no public production test UI.
@@ -1621,6 +2182,8 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(function SpiderGam
       void loadDistrict(district).then(() => {
         if (disposed) return;
         currentDistrict = id;
+        configureRaceCourse(district, elapsedTime);
+        if (trafficSources.length) configureTraffic(district);
         cameraPitch = district.spawnPitch ?? .08;
         player.position.copy(safeSpawn(district));
         cameraYaw = spawnViewYaw(player.position, district.spawnYaw ?? 0);
@@ -1672,6 +2235,7 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(function SpiderGam
             : mode === 'run' ? 'run'
               : player.grounded ? 'idle' : player.velocity.y < -1 ? 'fall' : 'jump'
         : mode === 'swing' ? 'swing'
+          : mode === 'doubleJump' ? 'backflip'
           : mode === 'webZip' || mode === 'pointLaunch' ? 'zip'
             : mode === 'wallRun' ? 'wall'
               : mode === 'wallCrawl' ? 'crawl'
@@ -1704,6 +2268,7 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(function SpiderGam
       const delta = Math.min(Math.max((timestamp - lastFrameTime) / 1000, 0), .034);
       lastFrameTime = timestamp;
       elapsedTime += delta;
+      wallSkimSeconds = Math.max(0, wallSkimSeconds - delta);
       atmosphere.update(elapsedTime);
       if (!ready) { renderer.render(scene, camera); return; }
       if (trial) {
@@ -1713,10 +2278,10 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(function SpiderGam
         if (!held && trial.phase) keys.delete('Space');
         trial.phase = held;
       }
-      if (keys.has('ArrowLeft')) cameraYaw += 1.5 * delta;
-      if (keys.has('ArrowRight')) cameraYaw -= 1.5 * delta;
-      if (keys.has('ArrowUp')) cameraPitch = clamp(cameraPitch + 1.05 * delta, -.18, .58);
-      if (keys.has('ArrowDown')) cameraPitch = clamp(cameraPitch - 1.05 * delta, -.18, .58);
+      if (keys.has('ArrowLeft')) { cameraYaw += 1.5 * delta; manualCameraUntil = elapsedTime + 1.35; }
+      if (keys.has('ArrowRight')) { cameraYaw -= 1.5 * delta; manualCameraUntil = elapsedTime + 1.35; }
+      if (keys.has('ArrowUp')) { cameraPitch = clamp(cameraPitch + 1.05 * delta, -.18, .58); manualCameraUntil = elapsedTime + 1.35; }
+      if (keys.has('ArrowDown')) { cameraPitch = clamp(cameraPitch - 1.05 * delta, -.18, .58); manualCameraUntil = elapsedTime + 1.35; }
       const forward = new THREE.Vector3(-Math.sin(cameraYaw), 0, -Math.cos(cameraYaw));
       const right = new THREE.Vector3(Math.cos(cameraYaw), 0, -Math.sin(cameraYaw));
       const wish = new THREE.Vector3();
@@ -1731,7 +2296,8 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(function SpiderGam
         raycaster.setFromCamera(pointerNdc, camera);
         cameraAim.copy(raycaster.ray.direction);
       }
-      const keyboardSwingHeld = hero.traversal === 'spider' && keys.has('Space') && elapsedTime - spacePressedAt > .12;
+      const keyboardSwingHeld = hero.traversal === 'spider' && keys.has('Space') && !spaceSwingBlockedUntilRelease
+        && elapsedTime - spacePressedAt > .12;
       const pointerSwingHeld = pointerHeld && performance.now() - pointerDownAt >= 240;
       const swingHeld = hero.traversal === 'spider' && (pointerSwingHeld || keyboardSwingHeld);
       const targetNdc = pointerHeld || pointerPressed || pointerZipActive ? pointerNdc : new THREE.Vector2(0, .08);
@@ -1751,6 +2317,10 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(function SpiderGam
       const activeColliders = nearbyColliders(player.position, Math.max(42, player.velocity.length() * .12));
       const ironPowered = hero.traversal === 'ironman' && (ironFlightMode === 'hover' || ironFlightMode === 'cruise');
       const localGroundY = groundYAt(traversal.position);
+      const windStep = stepWindTunnels(traversal.position, traversal.velocity, windTunnelFields, delta);
+      Object.assign(traversal.velocity, windStep.velocity);
+      activeWindTunnel = windStep.strength > 0 ? windStep.active : -1;
+      windBoostStrength = damp(windBoostStrength, windStep.strength, windStep.strength > 0 ? 9 : 4.5, delta);
 
       const traversalOverrides = hero.traversal === 'ironman' ? {
         gravity: ironPowered ? 0 : 29,
@@ -1770,6 +2340,7 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(function SpiderGam
         zipAcceleration: 126,
         zipDamping: 3.6,
         zipMaximumSpeed: 66,
+        maximumSpeed: windStep.strength > 0 ? 98 : 68,
       };
       const frameInput: TraversalInput = {
         move: wish,
@@ -1830,26 +2401,76 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(function SpiderGam
       }, delta, traversalOverrides);
 
       if (exactWorld) {
+        const attemptedVelocity = new THREE.Vector3().copy(traversal.velocity);
         const hit = exactWorld.sweepCapsule(beforeMotion, traversal.position, traversal.velocity);
         const position = hit.position;
         const velocity = hit.velocity;
+        let wallSkimTriggered = false;
         meshWallContact = null;
         const blocked = Boolean(hit.wallNormal) || hit.blocked && !hit.grounded;
         if (hit.wallNormal) meshWallContact = { point: position.clone(), normal: hit.wallNormal, feetTouching: hit.feetTouching, colliderId: 'rendered-facade' };
-        // A feet-level probe maintains Q contact at collision skin distance.
+        // A feet-level probe maintains real facade contact at collision-skin distance.
         const previousWall = traversal.wall;
         const contactNormal = meshWallContact?.normal ?? previousWall?.normal;
         if (contactNormal) meshWallContact = probeWallFeet(position, contactNormal, raycastWorld);
         const support = velocity.y <= .1 ? meshSupportAt(position, .015, .51) : null;
         const supportY = support ? capsuleSupportHeight(support) : null;
         traversal.grounded = Boolean(supportY !== null && Math.abs(position.y - supportY) < .045);
-        if (supportY !== null && traversal.grounded) { position.y = supportY; velocity.y = Math.max(0, velocity.y); }
+        if (supportY !== null && traversal.grounded) {
+          const exactSupport = position.clone();
+          exactSupport.y = supportY;
+          // Preserve the repeated-world solver's tiny clearance skin whenever
+          // an imported map contains overlapping sidewalk shells.
+          if (exactWorld.isCapsuleClear(exactSupport, .46, 2.05, false)) position.y = supportY;
+          else position.y = Math.max(position.y, supportY);
+          velocity.y = Math.max(0, velocity.y);
+        }
         if (!wasGrounded && traversal.grounded) traversal.landingSeconds = .16;
         if (traversal.grounded) traversal.airSeconds = 0;
         setTraversalKinematics(traversal, position, velocity);
         if (meshWallContact) traversal.wall = { ...meshWallContact, feetTouching: meshWallContact.feetTouching === true, contactSeconds: previousWall?.contactSeconds ?? 0, graceSeconds: .14 };
         else traversal.wall = null;
         if (!meshWallContact?.feetTouching) traversal.wallCrawlActive = false;
+        const wallApproachSpeed = hit.wallNormal ? -attemptedVelocity.dot(hit.wallNormal) : 0;
+        const automaticWallAttach = hero.traversal === 'spider'
+          && Boolean(meshWallContact?.feetTouching)
+          && wallApproachSpeed > 1.25
+          && traversal.wallAttachCooldownSeconds <= 0
+          && !traversal.swing && !traversal.zip && !traversal.mantle
+          && !frameInput.jumpPressed && !frameInput.swingPressed && !frameInput.swingHeld && !frameInput.zipPressed;
+        if (automaticWallAttach && traversal.wall) {
+          const normal = new THREE.Vector3(traversal.wall.normal.x, 0, traversal.wall.normal.z).normalize();
+          const inwardSpeed = velocity.dot(normal);
+          if (inwardSpeed < 0) velocity.addScaledVector(normal, -inwardSpeed);
+          velocity.y = Math.max(traversal.grounded ? 1.2 : 0, velocity.y);
+          traversal.grounded = false;
+          traversal.wallCrawlActive = true;
+          setTraversalKinematics(traversal, position, velocity);
+          renderer.domElement.dataset.lastWallAttach = elapsedTime.toFixed(3);
+        }
+        if (hit.wallNormal && traversal.swing && swingHeld && !traversal.wallCrawlActive
+          && elapsedTime >= wallSkimCooldownUntil) {
+          const skim = calculateWallSkim(attemptedVelocity, hit.wallNormal, forward, 94);
+          if (skim.eligible) {
+            wallSkimNormal.copy(hit.wallNormal).normalize();
+            wallSkimDirection.set(skim.direction.x, skim.direction.y, skim.direction.z).normalize();
+            position.addScaledVector(wallSkimNormal, .045);
+            velocity.set(skim.velocity.x, skim.velocity.y, skim.velocity.z);
+            traversal.grounded = false;
+            traversal.landingSeconds = 0;
+            traversal.swing = null;
+            traversal.swingRetryAfter = elapsedTime + .18;
+            traversal.wall = null;
+            traversal.wallCrawlActive = false;
+            wallSkimSeconds = .38;
+            wallSkimStrength = skim.strength;
+            wallSkimCooldownUntil = elapsedTime + .52;
+            wallSkimTriggered = true;
+            setTraversalKinematics(traversal, position, velocity);
+            renderer.domElement.dataset.lastWallSkim = elapsedTime.toFixed(3);
+            renderer.domElement.dataset.wallSkimSpeed = velocity.length().toFixed(2);
+          }
+        }
         const swing = traversal.swing;
         if (swing) {
           const anchor = new THREE.Vector3().copy(swing.anchor);
@@ -1857,8 +2478,32 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(function SpiderGam
           const obstruction = raycastWorld(position.clone().add(new THREE.Vector3(0, 1.3, 0)), line.clone().normalize(), Math.max(0, line.length() - .1));
           const excess = position.distanceTo(anchor) - swing.ropeLength;
           const ropeTolerance = Math.max(.25, swing.ropeLength * .01);
-          const incompatibleContact = blocked && excess > ropeTolerance;
-          if (obstruction || traversal.grounded || incompatibleContact) {
+          const groundSkim = traversal.grounded && swingHeld && !hit.wallNormal && !obstruction
+            && anchor.y > position.y + 2.8;
+          if (groundSkim) {
+            // A held rope owns low pavement contact. Preserve the attempted
+            // horizontal arc and trade the otherwise-cancelled downward motion
+            // for a bounded lift. This prevents both the initial ground skid
+            // and later long-swing toe brushes from deleting momentum.
+            const launchDirection = attemptedVelocity.clone().setY(0);
+            if (launchDirection.lengthSq() < .01) launchDirection.copy(forward).setY(0);
+            launchDirection.normalize();
+            const attemptedHorizontal = Math.hypot(attemptedVelocity.x, attemptedVelocity.z);
+            const retainedSpeed = clamp(Math.max(14, attemptedHorizontal * .985), 14, 78);
+            position.y += .042;
+            velocity.set(
+              launchDirection.x * retainedSpeed,
+              Math.max(attemptedVelocity.y, swing.attachedSeconds < .24 ? .24 : .08),
+              launchDirection.z * retainedSpeed,
+            );
+            traversal.grounded = false;
+            traversal.landingSeconds = 0;
+            setTraversalKinematics(traversal, position, velocity);
+            renderer.domElement.dataset.swingGroundEscape = 'frictionless-skid';
+            renderer.domElement.dataset.swingGroundRetainedSpeed = retainedSpeed.toFixed(2);
+          }
+          const incompatibleContact = blocked && !groundSkim && excess > ropeTolerance;
+          if (obstruction || traversal.grounded && !groundSkim || incompatibleContact) {
             traversal.swing = null;
             traversal.swingRetryAfter = traversal.elapsed + .2;
             renderer.domElement.dataset.swingDetachReason = obstruction ? 'blocked-web' : traversal.grounded ? 'landed' : 'solid-rope-conflict';
@@ -1877,6 +2522,14 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(function SpiderGam
         }
         if (blocked) buildingCorrectionCount++;
         result.context = refreshTraversalContext(traversal, frameInput, traversalOverrides);
+        if (wallSkimSeconds > 0 || wallSkimTriggered) {
+          const blend = clamp(wallSkimSeconds / .38, 0, 1);
+          result.context.animation.state = 'wallRun';
+          result.context.animation.bodyYaw = Math.atan2(-wallSkimDirection.x, -wallSkimDirection.z);
+          result.context.animation.bodyPitch = -.08;
+          result.context.animation.bodyRoll = clamp(wallSkimNormal.x * .18 + wallSkimDirection.z * .06, -.24, .24) * blend;
+          result.context.animation.wallBlend = blend;
+        }
         renderer.domElement.dataset.meshContacts = String(buildingCorrectionCount);
         renderer.domElement.dataset.spawnSurfaceVerified = String(Boolean(support));
       } else if (enforceBuildingSolidity(traversal.position, traversal.velocity, activeColliders)) {
@@ -1895,7 +2548,7 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(function SpiderGam
         if (meshWallContact) trial.contacts++;
         if (trial.elapsed >= trial.nextCheck && exactWorld) {
           trial.nextCheck = trial.elapsed + .2; trial.penetrationChecks++;
-          if (!exactWorld.isCapsuleClear(player.position)) {
+          if (!exactWorld.isCapsuleClear(player.position, .46, 2.05, false)) {
             trial.penetrations++;
             if (trial.penetrationDetails.length < 4) {
               const support = exactWorld.supportAt(player.position, .02, .6);
@@ -1913,6 +2566,7 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(function SpiderGam
         if (process.env.NODE_ENV !== 'production') {
           renderer.domElement.dataset.lastTraversalEvent = traversalEvent.type;
           if (traversalEvent.type === 'jump') renderer.domElement.dataset.jumpCount = String(Number(renderer.domElement.dataset.jumpCount ?? 0) + 1);
+          if (traversalEvent.type === 'double-jump') renderer.domElement.dataset.doubleJumpCount = String(Number(renderer.domElement.dataset.doubleJumpCount ?? 0) + 1);
         }
         if (traversalEvent.type === 'web-attached' && traversal.swing) {
           callbacksRef.current.onSwingAttached();
@@ -1953,7 +2607,63 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(function SpiderGam
         meshWallContact = null;
         result.context = refreshTraversalContext(traversal, frameInput, traversalOverrides);
       }
+
+      if (raceRoute.length) {
+        // Update every frame so the first endpoint remains physically attached
+        // to Spider-Man rather than being left at the previous checkpoint.
+        showRaceSegment(raceState.checkpoint, player.position);
+        const raceTime = elapsedTime - raceState.startedAt;
+        sampleRaceTrack(raceSamples, {
+          t: raceTime,
+          x: player.position.x,
+          y: player.position.y,
+          z: player.position.z,
+          yaw: player.facing,
+          pose: networkPose(result.context.animation.state),
+        });
+        const gateRadius = clamp(getDistrict(currentDistrict).targetWidth / 60, 3.4, 6.2);
+        const raceEvent = advanceSwingRace(raceState, player.position, raceRoute, elapsedTime, gateRadius);
+        if (raceEvent) {
+          raceMarkers.children.forEach((marker, index) => setCheckpointActive(marker as THREE.Group, index === raceState.checkpoint));
+          showRaceSegment(raceState.checkpoint);
+          if (raceEvent.finished && raceEvent.duration !== null) {
+            lastRaceFinish = raceEvent.duration;
+            raceLap += 1;
+            const finishSample: RaceSample = {
+              t: raceEvent.duration,
+              x: player.position.x, y: player.position.y, z: player.position.z,
+              yaw: player.facing,
+              pose: networkPose(result.context.animation.state),
+            };
+            raceSamples.push(finishSample);
+            if (!raceBest || raceEvent.duration < raceBest.duration) {
+              raceBest = { duration: raceEvent.duration, samples: raceSamples.slice() };
+              localStorage.setItem(raceStorageKey(currentDistrict, props.suitId), JSON.stringify(raceBest));
+              renderer.domElement.dataset.raceBest = raceBest.duration.toFixed(3);
+            }
+            raceFinishVisibleUntil = elapsedTime + 2.4;
+            resetRacePlayer(elapsedTime);
+            result.context = refreshTraversalContext(traversal, frameInput, traversalOverrides);
+            raceMarkers.children.forEach((marker, index) => setCheckpointActive(marker as THREE.Group, index === 0));
+            showRaceSegment(0);
+          }
+        }
+      }
       updateAvatar(delta, elapsedTime, result.context);
+      if (raceGhost && raceBest) {
+        const ghost = interpolateRaceSample(raceBest.samples, elapsedTime - raceState.startedAt);
+        raceGhost.root.visible = Boolean(ghost);
+        if (ghost) {
+          raceGhost.root.position.set(ghost.x, ghost.y, ghost.z);
+          raceGhost.root.rotation.y = ghost.yaw;
+          raceGhost.animator.update(delta, {
+            pose: networkPose(ghost.pose),
+            grounded: ghost.pose === 'idle' || ghost.pose === 'run' || ghost.pose === 'land' || ghost.pose === 'perch',
+            speed: ghost.pose === 'run' ? 10 : 28,
+            verticalSpeed: 0,
+          });
+        }
+      } else if (raceGhost) raceGhost.root.visible = false;
       updateRemoteAvatars(delta);
       if (multiplayer && elapsedTime - lastNetworkBroadcast >= .125) {
         lastNetworkBroadcast = elapsedTime;
@@ -1970,17 +2680,44 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(function SpiderGam
       }
 
       const grappleLineVisible = Boolean(traversal.zip && elapsedTime < grappleLineUntil);
-      webLine.visible = Boolean(traversal.swing || grappleLineVisible);
-      if (traversal.swing || grappleLineVisible) {
+      const webVisible = Boolean(traversal.swing || grappleLineVisible);
+      webLine.visible = webVisible && !webStrand;
+      if (webVisible) {
         const hand = avatar ? avatar.animator.webHand(new THREE.Vector3()) : player.position.clone().add(new THREE.Vector3(0, 1.58, 0));
         const webTarget = traversal.swing?.anchor ?? traversal.zip?.surfacePoint ?? traversal.zip?.target;
-        if (webTarget) webPositions.set([hand.x, hand.y, hand.z, webTarget.x, webTarget.y, webTarget.z]);
+        if (webTarget) {
+          webPositions.set([hand.x, hand.y, hand.z, webTarget.x, webTarget.y, webTarget.z]);
+          webStrand?.update(hand, new THREE.Vector3(webTarget.x, webTarget.y, webTarget.z), true, traversal.swing?.tension ?? .82);
+        }
         (webGeometry.getAttribute('position') as THREE.BufferAttribute).needsUpdate = true;
-      }
+      } else webStrand?.update(player.position, player.position, false);
       const speed = result.context.speed;
+      const yawDelta = Math.atan2(Math.sin(player.facing - previousPlayerYaw), Math.cos(player.facing - previousPlayerYaw));
+      previousPlayerYaw = player.facing;
+      const velocityDirection = player.velocity.clone().setY(0);
+      if (velocityDirection.lengthSq() > .2) velocityDirection.normalize();
+      const webLateral = traversal.swing
+        ? new THREE.Vector3().copy(traversal.swing.anchor).sub(player.position).normalize().cross(velocityDirection).y
+        : 0;
+      const skimLateral = wallSkimSeconds > 0 ? Math.sign(wallSkimNormal.dot(right)) * .82 : 0;
+      const cinematic = stepCinematicCamera(cinematicCamera, {
+        mode: result.context.animation.state,
+        speed,
+        verticalSpeed: player.velocity.y,
+        turnRate: yawDelta / Math.max(delta, 1 / 120),
+        webLateral: webLateral || skimLateral,
+        grounded: player.grounded,
+        boostStrength: windBoostStrength,
+        wallKick: wallSkimSeconds > 0 ? wallSkimStrength * clamp(wallSkimSeconds / .38, 0, 1) : 0,
+      }, delta);
+      if (elapsedTime > manualCameraUntil && velocityDirection.lengthSq() > .2 && wallCameraBlend < .2) {
+        const travelYaw = Math.atan2(-velocityDirection.x, -velocityDirection.z);
+        cameraYaw = dampYaw(cameraYaw, travelYaw, cinematic.followStrength, delta);
+      }
       const perched = avatarPose === 'perch' && player.grounded;
       const ironCamera = hero.traversal === 'ironman';
-      const distance = perched ? 5.2 : ironCamera ? 5.4 + Math.min(speed / 72, 1) * 1.8 : Math.min(10, result.context.camera.followDistance);
+      const baseDistance = perched ? 5.2 : ironCamera ? 5.4 + Math.min(speed / 72, 1) * 1.8 : Math.min(10, result.context.camera.followDistance);
+      const distance = clamp(baseDistance + cinematic.distanceOffset, 4.2, 14.5);
       const horizontalDistance = Math.cos(cameraPitch) * distance;
       const wallNormal = result.context.wallNormal
         ? new THREE.Vector3(result.context.wallNormal.x, result.context.wallNormal.y, result.context.wallNormal.z).normalize()
@@ -2002,13 +2739,22 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(function SpiderGam
         wallCameraYawAnchor = cameraYaw;
       }
       wallCameraWasRequested = wallCameraRequested;
-      wallCameraBlend = damp(wallCameraBlend, wallCameraRequested ? 1 : 0, wallCameraRequested ? 5.5 : 11, delta);
+      wallCameraBlend = damp(wallCameraBlend, wallCameraRequested ? 1 : 0, wallCameraRequested ? 8.5 : 10.5, delta);
       if (wallNormal) wallCameraNormal.lerp(wallNormal, 1 - Math.exp(-10 * delta)).normalize();
       const target = player.position.clone().add(new THREE.Vector3(
         result.context.camera.lookAhead.x * (ironCamera ? .08 : .28),
         1.35 + result.context.camera.lookAhead.y * .16,
         result.context.camera.lookAhead.z * (ironCamera ? .08 : .28),
       ));
+      const nextCheckpoint = raceRoute[raceState.checkpoint];
+      if (nextCheckpoint && wallCameraBlend < .25) {
+        const checkpointDirection = nextCheckpoint.clone().sub(player.position);
+        const checkpointDistance = checkpointDirection.length();
+        if (checkpointDistance > .1) target.addScaledVector(
+          checkpointDirection.normalize(),
+          cinematic.checkpointLook * clamp(checkpointDistance / 28, .3, 1) * 5,
+        );
+      }
       if (perched && avatar) {
         // Collision-check the sightline to the actual crouched body, not to a
         // standing-height point above it. Otherwise a parapet can hide the
@@ -2017,10 +2763,10 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(function SpiderGam
         if (head) { avatar.root.updateMatrixWorld(true); head.getWorldPosition(target); }
         else target.copy(player.position).add(new THREE.Vector3(0, .7, 0));
       }
-      const shake = Math.min(.065, result.context.camera.shake);
+      const shake = Math.min(.11, result.context.camera.shake * .42 + cinematic.shake);
       const desired = player.position.clone().add(new THREE.Vector3(
         Math.sin(cameraYaw) * horizontalDistance + Math.sin(elapsedTime * 31) * shake,
-        result.context.camera.heightOffset + Math.sin(cameraPitch) * distance + Math.sin(elapsedTime * 27) * shake * .45,
+        result.context.camera.heightOffset + cinematic.heightOffset + Math.sin(cameraPitch) * distance + Math.sin(elapsedTime * 27) * shake * .45,
         Math.cos(cameraYaw) * horizontalDistance,
       ));
       if (wallCameraBlend > .001) {
@@ -2036,7 +2782,12 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(function SpiderGam
         const obstruction = raycastWorld(target, sight.clone().normalize(), sight.length());
         if (obstruction) desired.copy(target).addScaledVector(sight.normalize(), Math.max(.4, obstruction.distance - .25));
       } else cameraAgainstWorld(target, desired, activeColliders);
-      camera.position.lerp(desired, 1 - Math.exp(-(ironCamera ? 18 : 12) * delta));
+      const cameraPositionDamping = cinematic.phase === 'zip'
+        ? 19
+        : cinematic.zoomDirection === 'out'
+          ? 14
+          : ironCamera ? 18 : 12;
+      camera.position.lerp(desired, 1 - Math.exp(-cameraPositionDamping * delta));
       if (exactWorld) {
         // Damping itself must not carry the camera through a wall between two
         // otherwise clear chase positions (especially after map/spawn changes).
@@ -2044,11 +2795,36 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(function SpiderGam
         const obstruction = raycastWorld(target, actualSight.clone().normalize(), actualSight.length());
         if (obstruction) camera.position.copy(target).addScaledVector(actualSight.normalize(), Math.max(.12, obstruction.distance - .25));
       }
-      camera.fov = damp(camera.fov, ironCamera ? Math.min(68, result.context.camera.fov) : result.context.camera.fov, 7, delta);
+      const cinematicFov = clamp(result.context.camera.fov + cinematic.fovOffset * .86, 62, ironCamera ? 82 : 98);
+      const fovDamping = cinematic.phase === 'zip'
+        ? 18
+        : cinematic.zoomDirection === 'out' || cinematic.phase === 'release' || windBoostStrength > .1
+          ? 13
+          : 7.5;
+      camera.fov = damp(camera.fov, cinematicFov, fovDamping, delta);
       camera.updateProjectionMatrix();
-      const chaseUp = new THREE.Vector3(Math.sin(result.context.camera.roll), Math.cos(result.context.camera.roll), 0).normalize();
-      camera.up.copy(chaseUp).lerp(new THREE.Vector3(0, 1, 0), wallCameraBlend).normalize();
+      const cameraRoll = clamp(result.context.camera.roll * .55 + cinematic.roll, -.24, .24);
+      const chaseUp = new THREE.Vector3(Math.sin(cameraRoll), Math.cos(cameraRoll), 0).normalize();
+      const wallPerspectiveUp = wallCameraNormal.clone().setY(0).normalize();
+      camera.up.copy(chaseUp).lerp(wallPerspectiveUp, wallCameraBlend).normalize();
       camera.lookAt(target);
+      raceMarkers.children.forEach((marker, index) => {
+        if (index !== raceState.checkpoint) return;
+        marker.rotation.z += delta * 1.2;
+        const pulse = 1 + Math.sin(elapsedTime * 5.2) * .045;
+        const baseScale = clamp(getDistrict(currentDistrict).targetWidth / 75, 2.8, 5.4);
+        marker.scale.setScalar(baseScale * pulse);
+      });
+      windTunnelVisuals.children.forEach((tunnel, tunnelIndex) => {
+        tunnel.children.forEach((child) => {
+          if (!(child instanceof THREE.Mesh) || child.userData.windPhase === undefined) return;
+          const wave = .5 + .5 * Math.sin(elapsedTime * 7.5 - Number(child.userData.windPhase) * Math.PI * 2);
+          child.scale.setScalar(1 + wave * .035 + (activeWindTunnel === tunnelIndex ? windBoostStrength * .045 : 0));
+          const materials = Array.isArray(child.material) ? child.material : [child.material];
+          materials.forEach((material) => { material.opacity = .32 + wave * .32 + (activeWindTunnel === tunnelIndex ? .2 : 0); });
+        });
+      });
+      updateTraffic(delta);
       sun.position.set(player.position.x - 180, player.position.y + 360, player.position.z + 170);
 
       hudAccumulator += delta;
@@ -2068,7 +2844,44 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(function SpiderGam
       }
       if (hudAccumulator > .15) {
         const groundY = groundYAt(player.position);
-        callbacksRef.current.onHud({ speed: Math.round(speed * 3.6), altitude: Math.max(0, Math.round(player.position.y - groundY)), fps: measuredFps, swinging: Boolean(traversal.swing) });
+        const leadTraffic = trafficVehicles[0]?.root;
+        if (leadTraffic) {
+          renderer.domElement.dataset.trafficLeadPosition = leadTraffic.position.toArray().map((value) => value.toFixed(2)).join(',');
+          renderer.domElement.dataset.trafficLeadGroundError = Math.abs(
+            leadTraffic.position.y - (groundYAt(leadTraffic.position) + .025),
+          ).toFixed(4);
+          renderer.domElement.dataset.trafficVisibleCount = String(trafficVehicles.filter((vehicle) => vehicle.root.visible).length);
+        }
+        const checkpoint = raceRoute[raceState.checkpoint];
+        let raceHud: RaceHud | null = null;
+        if (checkpoint) {
+          const dx = checkpoint.x - player.position.x;
+          const dz = checkpoint.z - player.position.z;
+          const targetYaw = Math.atan2(-dx, -dz);
+          const elapsed = Math.max(0, elapsedTime - raceState.startedAt);
+          const expectedBest = raceBest ? raceBest.duration * (raceState.checkpoint / Math.max(1, raceRoute.length)) : null;
+          raceHud = {
+            checkpoint: raceState.checkpoint + 1,
+            total: raceRoute.length,
+            lap: raceLap,
+            elapsed,
+            best: raceBest?.duration ?? null,
+            delta: expectedBest === null ? null : elapsed - expectedBest,
+            distance: Math.hypot(dx, checkpoint.y - player.position.y, dz),
+            bearing: Math.atan2(Math.sin(targetYaw - cameraYaw), Math.cos(targetYaw - cameraYaw)),
+            ghostActive: Boolean(raceBest),
+            lastFinish: elapsedTime < raceFinishVisibleUntil ? lastRaceFinish : null,
+          };
+        }
+        callbacksRef.current.onHud({
+          speed: Math.round(speed * 3.6),
+          altitude: Math.max(0, Math.round(player.position.y - groundY)),
+          fps: measuredFps,
+          swinging: Boolean(traversal.swing),
+          boosting: windBoostStrength > .12,
+          wallSkimming: wallSkimSeconds > 0,
+          race: raceHud,
+        });
         renderer.domElement.dataset.playerPosition = [player.position.x, player.position.y, player.position.z].map((value) => value.toFixed(2)).join(',');
         renderer.domElement.dataset.grounded = String(player.grounded);
         renderer.domElement.dataset.groundY = groundY.toFixed(3);
@@ -2077,11 +2890,21 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(function SpiderGam
         renderer.domElement.dataset.colliderCount = String(worldColliders.length + indexedColliderCount);
         renderer.domElement.dataset.anchorTargetCount = String(anchorTargets.size + indexedColliderCount);
         renderer.domElement.dataset.ropeLength = traversal.swing?.ropeLength.toFixed(2) ?? '';
+        renderer.domElement.dataset.airJumpsRemaining = String(traversal.airJumpsRemaining);
+        renderer.domElement.dataset.doubleJumpActive = String(traversal.doubleJumpSeconds > 0);
         renderer.domElement.dataset.swingTension = traversal.swing?.tension.toFixed(2) ?? '';
+        renderer.domElement.dataset.windBoost = windBoostStrength.toFixed(2);
+        renderer.domElement.dataset.activeWindTunnel = activeWindTunnel >= 0 ? String(activeWindTunnel + 1) : '';
+        renderer.domElement.dataset.wallSkimActive = String(wallSkimSeconds > 0);
+        renderer.domElement.dataset.cameraPhase = cinematic.phase;
+        renderer.domElement.dataset.cameraFov = camera.fov.toFixed(2);
+        renderer.domElement.dataset.cameraDistance = camera.position.distanceTo(target).toFixed(2);
+        renderer.domElement.dataset.cameraZoomDirection = cinematic.zoomDirection;
         renderer.domElement.dataset.grappling = String(Boolean(pointerZipActive && traversal.zip));
         renderer.domElement.dataset.grappleLineVisible = String(grappleLineVisible);
         renderer.domElement.dataset.wallContact = traversal.wall ? `${traversal.wall.normal.x.toFixed(2)},${traversal.wall.normal.y.toFixed(2)},${traversal.wall.normal.z.toFixed(2)}` : '';
         renderer.domElement.dataset.wallCameraBlend = wallCameraBlend.toFixed(2);
+        renderer.domElement.dataset.wallCameraState = wallCameraRequested ? 'facade' : wallCameraBlend > .03 ? 'returning' : 'world';
         renderer.domElement.dataset.wallCameraYawDelta = (cameraYaw - wallCameraYawAnchor).toFixed(2);
         renderer.domElement.dataset.wallTopClearance = Number.isFinite(wallTopClearance) ? wallTopClearance.toFixed(2) : '';
         hudAccumulator = 0;
@@ -2095,8 +2918,9 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(function SpiderGam
         camera.position.copy(initialSpawn).add(new THREE.Vector3(0, 3.68, 10));
         camera.lookAt(initialSpawn.x, 1.4, initialSpawn.z);
         tick();
-        await Promise.all([loadAvatar(), loadDistrict(initialDistrict)]);
+        await Promise.all([loadAvatar(), loadDistrict(initialDistrict), loadWebEffect()]);
         if (disposed) return;
+        configureRaceCourse(initialDistrict, elapsedTime);
         player.position.copy(safeSpawn(initialDistrict));
         cameraYaw = spawnViewYaw(player.position, initialDistrict.spawnYaw ?? 0);
         traversal.heading = cameraYaw;
@@ -2115,6 +2939,11 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(function SpiderGam
         callbacksRef.current.onDistrictChange(initialDistrict.id);
         callbacksRef.current.onStatus(`${initialDistrict.name} route online`, 100);
         callbacksRef.current.onReady();
+        // Traffic is decorative and intentionally streams after the playable
+        // city is ready, so large downloaded vehicle textures never delay spawn.
+        void loadTrafficSources().then(() => {
+          if (!disposed) configureTraffic(getDistrict(currentDistrict));
+        });
       } catch (error) {
         if (disposed) return;
         console.error('[game] unable to start SpiderMan city', error);
@@ -2137,6 +2966,7 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(function SpiderGam
       window.removeEventListener('blur', clearKeys);
       void multiplayer?.dispose();
       clearRemoteAvatars();
+      webStrand?.dispose();
       scene.traverse((object) => {
         if (!(object instanceof THREE.Mesh)) return;
         object.geometry.dispose();

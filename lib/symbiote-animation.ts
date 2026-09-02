@@ -11,6 +11,7 @@ const canonical = (name: string) => name.toLowerCase().replace(/[^a-z0-9]/g, '')
  */
 export const SYMBIOTE_NATIVE_ROUTES = {
   jump: 'Flying Knee Punch Combo',
+  backflip: 'Swing to Land',
   dive: 'Flying Knee Punch Combo',
   swing: 'Swing to Land',
   zip: 'Swing to Land',
@@ -38,6 +39,7 @@ export class SymbioteAnimationGraph {
     const swing = exact(SYMBIOTE_NATIVE_ROUTES.swing);
     this.clips = {
       jump: knee,
+      backflip: swing,
       dive: knee,
       swing,
       zip: swing,
@@ -56,7 +58,7 @@ export class SymbioteAnimationGraph {
     const tension = THREE.MathUtils.clamp(motion.tension ?? 0, 0, 1);
     return {
       clip,
-      loop: THREE.LoopRepeat,
+      loop: motion.pose === 'backflip' ? THREE.LoopOnce : THREE.LoopRepeat,
       rate: motion.pose === 'swing' ? .9 + tension * .2 : 1,
     };
   }

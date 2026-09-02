@@ -514,7 +514,28 @@ export class WorldMeshQuery {
     const support = velocity.y <= .1 ? this.supportAt(position, { maxRise: .015, maxDrop: radius + .035 }) : null;
     grounded = Boolean(support && Math.abs(position.y - capsuleSupportHeight(support, radius)) <= .035 && correctedVelocity.y <= .1);
     if (grounded && support) {
-      position.y = capsuleSupportHeight(support, radius);
+      const unsnappedY = position.y;
+      const supportedY = capsuleSupportHeight(support, radius);
+      position.y = supportedY;
+      // Imported street meshes sometimes contain a second, nearly coplanar
+      // sidewalk shell.  Snapping exactly to the visible support can then put
+      // the capsule a few millimetres inside that duplicate face.  Find the
+      // smallest clear collision skin without imparting vertical velocity: this
+      // remains a grounded skid, never a hop or a launch assist.
+      if (!this.isCapsuleClear(position, radius, height, false)) {
+        let foundClearSkin = false;
+        for (let lift = .006; lift <= .06 + 1e-7; lift += .006) {
+          position.y = supportedY + lift;
+          if (this.isCapsuleClear(position, radius, height, false)) {
+            foundClearSkin = true;
+            break;
+          }
+        }
+        if (!foundClearSkin) {
+          position.y = Math.max(unsnappedY, supportedY);
+          grounded = this.isCapsuleClear(position, radius, height, false);
+        }
+      }
       correctedVelocity.y = Math.max(0, correctedVelocity.y);
     }
     return { position, velocity: correctedVelocity, grounded, wallNormal, feetTouching,

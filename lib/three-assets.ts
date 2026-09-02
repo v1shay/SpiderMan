@@ -316,7 +316,7 @@ export function applySuitRestPose(root: THREE.Object3D, suit: SuitConfig, clips:
 const deltaRotation = new THREE.Quaternion();
 const targetRotation = new THREE.Quaternion();
 
-export type ProceduralPose = 'idle' | 'perch' | 'emote' | 'run' | 'jump' | 'fall' | 'swing' | 'wall' | 'crawl' | 'dive' | 'zip' | 'hover' | 'fly';
+export type ProceduralPose = 'idle' | 'perch' | 'emote' | 'run' | 'jump' | 'backflip' | 'fall' | 'swing' | 'wall' | 'crawl' | 'dive' | 'zip' | 'hover' | 'fly';
 
 export function animateRigBones(
   bones: readonly RigBone[],
@@ -368,11 +368,13 @@ export function animateRigBones(
       if (entry.role === 'leftUpLeg') x = .28;
       if (entry.role === 'rightUpLeg') x = -.18;
       if (entry.role === 'leftLeg' || entry.role === 'rightLeg') x = .3;
-    } else if (state === 'jump') {
+    } else if (state === 'jump' || state === 'backflip') {
+      if (state === 'backflip' && entry.role === 'hips') x = -Math.min(1, elapsed / .88) * Math.PI * 2;
       if (entry.role === 'leftArm') z = -.62;
       if (entry.role === 'rightArm') z = .62;
-      if (entry.role === 'leftUpLeg' || entry.role === 'rightUpLeg') x = .28;
-      if (entry.role === 'leftLeg' || entry.role === 'rightLeg') x = .42;
+      if (entry.role === 'leftUpLeg' || entry.role === 'rightUpLeg') x = state === 'backflip' ? -.72 : .28;
+      if (entry.role === 'leftLeg' || entry.role === 'rightLeg') x = state === 'backflip' ? 1.25 : .42;
+      if (state === 'backflip' && (entry.role === 'chest' || entry.role === 'spine2')) x = .65;
     } else if (state === 'wall' || state === 'crawl') {
       const crawl = state === 'crawl' ? stride : .3;
       if (entry.role === 'leftArm') z = -.82 + crawl * .28;
