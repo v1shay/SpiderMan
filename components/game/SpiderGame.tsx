@@ -35,6 +35,7 @@ import { WebStrand, WEB_STRAND_MODEL } from '@/lib/web-strand';
 import { createCinematicCameraState, stepCinematicCamera } from '@/lib/cinematic-camera';
 import { stepWindTunnels, type WindTunnelField } from '@/lib/wind-tunnel';
 import { calculateWallSkim } from '@/lib/wall-skim';
+import { resolveSwingGroundContact } from '@/lib/swing-ground-contact';
 import { findTrafficLanes, trafficPose, type TrafficLane } from '@/lib/city-traffic';
 import { deterministicRaceNodes, deterministicTileId } from '@/lib/deterministic-world';
 import {
@@ -2295,8 +2296,8 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(function SpiderGam
       if (trial) {
         trial.elapsed += delta;
         const held = trial.elapsed % 3.35 < 3;
-        if (held && !trial.phase) { keys.add('Space'); spacePressedAt = elapsedTime - .13; }
-        if (!held && trial.phase) keys.delete('Space');
+        if (held && !trial.phase) { keys.add('Space'); keys.add('KeyW'); spacePressedAt = elapsedTime - .13; }
+        if (!held && trial.phase) { keys.delete('Space'); keys.delete('KeyW'); }
         trial.phase = held;
       }
       if (keys.has('ArrowLeft')) { cameraYaw += 1.5 * delta; manualCameraUntil = elapsedTime + 1.35; }
@@ -2414,6 +2415,9 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(function SpiderGam
       const result = stepTraversalInPlace(traversal, frameInput, {
         groundY: exactWorld ? -10000 : localGroundY,
         sampleGround: exactWorld ? (point, stepUp, maximumDrop) => meshSupportAt(point, stepUp, maximumDrop ?? .1)?.point.y ?? null : undefined,
+        isCapsuleClear: exactWorld
+          ? (point, radius, height) => exactWorld.isCapsuleClear(point, radius, height, false)
+          : undefined,
         wallContact: exactWorld ? meshWallContact : undefined,
         colliders: exactWorld ? [] : activeColliders,
         anchorColliders: exactWorld ? [] : nearbyColliders(player.position, 110),
@@ -2487,7 +2491,17 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(function SpiderGam
           if (skim.eligible) {
             wallSkimNormal.copy(hit.wallNormal).normalize();
             wallSkimDirection.set(skim.direction.x, skim.direction.y, skim.direction.z).normalize();
-            position.addScaledVector(wallSkimNormal, .045);
+            // Imported city meshes do not consistently wind their triangles, so a
+            // contact normal can point into a building. Only accept an offset that
+            // keeps the entire avatar capsule outside the exact render geometry.
+            const positiveOffset = position.clone().addScaledVector(wallSkimNormal, .045);
+            const negativeOffset = position.clone().addScaledVector(wallSkimNormal, -.045);
+            if (exactWorld.isCapsuleClear(positiveOffset, .46, 2.05, false)) {
+              position.copy(positiveOffset);
+            } else if (exactWorld.isCapsuleClear(negativeOffset, .46, 2.05, false)) {
+              position.copy(negativeOffset);
+              wallSkimNormal.multiplyScalar(-1);
+            }
             velocity.set(skim.velocity.x, skim.velocity.y, skim.velocity.z);
             traversal.grounded = false;
             traversal.landingSeconds = 0;
@@ -2512,29 +2526,31 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(function SpiderGam
           const obstruction = raycastWorld(position.clone().add(new THREE.Vector3(0, 1.3, 0)), line.clone().normalize(), Math.max(0, line.length() - .1));
           const excess = position.distanceTo(anchor) - swing.ropeLength;
           const ropeTolerance = Math.max(.25, swing.ropeLength * .01);
-          const groundSkim = traversal.grounded && swingHeld && !hit.wallNormal && !obstruction
-            && anchor.y > position.y + 2.8;
+          const groundContact = resolveSwingGroundContact({
+            attemptedVelocity,
+            sweptVelocity: velocity,
+            grounded: traversal.grounded,
+            swingHeld,
+            obstructed: Boolean(obstruction),
+            hitWall: Boolean(hit.wallNormal),
+            anchorHeight: anchor.y - position.y,
+            elevatedLaunch: position.y > 18,
+            tension: swing.tension,
+            attachedSeconds: swing.attachedSeconds,
+          });
+          const groundSkim = groundContact.active;
           if (groundSkim) {
-            // A held rope owns low pavement contact. Preserve the attempted
-            // horizontal arc and trade the otherwise-cancelled downward motion
-            // for a bounded lift. This prevents both the initial ground skid
-            // and later long-swing toe brushes from deleting momentum.
-            const launchDirection = attemptedVelocity.clone().setY(0);
-            if (launchDirection.lengthSq() < .01) launchDirection.copy(forward).setY(0);
-            launchDirection.normalize();
-            const attemptedHorizontal = Math.hypot(attemptedVelocity.x, attemptedVelocity.z);
-            const retainedSpeed = clamp(Math.max(14, attemptedHorizontal * .985), 14, 78);
-            position.y += .042;
-            velocity.set(
-              launchDirection.x * retainedSpeed,
-              Math.max(attemptedVelocity.y, swing.attachedSeconds < .24 ? .24 : .08),
-              launchDirection.z * retainedSpeed,
-            );
-            traversal.grounded = false;
-            traversal.landingSeconds = 0;
+            velocity.set(groundContact.velocity.x, groundContact.velocity.y, groundContact.velocity.z);
+            traversal.grounded = !groundContact.liftOff;
+            if (groundContact.liftOff) {
+              // Cross the collision skin once. Subsequent height and velocity
+              // come exclusively from the rope solver—never a per-frame hop.
+              position.y += .012;
+              traversal.landingSeconds = 0;
+            }
             setTraversalKinematics(traversal, position, velocity);
-            renderer.domElement.dataset.swingGroundEscape = 'frictionless-skid';
-            renderer.domElement.dataset.swingGroundRetainedSpeed = retainedSpeed.toFixed(2);
+            renderer.domElement.dataset.swingGroundEscape = groundContact.liftOff ? 'assisted-liftoff' : 'frictionless-skid';
+            renderer.domElement.dataset.swingGroundRetainedSpeed = Math.hypot(velocity.x, velocity.z).toFixed(2);
           }
           const incompatibleContact = blocked && !groundSkim && excess > ropeTolerance;
           if (obstruction || traversal.grounded && !groundSkim || incompatibleContact) {

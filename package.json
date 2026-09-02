@@ -17,6 +17,8 @@
     "test:symbiote": "node --experimental-strip-types scripts/verify-symbiote-native.mjs",
     "test:new-spiders": "node --experimental-strip-types scripts/verify-new-spiders.mjs",
     "test:traversal": "node --experimental-strip-types scripts/verify-traversal.mjs",
+    "test:swing-anchors": "node --experimental-strip-types scripts/verify-swing-anchor-scoring.mjs",
+    "test:swing-ground": "node --experimental-strip-types scripts/verify-swing-ground-contact.mjs",
     "test:traversal-animation": "node --experimental-strip-types scripts/verify-traversal-animation.mjs",
     "test:swing-assistance": "node --experimental-strip-types scripts/verify-swing-assistance.mjs && node --experimental-strip-types scripts/verify-repeating-world.mjs",
     "test:race": "node --experimental-strip-types scripts/verify-swing-race.mjs && node --experimental-strip-types scripts/verify-wind-tunnel.mjs && node --experimental-strip-types scripts/verify-wall-skim.mjs",

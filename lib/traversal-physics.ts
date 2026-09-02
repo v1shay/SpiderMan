@@ -1,3 +1,5 @@
+import { selectTrajectoryAwareSwingAnchor } from './swing-anchor-scoring.ts';
+
 /**
  * Deterministic, renderer-agnostic traversal physics for a Spider-Man-style game.
  *
@@ -102,6 +104,8 @@ export interface TraversalEnvironment {
   anchorColliders?: readonly TraversalAabb[];
   /** Mesh ground/roof probe at a foot position; null means no local support. */
   sampleGround?: (position: Vector3Like, maximumStepUp: number, maximumDrop?: number) => number | null;
+  /** Exact occupancy query used to reject future swing arcs through geometry. */
+  isCapsuleClear?: (position: Vector3Like, radius: number, height: number) => boolean;
   /** A mesh/BVH controller may supply a higher fidelity persistent wall contact. */
   wallContact?: SurfaceContact | null;
   anchorCandidates?: readonly WebAnchorCandidate[];
@@ -116,7 +120,7 @@ export interface SwingRuntime {
   attachedSeconds: number;
   tension: number;
   pressure: number;
-  /** Highest speed reached on this attachment; spent as bounded release assist. */
+  /** Highest speed reached on this attachment; used only to qualify a small release assist. */
   peakSpeed?: number;
   /** Highest rope load reached on this attachment. */
   peakTension?: number;
@@ -181,6 +185,10 @@ export interface TraversalState {
   swingReleaseSeconds?: number;
   /** Prevents a held trigger from reattaching every frame against an obstacle. */
   swingRetryAfter?: number;
+  /** Brief anti-orbit memory for the most recently released attachment. */
+  recentSwingAnchorId?: string;
+  recentSwingAnchorPosition?: Vector3Like;
+  recentSwingAnchorUntil?: number;
 }
 
 export interface TraversalEvent {
@@ -289,8 +297,9 @@ export const DEFAULT_TRAVERSAL_CONFIG: Readonly<TraversalConfig> = Object.freeze
   runSpeed: 13,
   maximumSpeed: 68,
   jumpSpeed: 11.5,
-  doubleJumpSpeed: 13.8,
-  doubleJumpForwardBoost: 4.8,
+  // An aerial trick redirect, not a second full-strength jump.
+  doubleJumpSpeed: 3.8,
+  doubleJumpForwardBoost: 1.6,
   coyoteTime: 0.12,
   jumpBufferTime: 0.13,
   playerRadius: 0.46,
@@ -298,13 +307,15 @@ export const DEFAULT_TRAVERSAL_CONFIG: Readonly<TraversalConfig> = Object.freeze
   collisionStep: 0.24,
   swingMinimumLength: 5,
   swingMaximumLength: 78,
-  swingSpring: 64,
-  swingDamping: 10,
-  swingPumpAcceleration: 24,
-  swingSteerAcceleration: 15,
+  // The rope constraint, gravity and incoming momentum do the real work.
+  // These are deliberately small correction/agency values, not an engine.
+  swingSpring: 18,
+  swingDamping: 3,
+  swingPumpAcceleration: 4,
+  swingSteerAcceleration: 5,
   swingReelSpeed: 9,
-  swingReleaseBoost: 16,
-  swingReleaseLift: 12,
+  swingReleaseBoost: 4.5,
+  swingReleaseLift: 3.2,
   zipAcceleration: 92,
   zipDamping: 4.8,
   zipMaximumSpeed: 52,
@@ -523,11 +534,48 @@ function chooseSwingAnchor(
   const fallbackDirection = input.cameraForward ?? input.move ?? vector(0, 0, -1);
   const aim = input.aimDirection ?? normalize(add(fallbackDirection, vector(0, 0.5, 0)));
   const colliders = environment.anchorColliders ?? environment.colliders ?? [];
-  const candidates = (environment.anchorCandidates ?? []).filter((candidate) =>
-    candidate.lineOfSight !== false && traversalLineOfSight(state.position, candidate.point, colliders));
-  return selectTraversalAnchor(state.position, aim, candidates, {
-    ...config, anchorMaximumDistance: Math.min(config.anchorMaximumDistance, config.swingMaximumLength),
+  const candidates = (environment.anchorCandidates ?? []).filter((candidate) => {
+    if (candidate.lineOfSight === false || !traversalLineOfSight(state.position, candidate.point, colliders)) return false;
+    const recentlyReleased = candidate.id && candidate.id === state.recentSwingAnchorId
+      && state.elapsed < (state.recentSwingAnchorUntil ?? 0)
+      && distance(state.position, state.recentSwingAnchorPosition ?? state.position) < 8;
+    return !recentlyReleased;
   });
+  const maximumDistance = Math.min(config.anchorMaximumDistance, config.swingMaximumLength);
+  const elevatedRoofLaunch = state.grounded && state.position.y > 18;
+  const minimumSwingHeight = elevatedRoofLaunch
+    ? Math.max(-48, -maximumDistance * .7)
+    : state.grounded ? Math.max(14, config.anchorMinimumHeight) : config.anchorMinimumHeight;
+  const trajectory = selectTrajectoryAwareSwingAnchor(candidates, {
+    position: state.position,
+    velocity: state.velocity,
+    aimDirection: aim,
+    desiredDirection: input.move ?? input.cameraForward ?? aim,
+    // A supported launch deliberately begins below its eventual circular arc;
+    // pavement contact is resolved by the ground-skid/lift-off state machine.
+    groundY: state.grounded ? undefined : environment.groundY,
+    playerRadius: config.playerRadius,
+    playerHeight: config.playerHeight,
+    gravity: config.gravity,
+    isCapsuleClear: state.grounded ? undefined : environment.isCapsuleClear,
+    sampleGround: !state.grounded && environment.sampleGround
+      ? (point, maximumDrop) => environment.sampleGround!(point, .2, maximumDrop)
+      : undefined,
+  }, {
+    minimumDistance: config.anchorMinimumDistance,
+    maximumDistance,
+    minimumHeight: minimumSwingHeight,
+    minimumGroundClearance: .65,
+  });
+  if (trajectory) return trajectory.candidate as WebAnchorCandidate;
+  // A supported launch has no free circular arc to predict yet. If all
+  // trajectory candidates are degenerate at rest, retain the validated
+  // visible/height/range picker only for this ground-start bootstrap.
+  return state.grounded
+    ? selectTraversalAnchor(state.position, aim, candidates, {
+      ...config, anchorMaximumDistance: maximumDistance, anchorMinimumHeight: minimumSwingHeight,
+    })
+    : null;
 }
 
 function chooseZipTarget(
@@ -577,18 +625,18 @@ function attachSwing(
   state.mantle = null;
   state.perchSeconds = 0;
   if (state.grounded && state.elapsed >= (state.swingGroundLaunchAfter ?? 0)) {
-    state.swing.launchRopeLength = clamp(anchor.point.y - state.position.y - 3,
-      Math.max(config.swingMinimumLength, initialLength * .56), initialLength);
-    const direction = normalize(horizontal(input.move ?? vector()),
+    const desiredDirection = normalize(horizontal(input.move ?? vector()),
       normalize(horizontal(input.cameraForward ?? state.velocity), vector(0, 0, -1)));
+    const horizontalRadial = normalize(horizontal(subtract(state.position, anchor.point)));
+    const direction = normalize(reject(desiredDirection, horizontalRadial), desiredDirection);
     const minimumForwardSpeed = config.runSpeed * 1.08;
     if (length(horizontal(state.velocity)) < minimumForwardSpeed) {
       const push = Math.min(minimumForwardSpeed, Math.max(0, minimumForwardSpeed - dot(state.velocity, direction)));
       state.velocity = add(state.velocity, scale(direction, push));
     }
-    // Do not inject a jump. While the rope takes up slack, verified pavement
-    // acts as a frictionless contact plane; the web's real tension is solely
-    // responsible for lifting Spider-Man into the arc.
+    // Do not shorten the web or inject a jump. Verified pavement is a
+    // frictionless contact plane until horizontal motion naturally loads the
+    // hard rope and its real tension lifts Spider-Man into the arc.
     state.velocity.y = Math.max(0, state.velocity.y);
     state.coyoteSeconds = 0;
     state.jumpBufferSeconds = 0;
@@ -610,31 +658,27 @@ function releaseSwing(
   const tangentVelocity = reject(state.velocity, radial);
   const cameraForward = normalize(horizontal(input.cameraForward ?? input.move ?? tangentVelocity), vector(0, 0, -1));
   const motionDirection = normalize(tangentVelocity, cameraForward);
-  // Timing earns assistance; rapid attach/release taps never manufacture lift.
-  const charge = saturate((swing.attachedSeconds - 0.16) / 0.64);
+  // Release mostly exposes momentum already present in the pendulum. A small
+  // polish assist is reserved for a genuinely fast, loaded, upward-moving arc;
+  // duration or rope length alone can never manufacture a launch.
+  const charge = saturate((swing.attachedSeconds - 0.2) / 0.8);
   const motionSpeed = length(tangentVelocity);
-  const loadedArc = saturate(Math.max(swing.tension, swing.peakTension ?? 0) * 1.7 + saturate(motionSpeed / 42) * .35);
-  const assistance = charge * (.25 + loadedArc * .75) * (.5 + saturate(motionSpeed / 34) * .5);
+  const speedQuality = saturate((Math.max(swing.peakSpeed ?? 0, motionSpeed) - 20) / 28);
+  const loadedArc = saturate((Math.max(swing.tension, swing.peakTension ?? 0) - .12) / .72);
+  const upwardArc = saturate((tangentVelocity.y - 1.5) / 18);
+  const assistance = charge * speedQuality * loadedArc * upwardArc;
   const forwardAgreement = saturate(dot(motionDirection, cameraForward) * 0.5 + 0.5);
-  const upwardArc = saturate((tangentVelocity.y + 3) / 19);
-  const durationEnergy = saturate((swing.attachedSeconds - .28) / 1.55);
-  const speedEnergy = saturate(((swing.peakSpeed ?? motionSpeed) - 18) / 38);
-  const ropeEnergy = saturate((swing.maximumLength - 16) / 56);
-  const storedEnergy = durationEnergy * (.12 + speedEnergy * .58 + ropeEnergy * .3);
-  const launchAssist = saturate(assistance * .72 + storedEnergy * .62);
   state.velocity = add(state.velocity, scale(
-    normalize(lerpVector(motionDirection, cameraForward, 0.12)),
-    config.swingReleaseBoost * launchAssist * (.48 + upwardArc * .52) * (.72 + forwardAgreement * .28),
+    normalize(lerpVector(motionDirection, cameraForward, 0.08)),
+    config.swingReleaseBoost * assistance * (.82 + forwardAgreement * .18),
   ));
-  // A long, fast, loaded arc stores a bounded launch reserve. Good upswing
-  // timing spends more of it vertically, while releasing near the bottom
-  // still carries momentum instead of dropping Spider-Man onto the pavement.
-  state.velocity.y += config.swingReleaseLift * (
-    assistance * (.18 + upwardArc * .82) + storedEnergy * (.42 + upwardArc * .88)
-  );
-  state.swingReleaseSeconds = .44 * Math.max(assistance, storedEnergy);
+  state.velocity.y += config.swingReleaseLift * assistance * upwardArc;
+  state.swingReleaseSeconds = .34 * assistance;
   const releasedStrength = swing.tension;
   const releasedAnchor = swing.anchorId;
+  state.recentSwingAnchorId = releasedAnchor;
+  state.recentSwingAnchorPosition = copy(state.position);
+  state.recentSwingAnchorUntil = state.elapsed + .5;
   state.swing = null;
   events.push(event('web-released', state, { anchorId: releasedAnchor, strength: releasedStrength }));
 }
@@ -720,12 +764,16 @@ function applySwing(
   swing.attachedSeconds += delta;
   const explicitPressure = input.pointerPressure;
   const holdCharge = saturate(swing.attachedSeconds / 1.2);
-  const keyboardPressure = .45 + holdCharge * .55;
+  const keyboardPressure = .48;
   swing.pressure = damp(swing.pressure, saturate(explicitPressure ?? keyboardPressure), 10, delta);
   const reelInput = clamp(value(input.reel), -1, 1);
   const pressureReel = saturate((swing.pressure - 0.18) / 0.82);
+  // Holding keeps the web taut; it does not invisibly winch 18% of its length.
+  // Trackpad pressure offers a subtle gather, while explicit reel input remains
+  // the player's authoritative way to alter rope length.
+  const passiveGather = explicitPressure === undefined ? 0 : pressureReel * .025;
   const holdTargetLength = clamp(
-    swing.maximumLength * (1 - holdCharge * (.08 + pressureReel * .1)),
+    swing.maximumLength * (1 - holdCharge * passiveGather),
     config.swingMinimumLength,
     config.swingMaximumLength,
   );
@@ -734,7 +782,7 @@ function applySwing(
     : swing.ropeLength > targetLength ? -config.swingReelSpeed * (.25 + pressureReel * .35) : 0;
   if (swing.launchRopeLength !== undefined && swing.ropeLength > swing.launchRopeLength && reelInput <= 0) {
     lengthVelocity = -Math.max(-Math.min(0, lengthVelocity),
-      Math.min(config.swingReelSpeed * 2, (swing.ropeLength - swing.launchRopeLength) / .18));
+      Math.min(1.8, (swing.ropeLength - swing.launchRopeLength) / .65));
   }
   // Sustained input gathers the arc, but cannot winch all the way into the
   // attachment surface. The collider still wins against every rope correction.
@@ -749,26 +797,37 @@ function applySwing(
   const radialSpeed = dot(state.velocity, radial);
   const stretch = Math.max(0, range - swing.ropeLength);
   const taut = range >= swing.ropeLength - .12;
-  const springAcceleration = stretch * config.swingSpring
-    + (taut ? Math.max(0, radialSpeed - Math.min(0, actualLengthVelocity)) * config.swingDamping : 0);
-  state.velocity = add(state.velocity, scale(radial, -springAcceleration * delta));
+  const springAcceleration = Math.min(32, stretch * config.swingSpring);
+  if (springAcceleration > 0) state.velocity = add(state.velocity, scale(radial, -springAcceleration * delta));
+
+  // A web cannot push and cannot stretch: once taut, remove only outward radial
+  // velocity (relative to an explicitly changing rope length). Tangential speed
+  // survives, so gravity—not a spring or pump—builds the bottom-of-arc rush.
+  const permittedRadialSpeed = Math.min(0, actualLengthVelocity);
+  const outwardExcess = radialSpeed - permittedRadialSpeed;
+  if (taut && outwardExcess > 0) {
+    state.velocity = subtract(state.velocity, scale(radial, outwardExcess));
+  }
 
   const explicitMove = horizontal(input.move ?? vector());
   const moveDirection = normalize(explicitMove,
     normalize(horizontal(input.cameraForward ?? state.velocity), vector(0, 0, -1)));
   const tangentInput = normalize(reject(moveDirection, radial));
   const naturalTangent = normalize(reject(state.velocity, radial), tangentInput);
-  const inputStrength = lengthSquared(explicitMove) > EPSILON ? saturate(length(explicitMove)) : .72;
+  // No movement input means no hidden motor. The pendulum still accelerates
+  // under gravity, while deliberate directional input adds limited game feel.
+  const inputStrength = lengthSquared(explicitMove) > EPSILON ? saturate(length(explicitMove)) : 0;
   const inputAgreement = Math.max(0, dot(tangentInput, naturalTangent));
   const bottomOfArc = saturate(-radial.y);
   const speedHeadroom = saturate(1 - length(state.velocity) / config.maximumSpeed);
-  const pumping = config.swingPumpAcceleration * (.18 + inputStrength * inputAgreement * .82)
-    * (.45 + bottomOfArc * .55) * (.62 + swing.pressure * .38) * (.65 + holdCharge * .35) * speedHeadroom;
+  const pumping = config.swingPumpAcceleration * inputStrength * inputAgreement
+    * (.15 + bottomOfArc * .85) * (.72 + swing.pressure * .28) * speedHeadroom;
   state.velocity = add(state.velocity, scale(naturalTangent, pumping * delta));
   state.velocity = add(state.velocity, scale(tangentInput, config.swingSteerAcceleration * inputStrength * speedHeadroom * delta));
   state.velocity.y -= config.gravity * delta;
   applyLowSwingGroundAssistance(state, input, environment, config, delta);
-  swing.tension = saturate((springAcceleration + lengthSquared(reject(state.velocity, radial)) / Math.max(swing.ropeLength, 1)) / 70);
+  const centripetalLoad = lengthSquared(reject(state.velocity, radial)) / Math.max(swing.ropeLength, 1);
+  swing.tension = taut ? saturate((Math.max(0, dot(vector(0, -config.gravity, 0), radial)) + centripetalLoad) / 48) : 0;
   swing.peakSpeed = Math.max(swing.peakSpeed ?? 0, length(state.velocity));
   swing.peakTension = Math.max(swing.peakTension ?? 0, swing.tension);
 }
@@ -1401,11 +1460,11 @@ function stepTraversalTick(
     const horizontalSpeed = length(horizontal(state.velocity));
     const boost = Math.max(0, Math.min(config.doubleJumpForwardBoost, config.maximumSpeed - horizontalSpeed));
     state.velocity = add(state.velocity, scale(direction, boost));
-    state.velocity.y = Math.max(config.doubleJumpSpeed, state.velocity.y + config.doubleJumpSpeed * .52);
+    state.velocity.y += config.doubleJumpSpeed;
     state.grounded = false;
     state.airJumpsRemaining -= 1;
     state.jumpBufferSeconds = 0;
-    state.doubleJumpSeconds = .92;
+    state.doubleJumpSeconds = .62;
     state.landingSeconds = 0;
     events.push(event('double-jump', state, { strength: length(state.velocity) }));
   }

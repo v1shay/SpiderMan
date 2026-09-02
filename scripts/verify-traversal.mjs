@@ -68,11 +68,14 @@ test('double jump fires once in air, boosts upward, and recharges only on suppor
   const first = stepTraversal(state, { jumpPressed: true, cameraForward: v(0, 0, -1) }, { groundY: 0 }, 1 / 60);
   assert.ok(first.events.some(event => event.type === 'jump'));
   assert.equal(first.state.airJumpsRemaining, 1);
+  const beforeRedirect = first.state.velocity.y;
   const second = stepTraversal(first.state, { jumpPressed: true, move: v(0, 0, -1) }, { groundY: 0 }, 1 / 60);
   assert.ok(second.events.some(event => event.type === 'double-jump'));
   assert.equal(second.state.mode, 'doubleJump');
   assert.equal(second.state.airJumpsRemaining, 0);
-  assert.ok(second.state.velocity.y >= defaults.doubleJumpSpeed - defaults.gravity / 60 - .01);
+  const redirectImpulse = second.state.velocity.y - beforeRedirect + defaults.gravity / 60;
+  assert.ok(redirectImpulse > 3 && redirectImpulse <= defaults.doubleJumpSpeed + .01,
+    `double jump must be a small redirect, not a vertical reset (${redirectImpulse.toFixed(2)}m/s)`);
   const clearBuffer = stepTraversal(second.state, {}, { groundY: 0 }, 1 / 60);
   const denied = stepTraversal(clearBuffer.state, { jumpPressed: true }, { groundY: 0 }, 1 / 60);
   assert.equal(denied.events.some(event => event.type === 'double-jump'), false);
@@ -166,16 +169,40 @@ test('rapid release has no free launch impulse', () => {
   close(result.state.velocity.y, 0, .00001);
 });
 
-test('upswing release rewards timing and preserves existing momentum', () => {
+test('release polish only rewards a fast loaded upswing and preserves natural momentum', () => {
   const release = (velocity) => {
     const state = createTraversalState(v(10, 10), velocity);
-    state.swing = { anchor: v(0, 20), ropeLength: Math.sqrt(200), maximumLength: Math.sqrt(200), attachedSeconds: 1, tension: 1, pressure: 1 };
+    state.swing = { anchor: v(0, 20), ropeLength: Math.sqrt(200), maximumLength: Math.sqrt(200), attachedSeconds: 1,
+      tension: 1, pressure: 1, peakSpeed: Math.hypot(velocity.x, velocity.y, velocity.z), peakTension: 1 };
     return stepTraversal(state, { swingReleased: true, swingHeld: false, cameraForward: v(1, 0, 0) }, { groundY: -100 }, 1 / 120, inert).state;
   };
-  const rise = release(v(10, 10));
-  const fall = release(v(-10, -10));
-  assert.ok(rise.velocity.y - 10 > fall.velocity.y + 10);
-  assert.ok(Math.hypot(rise.velocity.x, rise.velocity.y, rise.velocity.z) >= Math.sqrt(200));
+  const rise = release(v(20, 20));
+  const fall = release(v(-20, -20));
+  assert.ok(rise.velocity.y > 20 && rise.velocity.y < 22.2);
+  close(fall.velocity.x, -20, .000001);
+  close(fall.velocity.y, -20, .000001);
+  assert.ok(Math.hypot(rise.velocity.x, rise.velocity.y, rise.velocity.z) >= Math.sqrt(800));
+});
+
+test('a hard passive rope turns gravitational drop into tangent speed without stretching or a hidden motor', () => {
+  const ropeLength = 30;
+  let state = createTraversalState(v(-Math.sqrt(675), 25), v());
+  state.swing = { anchor: v(0, 40), ropeLength, maximumLength: ropeLength, attachedSeconds: 0,
+    tension: 0, pressure: 0, peakSpeed: 0, peakTension: 0 };
+  let peakSpeed = 0;
+  let lowestY = state.position.y;
+  let maximumRange = 0;
+  for (let tick = 0; tick < 240; tick += 1) {
+    state = stepTraversal(state, { swingHeld: true }, { groundY: -100 }, 1 / 120,
+      { airAcceleration: 0, swingPumpAcceleration: 0, swingSteerAcceleration: 0, swingReelSpeed: 0 }).state;
+    assert.ok(state.swing, 'a clear hard-rope arc detached unexpectedly');
+    peakSpeed = Math.max(peakSpeed, Math.hypot(...Object.values(state.velocity)));
+    lowestY = Math.min(lowestY, state.position.y);
+    maximumRange = Math.max(maximumRange, Math.hypot(state.position.x, state.position.y - 40, state.position.z));
+  }
+  assert.ok(lowestY < 10.1, `deep swing never reached the bottom of its arc (${lowestY.toFixed(2)}m)`);
+  assert.ok(peakSpeed > 27, `gravity produced only ${peakSpeed.toFixed(2)}m/s tangent speed`);
+  assert.ok(maximumRange <= ropeLength + 1e-6, `hard rope stretched to ${maximumRange.toFixed(6)}m`);
 });
 
 test('60Hz and 120Hz calls use identical internal physics ticks', () => {
@@ -409,8 +436,8 @@ test('holding swing on a supported floor skids without an artificial bunny hop',
   }
   assert.equal(jumps, 0);
   assert.equal(attachments, 1);
-  assert.ok(state.position.y > 3 && peakHeight > 6);
-  assert.ok(Math.hypot(...Object.values(state.velocity)) > 32);
+  assert.ok(peakHeight < .3, `abstract floor contact may skid but cannot repeatedly bunny hop (${peakHeight.toFixed(2)}m)`);
+  assert.ok(Math.hypot(...Object.values(state.velocity)) > 12);
   console.log(`  Ground skid: peak ${peakHeight.toFixed(2)}m, speed ${Math.hypot(...Object.values(state.velocity)).toFixed(2)}m/s, ${jumps} fake jumps`);
 });
 
@@ -430,6 +457,16 @@ test('roof hold push-off uses the roof as support and blocked/no anchors cannot 
   }
 });
 
+test('a tallest-rooftop spawn can attach to a lower visible facade and enter the city', () => {
+  const state = createTraversalState(v(0, 80), v(0, 0, -6));
+  state.grounded = true;
+  const lowerFacade = { id: 'lower-neighbor', point: v(18, 48, -32), kind: 'facade' };
+  const result = stepTraversal(state, { swingHeld: true, cameraForward: v(0, 0, -1), move: v(0, 0, -1) },
+    { groundY: 80, anchorCandidates: [lowerFacade] }, 1 / 120);
+  assert.equal(result.events.some(event => event.type === 'web-attached'), true);
+  assert.equal(result.state.swing?.anchorId, lowerFacade.id);
+});
+
 test('new attachment preserves airborne incoming momentum without resetting to run speed', () => {
   const state = createTraversalState(v(0, 20), v(0, 0, -46));
   const result = stepTraversal(state, { swingHeld: true, cameraForward: v(0, 0, -1) },
@@ -440,10 +477,11 @@ test('new attachment preserves airborne incoming momentum without resetting to r
   assert.equal(result.events.some(event => event.type === 'jump'), false);
 });
 
-test('charged upswing release is explosive but bounded, while taps give no bonus', () => {
+test('release assistance stays subtle, while taps and mediocre arcs give no magical boost', () => {
   const releaseAt = (seconds) => {
     const state = createTraversalState(v(10, 10), v(20, 20));
-    state.swing = { anchor: v(0, 20), ropeLength: Math.sqrt(200), maximumLength: Math.sqrt(200), attachedSeconds: seconds, tension: 1, pressure: 1 };
+    state.swing = { anchor: v(0, 20), ropeLength: Math.sqrt(200), maximumLength: Math.sqrt(200), attachedSeconds: seconds,
+      tension: 1, pressure: 1, peakSpeed: Math.sqrt(800), peakTension: 1 };
     return stepTraversal(state, { swingHeld: false, swingReleased: true, cameraForward: v(1, 0, 0) }, { groundY: -100 }, 1 / 120, inert);
   };
   const tapped = releaseAt(.05);
@@ -451,11 +489,18 @@ test('charged upswing release is explosive but bounded, while taps give no bonus
   close(tapped.state.velocity.x, 20, .000001);
   close(tapped.state.velocity.y, 20, .000001);
   const increase = Math.hypot(charged.state.velocity.x - 20, charged.state.velocity.y - 20, charged.state.velocity.z);
-  assert.ok(increase > 8);
-  assert.ok(increase <= defaults.swingReleaseBoost + defaults.swingReleaseLift + .001);
-  assert.ok(charged.state.velocity.y > tapped.state.velocity.y + 6);
+  assert.ok(increase > 1 && increase < 3);
+  assert.ok(charged.state.velocity.y < tapped.state.velocity.y + 2.2);
   assert.ok(charged.state.swingReleaseSeconds > 0);
   assert.equal(charged.state.mode, 'jump');
+
+  const mediocre = createTraversalState(v(10, 10), v(12, 2));
+  mediocre.swing = { anchor: v(0, 20), ropeLength: Math.sqrt(200), maximumLength: Math.sqrt(200), attachedSeconds: 1.4,
+    tension: .24, pressure: 1, peakSpeed: 14, peakTension: .25 };
+  const mediocreRelease = stepTraversal(mediocre,
+    { swingHeld: false, swingReleased: true, cameraForward: v(1, 0, 0) }, { groundY: -100 }, 1 / 120, inert).state;
+  close(mediocreRelease.velocity.x, 12, .000001);
+  close(mediocreRelease.velocity.y, 2, .000001);
 });
 
 test('sustained reeling keeps a safe finite rope length instead of winching into the anchor', () => {
@@ -470,15 +515,18 @@ test('sustained reeling keeps a safe finite rope length instead of winching into
   }
 });
 
-test('timed multi-swing course retains momentum and height over twelve seconds', () => {
+test('thirty-second ordinary swing chain retains momentum without stalls or speed-cap riding', () => {
   const anchors = [];
-  for (let z = 20, row = 0; z > -900; z -= 35, row++) {
-    for (const x of [-22, 22]) anchors.push({ id: `${x}:${z}`, point: v(x, [48, 68, 90][row % 3], z), kind: 'facade' });
+  for (let z = 20, row = 0; z > -2200; z -= 35, row++) {
+    for (const x of [-110, -66, -22, 22, 66, 110]) {
+      anchors.push({ id: `${x}:${z}`, point: v(x, [48, 68, 90][row % 3], z), kind: 'facade' });
+    }
   }
-  let state = createTraversalState(v());
-  state.grounded = true;
-  let peakHeight = 0, airTicks = 0, attachments = 0, releases = 0, cooloff = 0;
-  for (let tick = 0; tick < 1440; tick++) {
+  let state = createTraversalState(v(0, 12, 0), v(0, 0, -18));
+  state.grounded = false;
+  let peakHeight = 0, airTicks = 0, attachments = 0, releases = 0, cooloff = 0, cappedTicks = 0;
+  const speeds = [];
+  for (let tick = 0; tick < 3600; tick++) {
     const release = Boolean(state.swing && state.swing.attachedSeconds > .6
       && (state.velocity.y > 7 || state.swing.attachedSeconds > 2.7));
     if (release) cooloff = 18;
@@ -489,16 +537,24 @@ test('timed multi-swing course retains momentum and height over twelve seconds',
     state = result.state;
     peakHeight = Math.max(peakHeight, state.position.y);
     airTicks += state.grounded ? 0 : 1;
+    const speed = Math.hypot(...Object.values(state.velocity));
+    speeds.push(speed);
+    cappedTicks += speed > defaults.maximumSpeed * .98 ? 1 : 0;
     attachments += result.events.filter(event => event.type === 'web-attached').length;
     releases += result.events.filter(event => event.type === 'web-released').length;
     assert.ok(state.position.y >= 0);
     assert.equal(state.wallCrawlActive, false);
     assert.ok(Math.hypot(...Object.values(state.velocity)) <= defaults.maximumSpeed + .001);
   }
-  assert.ok(attachments >= 6 && releases >= 5);
-  console.log(`  Chained course: ${attachments} attachments, ${releases} releases, ${(-state.position.z).toFixed(1)}m forward, ${peakHeight.toFixed(1)}m peak, ${(airTicks / 14.4).toFixed(1)}% airborne`);
-  assert.ok(-state.position.z > 300 && peakHeight > 30 && airTicks / 1440 > .9,
-    'natural rope tension still carries a fast, high, mostly-airborne chained course without a fake ground jump');
+  speeds.sort((a, b) => a - b);
+  const medianSpeed = speeds[Math.floor(speeds.length * .5)];
+  const p95Speed = speeds[Math.floor(speeds.length * .95)];
+  console.log(`  Chained course: ${attachments} attachments, ${releases} releases, ${(-state.position.z).toFixed(1)}m forward, ${peakHeight.toFixed(1)}m peak, ${(airTicks / 36).toFixed(1)}% airborne, ${medianSpeed.toFixed(1)}m/s median, ${p95Speed.toFixed(1)}m/s p95`);
+  assert.ok(attachments >= 10 && releases >= 9);
+  assert.ok(-state.position.z > 650 && peakHeight > 16 && airTicks / 3600 > .8,
+    'natural rope tension must carry a long, high, mostly-airborne chain without a fake ground jump');
+  assert.ok(medianSpeed > 20 && medianSpeed < 46 && p95Speed < 67);
+  assert.ok(cappedTicks / 3600 < .05, 'swing feel cannot depend on riding the global speed cap');
 });
 
 test('web-zip stall watchdog ends an obstructed pull rather than pulling forever', () => {

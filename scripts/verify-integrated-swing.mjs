@@ -9,6 +9,7 @@ import { RepeatingMeshWorld } from '../lib/repeating-mesh-world.ts';
 import { createSwingAssistanceState, stepSwingAssistance } from '../lib/swing-assistance.ts';
 import { createTraversalState, stepTraversalInPlace, setTraversalKinematics, refreshTraversalContext } from '../lib/traversal-physics.ts';
 import { calculateWallSkim } from '../lib/wall-skim.ts';
+import { resolveSwingGroundContact } from '../lib/swing-ground-contact.ts';
 
 // Geometry/physics integration, not texture or browser FPS verification. This
 // intentionally mirrors SpiderGame's force -> swept mesh -> support -> rope
@@ -105,6 +106,7 @@ function simulate(world, route, name) {
     const result = stepTraversalInPlace(state, input, {
       groundY: -10000, colliders: [], anchorColliders: [], wallContact: null,
       sampleGround: (point, rise, drop) => world.supportAt(point, rise, drop ?? .1)?.point.y ?? null,
+      isCapsuleClear: (point, radius, height) => world.isCapsuleClear(point, radius, height, false),
       anchorCandidates: candidates, zipTargets: candidates,
     }, dt, { zipAcceleration: 126, zipDamping: 3.6, zipMaximumSpeed: 66 });
     for (const event of result.events) {
@@ -134,7 +136,10 @@ function simulate(world, route, name) {
     if (hit.wallNormal && state.swing && held && wallSkimCooldown <= 0) {
       const skim = calculateWallSkim(attemptedVelocity, hit.wallNormal, forward);
       if (skim.eligible) {
-        hit.position.addScaledVector(hit.wallNormal, .045);
+        const positiveOffset = hit.position.clone().addScaledVector(hit.wallNormal, .045);
+        const negativeOffset = hit.position.clone().addScaledVector(hit.wallNormal, -.045);
+        if (world.isCapsuleClear(positiveOffset, .46, 2.05, false)) hit.position.copy(positiveOffset);
+        else if (world.isCapsuleClear(negativeOffset, .46, 2.05, false)) hit.position.copy(negativeOffset);
         hit.velocity.set(skim.velocity.x, skim.velocity.y, skim.velocity.z);
         state.swing = null; state.swingRetryAfter = state.elapsed + .18;
         state.grounded = false; state.landingSeconds = 0; wallSkimCooldown = .52; wallSkims++;
@@ -146,17 +151,24 @@ function simulate(world, route, name) {
       const chest = hit.position.clone().add(up), line = anchor.clone().sub(chest);
       const obstruction = world.raycast(chest, line.clone().normalize(), Math.max(0, line.length() - .1));
       const excess = hit.position.distanceTo(anchor) - state.swing.ropeLength;
-      const groundSkim = state.grounded && held && !hit.wallNormal && !obstruction && anchor.y > hit.position.y + 2.8;
+      const groundContact = resolveSwingGroundContact({
+        attemptedVelocity,
+        sweptVelocity: hit.velocity,
+        grounded: state.grounded,
+        swingHeld: held,
+        obstructed: Boolean(obstruction),
+        hitWall: Boolean(hit.wallNormal),
+        anchorHeight: anchor.y - hit.position.y,
+        elevatedLaunch: hit.position.y > 18,
+        tension: state.swing.tension,
+        attachedSeconds: state.swing.attachedSeconds,
+      });
+      const groundSkim = groundContact.active;
       if (groundSkim) {
-        const direction = attemptedVelocity.clone().setY(0);
-        if (direction.lengthSq() < .01) direction.copy(forward);
-        direction.normalize();
-        const horizontal = Math.hypot(attemptedVelocity.x, attemptedVelocity.z);
-        const retained = Math.max(14, Math.min(78, horizontal * .985));
-        hit.position.y += .042;
-        hit.velocity.set(direction.x * retained,
-          Math.max(attemptedVelocity.y, state.swing.attachedSeconds < .24 ? .24 : .08), direction.z * retained);
-        state.grounded = false; state.landingSeconds = 0; groundSkims++;
+        hit.velocity.set(groundContact.velocity.x, groundContact.velocity.y, groundContact.velocity.z);
+        state.grounded = !groundContact.liftOff;
+        if (groundContact.liftOff) { hit.position.y += .012; state.landingSeconds = 0; }
+        groundSkims++;
         setTraversalKinematics(state, hit.position, hit.velocity);
       }
       const conflict = blocked && !groundSkim && excess > Math.max(.25, state.swing.ropeLength * .01);
