@@ -70,6 +70,9 @@ export class AvatarAnimator {
   private aimedBone: THREE.Bone | null = null;
   private preAim = new THREE.Quaternion();
   private emotes: THREE.AnimationClip[];
+  private forcedLobbyEmote?: THREE.AnimationClip;
+  private forcedLobbyEmoteUntil = 0;
+  private previousLobbyEmote = -1;
   private idle?: THREE.AnimationClip;
   private run?: THREE.AnimationClip;
   private crawl?: THREE.AnimationClip;
@@ -82,6 +85,19 @@ export class AvatarAnimator {
   contactError = 0;
   supportMode: 'soles' | 'body' = 'soles';
   get cruiseBlend() { return this.ironman?.cruiseBlend ?? 1; }
+
+  /** Start a fresh, non-repeating random showroom dance on every model click. */
+  playRandomLobbyEmote(random = Math.random) {
+    if (!this.emotes.length) return undefined;
+    let index = Math.floor(random() * this.emotes.length);
+    if (this.emotes.length > 1 && index === this.previousLobbyEmote) index = (index + 1) % this.emotes.length;
+    this.previousLobbyEmote = index;
+    this.forcedLobbyEmote = this.emotes[index];
+    this.forcedLobbyEmoteUntil = this.elapsed + Math.max(.65, this.forcedLobbyEmote.duration);
+    const action = this.actions.get(this.forcedLobbyEmote);
+    if (action === this.current) action?.reset().setEffectiveWeight(1).play();
+    return this.forcedLobbyEmote.name;
+  }
 
   constructor(root: THREE.Object3D, suit: SuitConfig, source: readonly THREE.AnimationClip[]) {
     this.root = root;
@@ -127,7 +143,7 @@ export class AvatarAnimator {
     }
     // Deliberately exclude attacks, root-motion acrobatics and fly-offscreen
     // clips from a tightly spaced selection lineup.
-    this.emotes = this.clips.filter((clip) => /(?:shellfidget|fidgetvictoryin|hiphop|silly1|silly2|scream)$/.test(canonical(clip.name)));
+    this.emotes = this.clips.filter((clip) => /(?:shellfidget|fidgetvictoryin|hiphop|moonwalk|silly1|silly2|scream)$/.test(canonical(clip.name)));
     if (suit.id === 'pavitr') {
       const passive = findClip(this.clips, ['passive']);
       if (passive) this.emotes.push(passive);
@@ -227,6 +243,8 @@ export class AvatarAnimator {
 
   private choose(motion: AvatarMotion): THREE.AnimationClip | undefined {
     if (motion.lobby) {
+      if (this.forcedLobbyEmote && this.elapsed < this.forcedLobbyEmoteUntil) return this.forcedLobbyEmote;
+      this.forcedLobbyEmote = undefined;
       const period = this.pavitr ? 12 : 22;
       const cycle = this.elapsed % period;
       const emote = this.emotes[Math.floor(this.elapsed / period) % this.emotes.length];

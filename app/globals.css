@@ -53,12 +53,15 @@ button:focus-visible { outline: 3px solid var(--cyan); outline-offset: 4px; }
 .system-ready { color: var(--muted); font-size: 12px; letter-spacing: .16em; text-transform: uppercase; display: flex; align-items: center; gap: 10px; }
 .system-ready span { width: 8px; height: 8px; border-radius: 50%; background: #6cff9f; box-shadow: 0 0 14px #6cff9f; }
 
-.selector-shell { position: absolute; z-index: 6; inset: auto clamp(20px, 3vw, 42px) clamp(18px, 2.4vw, 32px); pointer-events: none; }
-.launch-actions { display: flex; align-items: end; justify-content: flex-end; gap: 14px; pointer-events: auto; }
+.hero-engage-hint { position: absolute; z-index: 7; left: 50%; bottom: clamp(38px, 7vh, 82px); margin: 0; padding: 9px 15px; color: #dff9ff; border: 1px solid rgba(90, 226, 255, .55); background: rgba(3, 16, 27, .48); box-shadow: 0 0 28px rgba(55, 221, 255, .15), inset 0 0 18px rgba(55, 221, 255, .08); backdrop-filter: blur(9px); transform: translateX(-50%); transition: opacity .28s ease, transform .45s cubic-bezier(.2,.8,.2,1); text-transform: uppercase; letter-spacing: .14em; font-size: 9px; pointer-events: none; }
+.launch-screen.is-hero-focused .hero-engage-hint { opacity: 0; transform: translate(-50%, 18px); }
+.selector-shell { position: absolute; z-index: 6; top: 50%; right: clamp(22px, 4vw, 64px); bottom: auto; left: auto; width: min(520px, 43vw); opacity: 0; pointer-events: none; transform: translate(54px, -42%); transition: opacity .34s ease .12s, transform .58s cubic-bezier(.2,.82,.2,1) .06s; }
+.launch-screen.is-hero-focused .selector-shell { opacity: 1; pointer-events: auto; transform: translate(0, -42%); }
+.launch-actions { display: grid; align-items: stretch; gap: 14px; pointer-events: auto; }
 .map-picker { min-inline-size: 0; display: grid; gap: 7px; margin: 0; padding: 8px; border: 1px solid rgba(103, 212, 248, .35); background: rgba(2, 8, 15, .8); box-shadow: 4px 4px 0 rgba(0, 0, 0, .62); backdrop-filter: blur(10px); }
 .map-picker-label { display: flex; align-items: center; gap: 7px; color: #a6c9db; font-size: 9px; letter-spacing: .17em; text-transform: uppercase; }
 .map-picker-label svg { width: 14px; height: 14px; color: var(--cyan); }
-.map-toggle-row { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; }
+.map-toggle-row { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; }
 .map-toggle { position: relative; min-width: 112px; display: grid; gap: 2px; padding: 9px 10px 9px 15px; overflow: hidden; color: #bed2dc; cursor: pointer; border: 1px solid rgba(105, 165, 190, .32); background: #07131ecf; text-align: left; text-transform: uppercase; transition: transform .16s ease, border-color .16s ease, background .16s ease; }
 .map-toggle::before { content: ''; position: absolute; inset: 0 auto 0 0; width: 5px; background: #42d890; }
 .map-toggle[data-accent='red']::before { background: #ff314e; }
@@ -85,7 +88,7 @@ h1 { margin: 0; font-size: clamp(28px, 3.7vw, 56px); line-height: .9; letter-spa
 .selection-readout { display: grid; gap: 3px; text-transform: uppercase; }
 .selection-readout span { color: var(--muted); font-size: 9px; letter-spacing: .17em; }
 .selection-readout strong { font-size: 18px; color: var(--paper); }
-.enter-city { min-width: 178px; height: 56px; display: flex; align-items: center; justify-content: center; gap: 10px; border: 0; padding: 14px 18px; cursor: pointer; color: white; background: var(--red); box-shadow: 5px 5px 0 #850d21; text-transform: uppercase; letter-spacing: .1em; transition: transform .18s ease, box-shadow .18s ease, background .18s ease; }
+.enter-city { width: 100%; min-width: 178px; height: 56px; display: flex; align-items: center; justify-content: center; gap: 10px; border: 1px solid rgba(255, 147, 174, .82); padding: 14px 18px; cursor: pointer; color: white; background: rgba(219, 18, 57, .66); box-shadow: 5px 5px 0 rgba(133, 13, 33, .78), inset 0 0 22px rgba(255, 109, 139, .18); backdrop-filter: blur(12px); text-transform: uppercase; letter-spacing: .1em; transition: transform .18s ease, box-shadow .18s ease, background .18s ease; }
 .enter-city svg { width: 17px; height: 17px; fill: currentColor; }
 .enter-city:hover { background: #ff4860; transform: translate(-2px, -2px); box-shadow: 8px 8px 0 #850d21; }
 .enter-city:disabled { cursor: wait; opacity: .55; transform: none; box-shadow: 3px 3px 0 #650b1b; }
@@ -96,6 +99,7 @@ h1 { margin: 0; font-size: clamp(28px, 3.7vw, 56px); line-height: .9; letter-spa
   .selector-heading { grid-template-columns: 1fr; }
   .suit-roster { display: flex; overflow-x: auto; padding-top: 5px; }
   .suit-roster li { flex: 0 0 145px; }
+  .selector-shell { width: min(470px, 52vw); }
   .launch-actions { align-items: stretch; }
   .map-toggle { min-width: 118px; }
 }
@@ -103,7 +107,8 @@ h1 { margin: 0; font-size: clamp(28px, 3.7vw, 56px); line-height: .9; letter-spa
 @media (max-width: 560px) {
   .launch-screen { padding: 18px 15px; }
   .system-ready { display: none; }
-  .selector-shell { inset-inline: 14px; bottom: 16px; }
+  .selector-shell { top: auto; right: 14px; bottom: 16px; left: 14px; width: auto; transform: translateY(30px); }
+  .launch-screen.is-hero-focused .selector-shell { transform: none; }
   .selector-heading { margin-bottom: 12px; }
   .selector-heading .eyebrow { font-size: 8px; }
   h1 { font-size: 28px; }
@@ -114,6 +119,41 @@ h1 { margin: 0; font-size: clamp(28px, 3.7vw, 56px); line-height: .9; letter-spa
   .map-toggle { min-width: 0; }
   .enter-city { height: 48px; }
   .selection-readout { display: none; }
+}
+
+/* Shared translucent hologram language for lobby controls and the play HUD. */
+button,
+.map-picker,
+.district-readout,
+.telemetry > div,
+.swing-indicator,
+.controls-card,
+.tracker-panel {
+  -webkit-backdrop-filter: blur(12px) saturate(1.35);
+  backdrop-filter: blur(12px) saturate(1.35);
+}
+button,
+.map-picker,
+.district-readout,
+.telemetry > div,
+.controls-card {
+  box-shadow: inset 0 0 0 1px rgba(140, 238, 255, .08), inset 0 0 24px rgba(54, 213, 255, .055), 0 0 24px rgba(27, 188, 240, .06);
+}
+button { position: relative; overflow: hidden; }
+button::after {
+  content: '';
+  position: absolute;
+  z-index: 3;
+  inset: -120% -35%;
+  background: linear-gradient(105deg, transparent 35%, rgba(142, 243, 255, .03) 44%, rgba(182, 250, 255, .3) 50%, rgba(111, 221, 255, .05) 57%, transparent 66%);
+  transform: translateX(-38%) rotate(4deg);
+  animation: hologram-scan 4.8s ease-in-out infinite;
+  pointer-events: none;
+}
+button > * { position: relative; z-index: 4; }
+@keyframes hologram-scan {
+  0%, 34% { transform: translateX(-42%) rotate(4deg); opacity: .35; }
+  68%, 100% { transform: translateX(42%) rotate(4deg); opacity: .9; }
 }
 
 @media (prefers-reduced-motion: reduce) {

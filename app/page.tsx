@@ -14,7 +14,8 @@ const SpiderGame = lazy(() => import('@/components/game/SpiderGame'));
 type Phase = 'select' | 'loading' | 'game';
 
 export default function Home() {
-  const [selected, setSelected] = useState<SuitId>('tobey');
+  const [selected, setSelected] = useState<SuitId>('miguel');
+  const [lobbyEngaged, setLobbyEngaged] = useState(false);
   const [selectedMap, setSelectedMap] = useState<DistrictId>('new-york-city');
   const [phase, setPhase] = useState<Phase>('select');
   const [status, setStatus] = useState('Waiting for suit selection');
@@ -64,20 +65,23 @@ export default function Home() {
 
   if (phase === 'select') {
     return (
-      <main className="launch-screen">
+      <main className={`launch-screen ${lobbyEngaged ? 'is-hero-focused' : ''}`}>
         <SuitShowroom
           selected={selected}
+          engaged={lobbyEngaged}
           progress={playerProgress}
           onSelect={(id) => {
             const suit = SUITS.find((item) => item.id === id);
             if (suit && isSuitUnlocked(suit, playerProgress)) setSelected(id);
           }}
+          onEngage={() => setLobbyEngaged(true)}
           onStatus={(message, nextProgress) => setShowroomStatus({ message, progress: Math.round(nextProgress) })}
         />
         <div className="warehouse-vignette" aria-hidden="true" />
         <header className="launch-header">
           <div className="brand-lockup" aria-label="SpiderMan"><span className="brand-title">SpiderMan</span></div>
         </header>
+        <p className="hero-engage-hint">Click Spider-Man 2099 to activate the suit</p>
         <section className="selector-shell" aria-label="Game setup">
           <div className="launch-actions">
             <fieldset className="map-picker">
