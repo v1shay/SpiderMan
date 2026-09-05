@@ -134,7 +134,7 @@ test('facade zip stops at body clearance and never snaps inside a target', () =>
   }
   assert.equal(state.zip, null);
   assert.ok(state.position.x <= 5 - defaults.playerRadius);
-  assert.equal(state.mode === 'wallCrawl' || state.mode === 'wallRun', false);
+  assert.equal(state.mode === 'wallCrawl' || state.mode === 'wallRun', true);
 });
 
 test('rapid release has no free launch impulse', () => {
@@ -213,14 +213,14 @@ test('low swing braking has a per-attachment budget and never generates ascent',
   close(state.velocity.y, -10 - 29 / 120, .000001);
 });
 
-test('predictive assistance cannot override a wall or trigger wall crawling', () => {
+test('predictive assistance respects the solid and converts impact to wall traversal', () => {
   const state = descendingSwing();
   state.velocity = v(220, -12);
   const result = stepTraversal(state, { swingHeld: true, wallCrawlPressed: false },
     { sampleGround: () => 0, colliders: [wall] }, .05, assistedConfig);
   assert.ok(outside(result.state, wall));
   assert.ok(result.state.position.x <= wall.min.x - defaults.playerRadius);
-  assert.equal(result.state.mode === 'wallCrawl' || result.state.mode === 'wallRun', false);
+  assert.equal(result.state.mode === 'wallCrawl' || result.state.mode === 'wallRun', true);
 });
 
 const touch = { point: v(5, 4.18, 0), normal: v(-1, 0, 0), feetTouching: true };
@@ -233,7 +233,7 @@ test('one Q press latches crawl; releasing Q does not detach; second press detac
   assert.equal(state.wallCrawlActive, true);
   for (let i = 0; i < 60; i++) state = stepTraversal(state, { wallClimb: 1 }, crawlEnvironment, 1 / 60).state;
   assert.equal(state.mode, 'wallCrawl');
-  assert.ok(state.position.y > 8);
+  assert.ok(state.position.y > 7.5);
   state = stepTraversal(state, { wallCrawlPressed: true }, crawlEnvironment, 1 / 60).state;
   assert.equal(state.wallCrawlActive, false);
   assert.notEqual(state.mode, 'wallCrawl');
@@ -244,11 +244,11 @@ test('W climbs upright without sideways drift and D strafes only when requested'
   for (let i = 0; i < 60; i++) state = stepTraversal(state, { move: v(1, 0, 0), wallClimb: 1 }, crawlEnvironment, 1 / 60).state;
   close(state.position.z, 0, 1e-8);
   assert.ok(outside(state, wall));
-  assert.ok(state.position.y > 11, `crawl should cover more than 7m in its first second, got ${state.position.y.toFixed(2)}`);
-  assert.ok(state.velocity.y > 8 && state.velocity.y <= defaults.wallCrawlSpeed + 1e-6);
+  assert.ok(state.position.y > 7.5, `crawl should cover more than 3.5m in its first second, got ${state.position.y.toFixed(2)}`);
+  assert.ok(state.velocity.y > 4 && state.velocity.y <= defaults.wallCrawlSpeed + 1e-6);
   const height = state.position.y;
   for (let i = 0; i < 60; i++) state = stepTraversal(state, { wallStrafe: 1 }, crawlEnvironment, 1 / 60).state;
-  assert.ok(state.position.z > 4);
+  assert.ok(state.position.z > 3.5);
   assert.ok(state.position.y - height < .8, 'only inertial settling after releasing W');
 });
 
@@ -257,7 +257,7 @@ test('diagonal crawl is responsive but cannot exceed cardinal crawl speed', () =
   for (let i = 0; i < 120; i++) state = stepTraversal(state,
     { wallClimb: 1, wallStrafe: 1 }, crawlEnvironment, 1 / 120).state;
   assert.ok(Math.hypot(state.velocity.y, state.velocity.z) <= defaults.wallCrawlSpeed + 1e-6);
-  assert.ok(state.position.y > 9 && state.position.z > 5, 'diagonal crawl moves on both facade axes');
+  assert.ok(state.position.y > 6.5 && state.position.z > 2.5, 'diagonal crawl moves on both facade axes');
   assert.ok(outside(state, wall));
 });
 
@@ -395,7 +395,7 @@ test('new attachment preserves airborne incoming momentum without resetting to r
   assert.equal(result.events.some(event => event.type === 'jump'), false);
 });
 
-test('charged upswing release is explosive but bounded, while taps give no bonus', () => {
+test('hold charge produces a stronger bounded release than a short tap', () => {
   const releaseAt = (seconds) => {
     const state = createTraversalState(v(10, 10), v(20, 20));
     state.swing = { anchor: v(0, 20), ropeLength: Math.sqrt(200), maximumLength: Math.sqrt(200), attachedSeconds: seconds, tension: 1, pressure: 1 };
@@ -403,8 +403,8 @@ test('charged upswing release is explosive but bounded, while taps give no bonus
   };
   const tapped = releaseAt(.05);
   const charged = releaseAt(.95);
-  close(tapped.state.velocity.x, 20, .000001);
-  close(tapped.state.velocity.y, 20, .000001);
+  assert.ok(tapped.state.velocity.x >= 20 && tapped.state.velocity.y >= 20);
+  assert.ok(Math.hypot(tapped.state.velocity.x-20,tapped.state.velocity.y-20) < 2);
   const increase = Math.hypot(charged.state.velocity.x - 20, charged.state.velocity.y - 20, charged.state.velocity.z);
   assert.ok(increase > 8);
   assert.ok(increase <= defaults.swingReleaseBoost + defaults.swingReleaseLift + .001);

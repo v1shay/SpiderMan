@@ -508,14 +508,25 @@ export class WorldMeshQuery {
         }
         if (!moved) break;
       }
+      // Acute imported corners can alternate between two contact corrections.
+      // Keep the last clear substep when the bounded solve has not converged;
+      // never return a residual overlap to the next render/animation frame.
+      if (!this.isCapsuleClear(position, radius, height, false)) {
+        position.copy(previous);
+        correctedVelocity.set(0, 0, 0);
+        contacts++;
+        break;
+      }
     }
     // Contact from an earlier sweep step is not persistent ground after leaving
     // an edge. A final short support probe owns the actual grounded state.
     const support = velocity.y <= .1 ? this.supportAt(position, { maxRise: .015, maxDrop: radius + .035 }) : null;
     grounded = Boolean(support && Math.abs(position.y - capsuleSupportHeight(support, radius)) <= .035 && correctedVelocity.y <= .1);
     if (grounded && support) {
+      const oldY = position.y;
       position.y = capsuleSupportHeight(support, radius);
-      correctedVelocity.y = Math.max(0, correctedVelocity.y);
+      if (this.isCapsuleClear(position, radius, height, false)) correctedVelocity.y = Math.max(0, correctedVelocity.y);
+      else { position.y = oldY; grounded = false; }
     }
     return { position, velocity: correctedVelocity, grounded, wallNormal, feetTouching,
       blocked: contacts > 0 || steps < requestedSteps, contacts };

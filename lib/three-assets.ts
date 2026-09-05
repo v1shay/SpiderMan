@@ -15,6 +15,9 @@ const AXIS_Z = new THREE.Vector3(0, 0, 1);
 const stripBoneName = (name: string) => name
   .toLowerCase()
   .replace(/^.*:/, '')
+  // GLTFLoader removes `:` from node names, turning the new model's
+  // `peter:Hips` namespace into `peterHips` before we see it.
+  .replace(/^(?:mixamorig|peter)/, '')
   .replace(/_\d+.*$/, '')
   .replace(/[^a-z0-9]/g, '');
 
@@ -201,15 +204,35 @@ export function collectRigBones(root: THREE.Object3D) {
   return bones;
 }
 
+const MIXAMO_CORE_BONES = [
+  'hips', 'spine', 'spine1', 'spine2', 'neck', 'head',
+  'leftarm', 'leftforearm', 'lefthand', 'rightarm', 'rightforearm', 'righthand',
+  'leftupleg', 'leftleg', 'leftfoot', 'rightupleg', 'rightleg', 'rightfoot',
+] as const;
+
 function isMixamoRig(root: THREE.Object3D) {
   let mixamo = false;
+  const bones = new Set<string>();
   root.traverse((object) => {
-    if (object instanceof THREE.Bone && object.name.toLowerCase().includes('mixamorig')) mixamo = true;
+    if (!(object instanceof THREE.Bone)) return;
+    if (object.name.toLowerCase().includes('mixamorig')) mixamo = true;
+    bones.add(stripBoneName(object.name));
   });
-  return mixamo;
+  // Some Mixamo exports replace the `mixamorig:` namespace with a character
+  // namespace while preserving the exact Mixamo hierarchy.
+  return mixamo || MIXAMO_CORE_BONES.every((bone) => bones.has(bone));
 }
 
 export function retargetMixamoClips(source: readonly THREE.AnimationClip[], sourceRig: THREE.Object3D, targetRig: THREE.Object3D) {
+  // The offline 2099 pack is already calibrated to this exact character.
+  // Animation-only glTF has transform nodes but no skin, so GLTFLoader does
+  // not mark them as Bones. Validate every binding before using it directly.
+  if (source.length && source.every(clip => clip.name.startsWith('mixamo:'))) {
+    return source.filter(clip => clip.tracks.every(track => {
+      const name = track.name.slice(0, track.name.lastIndexOf('.'));
+      return targetRig.getObjectByName(name) instanceof THREE.Bone;
+    })).map(clip => clip.clone());
+  }
   if (!isMixamoRig(sourceRig) || !isMixamoRig(targetRig)) return [];
   const sourceBones = new Map<string, THREE.Bone>();
   const targetBones = new Map<string, THREE.Bone>();

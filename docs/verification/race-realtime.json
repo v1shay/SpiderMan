@@ -1,0 +1,40 @@
+{
+  "passed": true,
+  "transport": "Supabase private Realtime WebSockets",
+  "isolatedTopic": true,
+  "presencePlayers": 2,
+  "sameCourse": true,
+  "sameStartTime": true,
+  "moves": [
+    {
+      "id": "race-test-host",
+      "point": [
+        0,
+        30,
+        0
+      ]
+    },
+    {
+      "id": "race-test-guest",
+      "point": [
+        0,
+        30,
+        0
+      ]
+    }
+  ],
+  "packets": [
+    {
+      "type": "invite",
+      "sender": "race-test-host"
+    },
+    {
+      "type": "accept",
+      "sender": "race-test-guest"
+    },
+    {
+      "type": "start",
+      "sender": "race-test-host"
+    }
+  ]
+}

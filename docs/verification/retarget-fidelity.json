@@ -1,0 +1,240 @@
+{
+  "passed": true,
+  "samples": 14384,
+  "worstDirectionAgreement": 0.9964754799724909,
+  "maxAngularErrorDegrees": 4.811885235075492,
+  "reports": [
+    {
+      "clip": "Aerial Evade",
+      "minimumDirectionAgreement": 0.996475
+    },
+    {
+      "clip": "Big Body Blow",
+      "minimumDirectionAgreement": 0.999668
+    },
+    {
+      "clip": "Big Jump",
+      "minimumDirectionAgreement": 1
+    },
+    {
+      "clip": "Breathing Idle",
+      "minimumDirectionAgreement": 1
+    },
+    {
+      "clip": "Butterfly Twirl",
+      "minimumDirectionAgreement": 0.999959
+    },
+    {
+      "clip": "Corkscrew Evade",
+      "minimumDirectionAgreement": 1
+    },
+    {
+      "clip": "Corkscrew Kip Up",
+      "minimumDirectionAgreement": 0.999099
+    },
+    {
+      "clip": "Drop Kick",
+      "minimumDirectionAgreement": 0.997624
+    },
+    {
+      "clip": "Falling To Landing",
+      "minimumDirectionAgreement": 0.999869
+    },
+    {
+      "clip": "Falling To Roll",
+      "minimumDirectionAgreement": 0.999655
+    },
+    {
+      "clip": "Falling",
+      "minimumDirectionAgreement": 1
+    },
+    {
+      "clip": "Flip Kick (1)",
+      "minimumDirectionAgreement": 1
+    },
+    {
+      "clip": "Flip Kick",
+      "minimumDirectionAgreement": 0.999992
+    },
+    {
+      "clip": "Flying Knee Punch Combo",
+      "minimumDirectionAgreement": 0.997948
+    },
+    {
+      "clip": "Flying Shoulder Throw",
+      "minimumDirectionAgreement": 0.998088
+    },
+    {
+      "clip": "Front Flip",
+      "minimumDirectionAgreement": 1
+    },
+    {
+      "clip": "Front Twist Flip",
+      "minimumDirectionAgreement": 0.998694
+    },
+    {
+      "clip": "Getting Hit Backwards",
+      "minimumDirectionAgreement": 0.997904
+    },
+    {
+      "clip": "Getting Thrown",
+      "minimumDirectionAgreement": 0.99883
+    },
+    {
+      "clip": "Grab And Slam",
+      "minimumDirectionAgreement": 0.999745
+    },
+    {
+      "clip": "Happy Idle",
+      "minimumDirectionAgreement": 0.999985
+    },
+    {
+      "clip": "Idle",
+      "minimumDirectionAgreement": 1
+    },
+    {
+      "clip": "Inverted Double Kick To Kip Up",
+      "minimumDirectionAgreement": 0.997888
+    },
+    {
+      "clip": "Jump Over",
+      "minimumDirectionAgreement": 0.999502
+    },
+    {
+      "clip": "Jumping (1)",
+      "minimumDirectionAgreement": 1
+    },
+    {
+      "clip": "Jumping (2)",
+      "minimumDirectionAgreement": 0.998138
+    },
+    {
+      "clip": "Jumping (3)",
+      "minimumDirectionAgreement": 1
+    },
+    {
+      "clip": "Jumping To Hanging",
+      "minimumDirectionAgreement": 1
+    },
+    {
+      "clip": "Jumping",
+      "minimumDirectionAgreement": 1
+    },
+    {
+      "clip": "Left Strafe Walking",
+      "minimumDirectionAgreement": 1
+    },
+    {
+      "clip": "Low Crawl",
+      "minimumDirectionAgreement": 0.999982
+    },
+    {
+      "clip": "Male Crouch Pose",
+      "minimumDirectionAgreement": 1
+    },
+    {
+      "clip": "Quick Roll To Run",
+      "minimumDirectionAgreement": 1
+    },
+    {
+      "clip": "Right Strafe Walking",
+      "minimumDirectionAgreement": 1
+    },
+    {
+      "clip": "Run To Flip",
+      "minimumDirectionAgreement": 0.998842
+    },
+    {
+      "clip": "Run To Rolling",
+      "minimumDirectionAgreement": 0.997299
+    },
+    {
+      "clip": "Running Crawl",
+      "minimumDirectionAgreement": 0.996643
+    },
+    {
+      "clip": "Running Forward Flip",
+      "minimumDirectionAgreement": 0.998139
+    },
+    {
+      "clip": "Running Jump",
+      "minimumDirectionAgreement": 1
+    },
+    {
+      "clip": "Running",
+      "minimumDirectionAgreement": 1
+    },
+    {
+      "clip": "Spin Flip Kick",
+      "minimumDirectionAgreement": 0.998778
+    },
+    {
+      "clip": "Standing Using Touchscreen Tablet",
+      "minimumDirectionAgreement": 0.999997
+    },
+    {
+      "clip": "Start Swinging",
+      "minimumDirectionAgreement": 1
+    },
+    {
+      "clip": "Start Walking",
+      "minimumDirectionAgreement": 0.999692
+    },
+    {
+      "clip": "Stylish Flip",
+      "minimumDirectionAgreement": 0.999228
+    },
+    {
+      "clip": "Swing Into Wall",
+      "minimumDirectionAgreement": 1
+    },
+    {
+      "clip": "Swing To Land (1)",
+      "minimumDirectionAgreement": 0.999833
+    },
+    {
+      "clip": "Swing To Land (2)",
+      "minimumDirectionAgreement": 1
+    },
+    {
+      "clip": "Swing To Land (3)",
+      "minimumDirectionAgreement": 0.999709
+    },
+    {
+      "clip": "Swing To Land",
+      "minimumDirectionAgreement": 0.996545
+    },
+    {
+      "clip": "Swinging (1)",
+      "minimumDirectionAgreement": 1
+    },
+    {
+      "clip": "Swinging",
+      "minimumDirectionAgreement": 0.999458
+    },
+    {
+      "clip": "Walk Backward",
+      "minimumDirectionAgreement": 0.99994
+    },
+    {
+      "clip": "Walking Left Turn",
+      "minimumDirectionAgreement": 0.999924
+    },
+    {
+      "clip": "Walking Turn 180",
+      "minimumDirectionAgreement": 1
+    },
+    {
+      "clip": "Walking",
+      "minimumDirectionAgreement": 1
+    },
+    {
+      "clip": "Wall Crash",
+      "minimumDirectionAgreement": 0.998916
+    },
+    {
+      "clip": "Wall Run",
+      "minimumDirectionAgreement": 1
+    }
+  ]
+}

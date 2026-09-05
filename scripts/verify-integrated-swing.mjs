@@ -6,8 +6,9 @@ import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.j
 import { DISTRICTS } from '../lib/game-config.ts';
 import { WorldMeshQuery, capsuleSupportHeight } from '../lib/mesh-world.ts';
 import { RepeatingMeshWorld } from '../lib/repeating-mesh-world.ts';
+import { probeWallFeet } from '../lib/wall-surface.ts';
 import { createSwingAssistanceState, stepSwingAssistance } from '../lib/swing-assistance.ts';
-import { createTraversalState, stepTraversalInPlace, setTraversalKinematics, refreshTraversalContext } from '../lib/traversal-physics.ts';
+import { createTraversalState, stepTraversalInPlace, setTraversalKinematics, refreshTraversalContext, acceptTraversalWallContact } from '../lib/traversal-physics.ts';
 
 // Geometry/physics integration, not texture or browser FPS verification. This
 // intentionally mirrors SpiderGame's force -> swept mesh -> support -> rope
@@ -80,7 +81,7 @@ function simulate(world, route, name) {
   for (let frame = 0; frame < frameCount; frame++) {
     const tickStart = performance.now(), dt = 1 / 60;
     const held = frameCount > 360 ? frame % 201 < 180 : frame >= 8 && frame < 168 || frame >= 206 && frame < 320;
-    const input = { move: forward, cameraForward: forward, aimDirection: aim,
+    const input = { move: forward, cameraForward: forward, aimDirection: aim, wallClimb: 1,
       jumpPressed: frame === 0 || frame === 198, jumpHeld: held,
       swingHeld: held, swingPressed: held, swingReleased: frameCount > 360 ? frame % 201 === 180 : frame === 168 || frame === 320,
       diveHeld: false, reel: held ? -1 : 0 };
@@ -100,8 +101,9 @@ function simulate(world, route, name) {
     Object.assign(state.velocity, assisted.velocity);
     probes += assisted.probeCount; assistanceFrames += +assisted.active;
     const before = new THREE.Vector3().copy(state.position), wasGrounded = state.grounded;
+    const incoming = { ...state.velocity };
     const result = stepTraversalInPlace(state, input, {
-      groundY: -10000, colliders: [], anchorColliders: [], wallContact: null,
+      groundY: -10000, colliders: [], anchorColliders: [], wallContact: state.wall,
       sampleGround: (point, rise, drop) => world.supportAt(point, rise, drop ?? .1)?.point.y ?? null,
       anchorCandidates: candidates, zipTargets: candidates,
     }, dt, { zipAcceleration: 126, zipDamping: 3.6, zipMaximumSpeed: 66 });
@@ -121,7 +123,10 @@ function simulate(world, route, name) {
     if (state.grounded) { hit.position.y = supportY; hit.velocity.y = Math.max(0, hit.velocity.y); state.airSeconds = 0; }
     if (!wasGrounded && state.grounded) state.landingSeconds = .16;
     setTraversalKinematics(state, hit.position, hit.velocity);
-    state.wall = null; state.wallCrawlActive = false;
+    const normal = hit.wallNormal ?? state.wall?.normal;
+    const contact = normal ? probeWallFeet(state.position, normal, (origin, direction, max) => world.raycast(origin, direction, max)) : null;
+    if (contact) { state.wall = { ...contact, contactSeconds: state.wall?.contactSeconds ?? 0, graceSeconds: .14 }; acceptTraversalWallContact(state, contact, incoming, input); }
+    else { state.wall = null; state.wallCrawlActive = false; state.wallRunActive = false; }
     if (state.swing) {
       const anchor = new THREE.Vector3().copy(state.swing.anchor);
       const chest = hit.position.clone().add(up), line = anchor.clone().sub(chest);
@@ -149,7 +154,7 @@ function simulate(world, route, name) {
     distance += before.distanceTo(hit.position); contacts += hit.contacts; wallFrames += +Boolean(hit.wallNormal);
     airFrames += +!state.grounded; swingFrames += +Boolean(state.swing);
     if (frame > 30 && speed < 1 && held) stalled++;
-    const clear = world.isCapsuleClear(state.position, .46, 2.05, frame % 5 === 0);
+    const clear = world.isCapsuleClear(state.position, .46, 2.05, false);
     if (!clear) {
       penetrationFrames++;
       if (sampleFailures.length < 12) sampleFailures.push({ frame, point: coordinates(state.position), exactPoint: { ...state.position },
@@ -159,7 +164,7 @@ function simulate(world, route, name) {
         preFinalSnapPoint: coordinates(preFinalSnapPosition), preFinalSnapClear: world.isCapsuleClear(preFinalSnapPosition, .46, 2.05, false) });
     }
     assert.ok(Number.isFinite(speed + state.position.x + state.position.y + state.position.z), 'Finite integrated state');
-    assert.equal(state.wallCrawlActive, false, 'No auto-wall crawling without Q');
+    if (state.wallCrawlActive || state.wallRunActive) assert.ok(state.wall?.feetTouching, 'Automatic wall traversal requires measured feet contact');
     times.push(performance.now() - tickStart);
   }
   if (attachedAt !== null) longestAttachment = Math.max(longestAttachment, frameCount - attachedAt);
@@ -216,5 +221,5 @@ for (const config of DISTRICTS.filter(map => wanted.has(map.id))) {
   console.log(JSON.stringify({ map: config.id, triangles: query.triangleCount, textureDecoding: false,
     trials: routes.map((route, index) => simulate(world, route, ['central-street', 'cross-street', 'unrendered-repeat-tile'][index])) }, null, 2));
 }
-assert.equal(failures, 0, 'Every integrated frame must remain outside rendered mesh surfaces/interiors.');
-console.log('PASS: integrated map trials had no penetrations or automatic wall crawling. Airtime/detach/performance metrics above remain diagnostic, not a claim of visual polish.');
+assert.equal(failures, 0, 'Every swept integrated frame must remain outside rendered mesh surfaces. Spawn interior validation is checked separately.');
+console.log('PASS: integrated map trials had no capsule penetrations; wall traversal requires physical contact. Airtime/detach/performance metrics above remain diagnostic, not a claim of visual polish.');

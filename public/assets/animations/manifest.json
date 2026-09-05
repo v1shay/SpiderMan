@@ -1,0 +1,416 @@
+{
+  "source": "https://github.com/v1shay/SpiderMan",
+  "model": "miguel-2099.glb",
+  "method": "rest-pose quaternion retarget; translation removed; Backflip reverses Front Flip",
+  "clips": [
+    {
+      "name": "Aerial Evade",
+      "file": "X Bot@Aerial Evade.fbx",
+      "sha256": "f42fc068faaf7591969e9e575ac72c17b056ad6c1b665f797ae5033012344307",
+      "duration": 3.6666667461395264,
+      "tracks": 65
+    },
+    {
+      "name": "Big Body Blow",
+      "file": "X Bot@Big Body Blow.fbx",
+      "sha256": "dc19ff01c1693351f07e56d386d91b175964c973701cef6164f82e63b22bf296",
+      "duration": 2.566666603088379,
+      "tracks": 65
+    },
+    {
+      "name": "Big Jump",
+      "file": "X Bot@Big Jump.fbx",
+      "sha256": "0804ff98f7b621c12e502449355b16682603d688c7cdc7d5f554edad48459eb2",
+      "duration": 2.366666555404663,
+      "tracks": 65
+    },
+    {
+      "name": "Breathing Idle",
+      "file": "X Bot@Breathing Idle.fbx",
+      "sha256": "f6c0acac0879cf42a5fafa5c89b57c200d8bb13d6a4548cc77896ac6fa1fd790",
+      "duration": 9.933333396911621,
+      "tracks": 65
+    },
+    {
+      "name": "Butterfly Twirl",
+      "file": "X Bot@Butterfly Twirl.fbx",
+      "sha256": "d352b42a9469d95a176d8d22235bc3ba554cd2bb7e528f58270e7358ff3d3ca4",
+      "duration": 3.066666603088379,
+      "tracks": 65
+    },
+    {
+      "name": "Corkscrew Evade",
+      "file": "X Bot@Corkscrew Evade.fbx",
+      "sha256": "b8199b5d90be538e79a71f857530f90f90c68a071a2e3574b4139ee764b552a6",
+      "duration": 2.5,
+      "tracks": 65
+    },
+    {
+      "name": "Corkscrew Kip Up",
+      "file": "X Bot@Corkscrew Kip Up.fbx",
+      "sha256": "4780d018d4d64290840d407ee2d47a623ff0c9577bd3b6a16651bfe5926ce2ec",
+      "duration": 2.7666666507720947,
+      "tracks": 65
+    },
+    {
+      "name": "Drop Kick",
+      "file": "X Bot@Drop Kick.fbx",
+      "sha256": "57131376d9485ba010678cbcbd1d3e733970f204f22ede25355d8f29d79b851d",
+      "duration": 2.9000000953674316,
+      "tracks": 65
+    },
+    {
+      "name": "Falling To Landing",
+      "file": "X Bot@Falling To Landing.fbx",
+      "sha256": "1a599905b29d8c5a550803d6b0b05f2eb8b53cf3abbb5d91a5404e035047c9ff",
+      "duration": 1.0666667222976685,
+      "tracks": 65
+    },
+    {
+      "name": "Falling To Roll",
+      "file": "X Bot@Falling To Roll.fbx",
+      "sha256": "5908e1c6652cbbc4a0dbad612fe14b23bde141c3f70bd47c84e743252e10abc8",
+      "duration": 2.133333444595337,
+      "tracks": 65
+    },
+    {
+      "name": "Falling",
+      "file": "X Bot@Falling.fbx",
+      "sha256": "43d572650b256f1cf893f739941c82ab83484d2cc2e8cbc42ccccb866f0b2a5f",
+      "duration": 4.5,
+      "tracks": 65
+    },
+    {
+      "name": "Flip Kick (1)",
+      "file": "X Bot@Flip Kick (1).fbx",
+      "sha256": "8f6dcd4c267644c840b626c8b1276fad9ecd92030f4de8761f92385b54077da7",
+      "duration": 2.0333333015441895,
+      "tracks": 65
+    },
+    {
+      "name": "Flip Kick",
+      "file": "X Bot@Flip Kick.fbx",
+      "sha256": "c47ce1a13a3c998000a39841188cff946335c98684a241fe64150af57a57469a",
+      "duration": 2.799999952316284,
+      "tracks": 65
+    },
+    {
+      "name": "Flying Knee Punch Combo",
+      "file": "X Bot@Flying Knee Punch Combo.fbx",
+      "sha256": "5eec56e077d9c1a7cf1a7f05798147a3ff0461dca01897a6a6fa0172309e1c49",
+      "duration": 2.6666667461395264,
+      "tracks": 65
+    },
+    {
+      "name": "Flying Shoulder Throw",
+      "file": "X Bot@Flying Shoulder Throw.fbx",
+      "sha256": "65b60e38afb07b66889beae48d5dfa28579a00d9655ee95f614fcb6441afe85e",
+      "duration": 3.700000047683716,
+      "tracks": 65
+    },
+    {
+      "name": "Front Flip",
+      "file": "X Bot@Front Flip.fbx",
+      "sha256": "c4b2f693027c9edfec4eaeb9344d49e95918b92578713183411f7c270aeb9621",
+      "duration": 1.6666666269302368,
+      "tracks": 65
+    },
+    {
+      "name": "Front Twist Flip",
+      "file": "X Bot@Front Twist Flip.fbx",
+      "sha256": "f7c43a934f7e60f5024eb732d9a7ba231482ad5ff14829c037edf8887cb5b61e",
+      "duration": 2.200000047683716,
+      "tracks": 65
+    },
+    {
+      "name": "Getting Hit Backwards",
+      "file": "X Bot@Getting Hit Backwards.fbx",
+      "sha256": "6cb61e4f0d6a1e39436bc0887b08425d3f4766dfe09cc1b46c9c0c1adfb0a889",
+      "duration": 2.6666667461395264,
+      "tracks": 65
+    },
+    {
+      "name": "Getting Thrown",
+      "file": "X Bot@Getting Thrown.fbx",
+      "sha256": "d929660e087848da5d60cb95691ebd16094613c511ac07729d1ba54c486b86bf",
+      "duration": 4.333333492279053,
+      "tracks": 65
+    },
+    {
+      "name": "Grab And Slam",
+      "file": "X Bot@Grab And Slam.fbx",
+      "sha256": "af3459466ce778134ca0d118e4a05ead77878daa22926825fae11566d4918313",
+      "duration": 4.266666889190674,
+      "tracks": 65
+    },
+    {
+      "name": "Happy Idle",
+      "file": "X Bot@Happy Idle.fbx",
+      "sha256": "f19d9a219097b86fbf737a1020c601bf9758de4ec7917c7639dd33d8a67fa64a",
+      "duration": 2.933333396911621,
+      "tracks": 65
+    },
+    {
+      "name": "Idle",
+      "file": "X Bot@Idle.fbx",
+      "sha256": "0925ce37db3f4be4ef168c058f84b259b0a68f26d7fc1a390d5fc590a8492181",
+      "duration": 1.9666666984558105,
+      "tracks": 65
+    },
+    {
+      "name": "Inverted Double Kick To Kip Up",
+      "file": "X Bot@Inverted Double Kick To Kip Up.fbx",
+      "sha256": "eb52654341b1e58c64b23c3e4eb36d163e8d5e38cf9e332da691afc7b6c8fae1",
+      "duration": 3.200000047683716,
+      "tracks": 65
+    },
+    {
+      "name": "Jump Over",
+      "file": "X Bot@Jump Over.fbx",
+      "sha256": "4e97fd34730bc6d2fbeada5f48925e30ef49f4b46db8867bca17de4968d03bc5",
+      "duration": 2.2666666507720947,
+      "tracks": 65
+    },
+    {
+      "name": "Jumping (1)",
+      "file": "X Bot@Jumping (1).fbx",
+      "sha256": "88d533d064adaff527c680fbe2f580b87bc3543e0dc6937f0a7f2af1ded0bbf1",
+      "duration": 1.1666666269302368,
+      "tracks": 65
+    },
+    {
+      "name": "Jumping (2)",
+      "file": "X Bot@Jumping (2).fbx",
+      "sha256": "28054f8f48ee733d7b8ef97d4639c2c8c1f05f70179bb7f406b7e4760cd17408",
+      "duration": 1.2000000476837158,
+      "tracks": 65
+    },
+    {
+      "name": "Jumping (3)",
+      "file": "X Bot@Jumping (3).fbx",
+      "sha256": "3d9e3aa27de2fe1e3650615b7d712f60aea1db2971a5517cc183a5d09c317a63",
+      "duration": 2.0999999046325684,
+      "tracks": 65
+    },
+    {
+      "name": "Jumping To Hanging",
+      "file": "X Bot@Jumping To Hanging.fbx",
+      "sha256": "8ba562ac56f52da5a90351fe1e2cfd6c3581fa7ec19762e6545da5deab74eb9a",
+      "duration": 1.5,
+      "tracks": 65
+    },
+    {
+      "name": "Jumping",
+      "file": "X Bot@Jumping.fbx",
+      "sha256": "14fc86d552467375464e778ce2069cd7c9b1a8d87e843ebec2ab818a53420bea",
+      "duration": 1.1666666269302368,
+      "tracks": 65
+    },
+    {
+      "name": "Left Strafe Walking",
+      "file": "X Bot@Left Strafe Walking.fbx",
+      "sha256": "bc5cbff5032cceb5708568463b765bd29b5b56fcde6ac7030cb9d9d9f9e6898b",
+      "duration": 1.0333333015441895,
+      "tracks": 65
+    },
+    {
+      "name": "Low Crawl",
+      "file": "X Bot@Low Crawl.fbx",
+      "sha256": "465cf170de46592d4219dcbaf0ad9dc45fef72ddd3d68a3cb524b4fadc1fb589",
+      "duration": 2.3333332538604736,
+      "tracks": 65
+    },
+    {
+      "name": "Male Crouch Pose",
+      "file": "X Bot@Male Crouch Pose.fbx",
+      "sha256": "7aee803b08693b93fdd102797826de4ec1bb00bbe61cf1e07d3ea8cd777836a7",
+      "duration": 0.35,
+      "tracks": 65
+    },
+    {
+      "name": "Quick Roll To Run",
+      "file": "X Bot@Quick Roll To Run.fbx",
+      "sha256": "ed702c10c00969f99e0bc43012abf51a343f34d9f8d65a2f20a317052cc07a07",
+      "duration": 1.399999976158142,
+      "tracks": 65
+    },
+    {
+      "name": "Right Strafe Walking",
+      "file": "X Bot@Right Strafe Walking.fbx",
+      "sha256": "d35bd8a59bc7cecb413963df6b032cbaac6833e619a471712f92e0ae8f70935b",
+      "duration": 1.0333333015441895,
+      "tracks": 65
+    },
+    {
+      "name": "Run To Flip",
+      "file": "X Bot@Run To Flip.fbx",
+      "sha256": "c92c92e365f9c4a2e32109cb2fb54e3bed0c45484e7ba43902df1341e8fc0055",
+      "duration": 2.2333333492279053,
+      "tracks": 65
+    },
+    {
+      "name": "Run To Rolling",
+      "file": "X Bot@Run To Rolling.fbx",
+      "sha256": "46ff9f869f0e5112a38161a7b7273bb679d7cbfc265e981603f05ed4a91e082d",
+      "duration": 2.433333396911621,
+      "tracks": 65
+    },
+    {
+      "name": "Running Crawl",
+      "file": "X Bot@Running Crawl.fbx",
+      "sha256": "ad48d3a74ca1db02eb01070761cfb0001fc2c359c6a62f554f1b891c4d870f9d",
+      "duration": 0.6666666865348816,
+      "tracks": 65
+    },
+    {
+      "name": "Running Forward Flip",
+      "file": "X Bot@Running Forward Flip.fbx",
+      "sha256": "9a1df870cba1682179c7905e35bb355851ecf02f8be1468481dd2a7177ee0041",
+      "duration": 1.100000023841858,
+      "tracks": 65
+    },
+    {
+      "name": "Running Jump",
+      "file": "X Bot@Running Jump.fbx",
+      "sha256": "39da09c9d4b69b48df3b8af9ac44efa9f8dc5df84a968d43867e1f82878850f5",
+      "duration": 0.8999999761581421,
+      "tracks": 65
+    },
+    {
+      "name": "Running",
+      "file": "X Bot@Running.fbx",
+      "sha256": "3d0f300614a7171ab13e4f48f876db9f5faff123fb12e08191ea57f4d5edef1c",
+      "duration": 0.6333333253860474,
+      "tracks": 65
+    },
+    {
+      "name": "Spin Flip Kick",
+      "file": "X Bot@Spin Flip Kick.fbx",
+      "sha256": "a310669f7b7f055b11d20232748729ecd38103754fab5d3f4e1c855674af83a1",
+      "duration": 3.700000047683716,
+      "tracks": 65
+    },
+    {
+      "name": "Standing Using Touchscreen Tablet",
+      "file": "X Bot@Standing Using Touchscreen Tablet.fbx",
+      "sha256": "11351671bd931f3c2e7e4cea8d2497a4b09de1defd7c72770ec0cbbb68b44e15",
+      "duration": 33.13333511352539,
+      "tracks": 65
+    },
+    {
+      "name": "Start Swinging",
+      "file": "X Bot@Start Swinging.fbx",
+      "sha256": "8ac34dede805e987a95d5f066f837f5edbf4111b6bed12655e53871e4abb046b",
+      "duration": 2.0333333015441895,
+      "tracks": 65
+    },
+    {
+      "name": "Start Walking",
+      "file": "X Bot@Start Walking.fbx",
+      "sha256": "9dba5caadb560172ed4ecdae96ed25ff6a5f954d83b09acde6d895bdb1f566b3",
+      "duration": 2.933333396911621,
+      "tracks": 65
+    },
+    {
+      "name": "Stylish Flip",
+      "file": "X Bot@Stylish Flip.fbx",
+      "sha256": "81c56c9f417ffe7df0cb2a768a7151456bc44864b412a9900f205363195fbe48",
+      "duration": 2.133333444595337,
+      "tracks": 65
+    },
+    {
+      "name": "Swing Into Wall",
+      "file": "X Bot@Swing Into Wall.fbx",
+      "sha256": "b1ce558c6a7b684b3d958d4020527971b6c56c7e7729525b9724ba50a086e5be",
+      "duration": 3.0333333015441895,
+      "tracks": 65
+    },
+    {
+      "name": "Swing To Land (1)",
+      "file": "X Bot@Swing To Land (1).fbx",
+      "sha256": "b192a9653e1df5529cc71eb793e400921a22e96400db7f897cebdb9380bffcf4",
+      "duration": 1.8666666746139526,
+      "tracks": 65
+    },
+    {
+      "name": "Swing To Land (2)",
+      "file": "X Bot@Swing To Land (2).fbx",
+      "sha256": "11f2471237df7f250ab0846d7ea98e28cc326d691773eca01b185f1bfcfebf08",
+      "duration": 2.0333333015441895,
+      "tracks": 65
+    },
+    {
+      "name": "Swing To Land (3)",
+      "file": "X Bot@Swing To Land (3).fbx",
+      "sha256": "5c84c77d2c954da9ce0538f0d8723eace8daa3b11abc8849774ff7603221015e",
+      "duration": 1.8666666746139526,
+      "tracks": 65
+    },
+    {
+      "name": "Swing To Land",
+      "file": "X Bot@Swing To Land.fbx",
+      "sha256": "d3d9c1beca2efd122db3672f4f7980211e025c0357aba946b125a784c81992af",
+      "duration": 2.1666667461395264,
+      "tracks": 65
+    },
+    {
+      "name": "Swinging (1)",
+      "file": "X Bot@Swinging (1).fbx",
+      "sha256": "4c1be9d79dc6d04e3df9aa59ddecbcdf4b9f5f1cd08a9394e8db0523704a18b6",
+      "duration": 1.9666666984558105,
+      "tracks": 65
+    },
+    {
+      "name": "Swinging",
+      "file": "X Bot@Swinging.fbx",
+      "sha256": "22306e8976fe8dc99f2961f54eb8b05b47de225be29cffcd9f2b2ce394a37725",
+      "duration": 2.433333396911621,
+      "tracks": 65
+    },
+    {
+      "name": "Walk Backward",
+      "file": "X Bot@Walk Backward.fbx",
+      "sha256": "7dcbce32cb7cb524f3fb1c97bd185f24f18197fa9d97661e35493059f9325460",
+      "duration": 1.2333333492279053,
+      "tracks": 65
+    },
+    {
+      "name": "Walking Left Turn",
+      "file": "X Bot@Walking Left Turn.fbx",
+      "sha256": "313d9f548d8567a1a56719abccd3479b8013b703f1a91ca7ab3f96c15f8f0019",
+      "duration": 1.2000000476837158,
+      "tracks": 65
+    },
+    {
+      "name": "Walking Turn 180",
+      "file": "X Bot@Walking Turn 180.fbx",
+      "sha256": "49bbc9b8f5438c968f5f9f4130b7c57d43e026586136e68bcbaac8c506c3e48f",
+      "duration": 1,
+      "tracks": 65
+    },
+    {
+      "name": "Walking",
+      "file": "X Bot@Walking.fbx",
+      "sha256": "e5bf24dacaa2a0665b9a42256b7b8884c498dd9130c41798cbb6d52ae1922a52",
+      "duration": 1.0333333015441895,
+      "tracks": 65
+    },
+    {
+      "name": "Wall Crash",
+      "file": "X Bot@Wall Crash.fbx",
+      "sha256": "b282942c2534c7823b63e4e760abfb12a4171d9f9e0980fae5bd904e73d2a2f9",
+      "duration": 2.4666666984558105,
+      "tracks": 65
+    },
+    {
+      "name": "Wall Run",
+      "file": "X Bot@Wall Run.fbx",
+      "sha256": "f6173a2990b5684f33f2ae32eea7a25f686514cc0c22ead7744fa89d3ddf0470",
+      "duration": 2.0999999046325684,
+      "tracks": 65
+    }
+  ],
+  "generated": [
+    "Backflip"
+  ]
+}

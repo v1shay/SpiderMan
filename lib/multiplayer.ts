@@ -1,5 +1,6 @@
 'use client';
 
+import { validRacePacket, type RacePacket } from './race-session';
 import type { RealtimeChannel, SupabaseClient } from '@supabase/supabase-js';
 import { SUITS as SUIT_CONFIGS, type DistrictId, type SuitId } from '@/lib/game-config';
 import { getSupabaseBrowserClient } from '@/lib/supabase-browser';
@@ -20,12 +21,13 @@ export type NetworkPlayerState = {
 
 type Handlers = {
   onPlayerState: (state: NetworkPlayerState) => void;
+  onRacePacket?: (packet: RacePacket) => void;
   onPeers: (peerIds: Set<string>) => void;
   onStatus: (status: MultiplayerStatus) => void;
 };
 
 const VALID_SUITS = new Set<SuitId>(SUIT_CONFIGS.map((suit) => suit.id));
-const DISTRICTS = new Set<DistrictId>(['new-york-city', 'new-york-buildings', 'street-city', 'city-night', 'backstreet']);
+const DISTRICTS = new Set<DistrictId>(['new-york-city']);
 const finiteTuple = (value: unknown): value is [number, number, number] => Array.isArray(value)
   && value.length === 3
   && value.every((entry) => typeof entry === 'number' && Number.isFinite(entry));
@@ -95,7 +97,8 @@ export class SpiderMultiplayer {
     if (this.channel) await this.client.removeChannel(this.channel);
     if (version !== this.channelVersion) return;
 
-    const channel = this.client.channel(`spiderman:${districtId}`, {
+    const testRoom = process.env.NODE_ENV !== 'production' ? new URLSearchParams(location.search).get('raceTest')?.replace(/[^a-z0-9-]/gi, '').slice(0,40) : '';
+    const channel = this.client.channel(`spiderman:${testRoom ? `verification-${testRoom}` : districtId}`, {
       config: {
         private: true,
         broadcast: { ack: false, self: false },
@@ -120,6 +123,9 @@ export class SpiderMultiplayer {
       .on('broadcast', { event: 'player_state' }, ({ payload }) => {
         if (!validState(payload) || payload.playerId === this.id || payload.districtId !== this.districtId) return;
         this.handlers.onPlayerState(payload);
+      })
+      .on('broadcast', { event: 'race' }, ({ payload }) => {
+        if (validRacePacket(payload) && payload.sender !== this.id) this.handlers.onRacePacket?.(payload);
       })
       .on('presence', { event: 'sync' }, syncPeers)
       .on('presence', { event: 'join' }, syncPeers)
@@ -147,6 +153,11 @@ export class SpiderMultiplayer {
       event: 'player_state',
       payload: { ...state, playerId: this.id, districtId: this.districtId } satisfies NetworkPlayerState,
     });
+  }
+
+  publishRace(packet: RacePacket) {
+    if (!this.channel || !this.subscribed || packet.sender !== this.id) return;
+    void this.channel.send({ type: 'broadcast', event: 'race', payload: packet });
   }
 
   async dispose() {

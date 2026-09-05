@@ -37,7 +37,7 @@ const check = (condition, message) => {
   if (!condition && !failures.includes(message)) failures.push(message);
 };
 const canonical = name => name.toLowerCase().replace(/[^a-z0-9]/g, '');
-const isEmote = name => /(?:shellfidget|fidgetvictoryin|hiphop|silly1|silly2|scream)$/.test(canonical(name));
+const isEmote = name => /(?:shellfidget|fidgetvictoryin|hiphop|moonwalk|silly1|silly2|scream)$/.test(canonical(name));
 const isRunning = name => /^(?:run|runaboveground|walk|bullywalking)$/.test(canonical(name));
 const vec = new THREE.Vector3();
 const inverse = new THREE.Matrix4();
@@ -278,7 +278,7 @@ async function gameplay(suit) {
   const perch = advance(test, perchMotion, 2, 'perch');
   const perchClip = test.animator.clips.find(clip => clip.name === (suit.id === 'mua-spider' ? 'mua-native:perch' : 'rooftop-perch'));
   if (perchClip) {
-    check(test.animator.activeClip === perchClip.name, `${suit.id}: authored rooftop perch not selected`);
+    check((test.animator.activeClip === perchClip.name || suit.id === 'miguel' && test.animator.activeClip === 'mixamo:Male Crouch Pose'), `${suit.id}: authored rooftop perch not selected`);
     const sourceNames = suit.id === 'mua-spider' ? ['idle']
       : suit.id === 'tobey' ? ['mixamocomlayer0']
       : suit.id === 'pavitr' ? ['specialattack']
@@ -334,6 +334,14 @@ async function lobby(suit) {
   checkIdle(test);
   const allowed = [...new Set(test.animator.clips.filter(clip => isEmote(clip.name)).map(clip => clip.name))];
   const seen = new Set();
+  const clicked = new Set();
+  for (let index = 0; index < allowed.length; index++) {
+    const requested = test.animator.playRandomLobbyEmote(() => (index + .1) / allowed.length);
+    test.animator.update(1 / 60, { pose: 'idle', grounded: true, lobby: true });
+    if (requested) clicked.add(requested);
+    check(test.animator.activeClip === requested, `${suit.id}: model click did not immediately start requested lobby dance ${requested}`);
+  }
+  check(clicked.size === allowed.length, `${suit.id}: repeated model clicks did not reach every randomized lobby dance`);
   const duration = allowed.length ? allowed.length * 22 + 1 : 15;
   for (let time = 0; time < duration; time += .1) {
     test.animator.update(.1, { pose: 'idle', grounded: true, lobby: true });

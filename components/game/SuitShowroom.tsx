@@ -3,6 +3,7 @@
 import { useEffect, useRef } from 'react';
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import { supportLegacyMaterials, calibrate2099Materials } from '@/lib/gltf-materials';
 import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.js';
 import { SUITS, type SuitId } from '@/lib/game-config';
 import { isSuitUnlocked, type PlayerProgress } from '@/lib/progression';
@@ -11,10 +12,15 @@ import { AvatarAnimator } from '@/lib/avatar-animation';
 
 type Props = {
   selected: SuitId;
+  engaged: boolean;
   progress: PlayerProgress;
   onSelect: (id: SuitId) => void;
+  onEngage: () => void;
   onStatus: (message: string, progress: number) => void;
 };
+
+const LOBBY_SUIT = SUITS.find((suit) => suit.id === 'miguel')!;
+const LOBBY_SUITS = [LOBBY_SUIT] as const;
 
 type DisplaySuit = {
   id: SuitId;
@@ -30,14 +36,18 @@ type DisplaySuit = {
   swingCaption: HTMLSpanElement;
 };
 
-export default function SuitShowroom({ selected, progress, onSelect, onStatus }: Props) {
+export default function SuitShowroom({ selected, engaged, progress, onSelect, onEngage, onStatus }: Props) {
   const mountRef = useRef<HTMLDivElement>(null);
   const selectedRef = useRef(selected);
   const onSelectRef = useRef(onSelect);
+  const onEngageRef = useRef(onEngage);
   const onStatusRef = useRef(onStatus);
   const progressRef = useRef(progress);
+  const engagedRef = useRef(engaged);
   useEffect(() => { selectedRef.current = selected; }, [selected]);
+  useEffect(() => { engagedRef.current = engaged; }, [engaged]);
   useEffect(() => { onSelectRef.current = onSelect; }, [onSelect]);
+  useEffect(() => { onEngageRef.current = onEngage; }, [onEngage]);
   useEffect(() => { onStatusRef.current = onStatus; }, [onStatus]);
   useEffect(() => { progressRef.current = progress; }, [progress]);
 
@@ -62,7 +72,7 @@ export default function SuitShowroom({ selected, progress, onSelect, onStatus }:
     renderer.localClippingEnabled = true;
     renderer.shadowMap.type = THREE.PCFShadowMap;
     renderer.domElement.className = 'showroom-canvas';
-    renderer.domElement.setAttribute('aria-label', 'Interactive abandoned warehouse suit selection');
+    renderer.domElement.setAttribute('aria-label', 'Interactive Spider-Man 2099 selection');
     mount.appendChild(renderer.domElement);
     const labels = document.createElement('div');
     labels.className = 'showroom-labels';
@@ -89,7 +99,7 @@ export default function SuitShowroom({ selected, progress, onSelect, onStatus }:
     floor.receiveShadow = true;
     scene.add(floor);
 
-    const loader = new GLTFLoader();
+    const loader = supportLegacyMaterials(new GLTFLoader());
     loader.setMeshoptDecoder(MeshoptDecoder);
     const displays: DisplaySuit[] = [];
     const clickableMeshes: THREE.Object3D[] = [];
@@ -101,7 +111,7 @@ export default function SuitShowroom({ selected, progress, onSelect, onStatus }:
       const height = Math.max(1, mount.clientHeight);
       renderer.setSize(width, height, false);
       camera.aspect = width / height;
-      const halfLineup = (SUITS.length - 1) * spacing * .5 + 1.15;
+      const halfLineup = (LOBBY_SUITS.length - 1) * spacing * .5 + 1.15;
       const fitDistance = halfLineup / (Math.tan(THREE.MathUtils.degToRad(camera.fov * .5)) * camera.aspect * .88);
       camera.position.z = -4.4 + Math.max(5.6, fitDistance);
       camera.updateProjectionMatrix();
@@ -138,14 +148,15 @@ export default function SuitShowroom({ selected, progress, onSelect, onStatus }:
         warehouseRoot.position.set(-4.351744, 4.867527, 8.737152);
         scene.add(warehouseRoot);
 
-        const libraryPromise = load<{ scene: THREE.Group; animations: THREE.AnimationClip[] }>('/assets/suits/spider-rigged.glb');
-        await Promise.all(SUITS.map(async (suit, index) => {
-          const start = 30 + (index / SUITS.length) * 62;
+        const libraryPromise = load<{ scene: THREE.Group; animations: THREE.AnimationClip[] }>(LOBBY_SUIT.animationSource!);
+        await Promise.all(LOBBY_SUITS.map(async (suit, index) => {
+          const start = 30 + (index / LOBBY_SUITS.length) * 62;
           const gltf = await load<{ scene: THREE.Group; animations: THREE.AnimationClip[] }>(suit.model, (ratio) => {
-            onStatusRef.current(`Rigging ${suit.name}`, start + ratio * (58 / SUITS.length));
+            onStatusRef.current(`Rigging ${suit.name}`, start + ratio * (58 / LOBBY_SUITS.length));
           });
           if (disposed) return;
           prepareMaterials(gltf.scene, renderer, 'character');
+          calibrate2099Materials(gltf.scene);
           const authored = suitAnimationClips(gltf.animations, suit);
           applySuitRestPose(gltf.scene, suit, authored);
           if (suit.animationSource && suit.animationSource !== suit.model) {
@@ -155,7 +166,7 @@ export default function SuitShowroom({ selected, progress, onSelect, onStatus }:
           }
           normalizeSuit(gltf.scene, suit, 2.1);
           const holder = new THREE.Group();
-          const baseX = (index - (SUITS.length - 1) / 2) * spacing;
+          const baseX = (index - (LOBBY_SUITS.length - 1) / 2) * spacing;
           holder.position.set(baseX, .02, -4.4);
           holder.rotation.y = Math.PI;
           holder.add(gltf.scene);
@@ -182,11 +193,6 @@ export default function SuitShowroom({ selected, progress, onSelect, onStatus }:
           label.className = 'showroom-suit-label';
           label.textContent = suit.name;
           label.setAttribute('aria-label', `Select ${suit.name}`);
-          label.addEventListener('click', () => {
-            if (isSuitUnlocked(suit, progressRef.current)) onSelectRef.current(suit.id);
-          });
-          labels.appendChild(label);
-
           const swingProgress = document.createElement('div');
           swingProgress.className = 'showroom-swing-progress';
           swingProgress.hidden = true;
@@ -201,9 +207,16 @@ export default function SuitShowroom({ selected, progress, onSelect, onStatus }:
           labels.appendChild(swingProgress);
 
           const animator = new AvatarAnimator(gltf.scene, suit, authored);
+          label.addEventListener('click', () => {
+            if (!isSuitUnlocked(suit, progressRef.current)) return;
+            animator.playRandomLobbyEmote();
+            onSelectRef.current(suit.id);
+            onEngageRef.current();
+          });
+          labels.appendChild(label);
           displays.push({ id: suit.id, holder, baseX, labelY: index % 2 ? .16 : 0, ring, light, animator, label, swingProgress, swingBar, swingCaption });
         }));
-        if (!disposed) onStatusRef.current(`All ${SUITS.length} heroes online`, 100);
+        if (!disposed) onStatusRef.current('Spider-Man 2099 online', 100);
       } catch (error) {
         console.error('[showroom] unable to assemble warehouse', error);
         onStatusRef.current('Warehouse recovery lighting active', 100);
@@ -217,12 +230,16 @@ export default function SuitShowroom({ selected, progress, onSelect, onStatus }:
       raycaster.setFromCamera(pointer, camera);
       const hit = raycaster.intersectObjects(clickableMeshes, false)[0];
       hovered = (hit?.object.userData.suitId as SuitId | undefined) ?? null;
-      const hoveredSuit = SUITS.find((suit) => suit.id === hovered);
+      const hoveredSuit = LOBBY_SUITS.find((suit) => suit.id === hovered);
       renderer.domElement.style.cursor = hoveredSuit && !isSuitUnlocked(hoveredSuit, progressRef.current) ? 'not-allowed' : hovered ? 'pointer' : 'crosshair';
     };
     const choosePointer = () => {
-      const suit = SUITS.find((item) => item.id === hovered);
-      if (suit && isSuitUnlocked(suit, progressRef.current)) onSelectRef.current(suit.id);
+      const suit = LOBBY_SUITS.find((item) => item.id === hovered);
+      const display = displays.find((item) => item.id === hovered);
+      if (!suit || !display || !isSuitUnlocked(suit, progressRef.current)) return;
+      display.animator.playRandomLobbyEmote();
+      onSelectRef.current(suit.id);
+      onEngageRef.current();
     };
     renderer.domElement.addEventListener('pointermove', readPointer);
     renderer.domElement.addEventListener('pointerdown', choosePointer);
@@ -236,17 +253,22 @@ export default function SuitShowroom({ selected, progress, onSelect, onStatus }:
       lastFrame = timestamp;
       elapsed += delta;
       for (const display of displays) {
-        const suit = SUITS.find((item) => item.id === display.id)!;
+        const suit = LOBBY_SUITS.find((item) => item.id === display.id)!;
         const unlocked = isSuitUnlocked(suit, progressRef.current);
         const active = display.id === selectedRef.current;
-        display.animator.update(delta, { pose: 'idle', grounded: true, lobby: unlocked && active });
+        const focused = engagedRef.current && active;
+        display.animator.update(delta, { pose: 'idle', grounded: true, lobby: unlocked && focused });
         display.label.dataset.animation = display.animator.activeClip;
         display.label.dataset.soleError = display.animator.contactError.toFixed(4);
         const hot = active || display.id === hovered;
-        const scale = active ? 1.045 : display.id === hovered ? 1.02 : .94;
+        const scale = focused ? 1.28 : display.id === hovered ? 1.1 : 1.04;
         display.holder.scale.lerp(new THREE.Vector3(scale, scale, scale), 1 - Math.exp(-9 * delta));
-        display.holder.position.x = THREE.MathUtils.damp(display.holder.position.x, display.baseX, 8, delta);
-        display.holder.position.z = THREE.MathUtils.damp(display.holder.position.z, active ? -4.05 : -4.4, 8, delta);
+        const targetX = focused ? -1.65 : display.baseX;
+        display.holder.position.x = THREE.MathUtils.damp(display.holder.position.x, targetX, 6, delta);
+        display.holder.position.z = THREE.MathUtils.damp(display.holder.position.z, focused ? -3.75 : -4.25, 6, delta);
+        display.ring.position.x = THREE.MathUtils.damp(display.ring.position.x, targetX, 6, delta);
+        display.ring.position.z = THREE.MathUtils.damp(display.ring.position.z, display.holder.position.z, 6, delta);
+        display.light.position.x = THREE.MathUtils.damp(display.light.position.x, targetX, 6, delta);
         display.ring.material.color.set(active ? '#ff2747' : hot ? '#6de8ff' : '#244d60');
         display.ring.material.opacity = active ? .95 : hot ? .72 : .35;
         display.ring.scale.setScalar(active ? 1.18 + Math.sin(elapsed * 4) * .025 : 1);
@@ -268,8 +290,10 @@ export default function SuitShowroom({ selected, progress, onSelect, onStatus }:
         display.swingBar.value = completed;
         display.swingCaption.textContent = `${completed} / ${suit.unlockSwings ?? 50} swings`;
       }
-      camera.position.x = THREE.MathUtils.damp(camera.position.x, pointer.x * .32, 3, delta);
-      camera.lookAt(camera.position.x * .18, 1.35, -4.4);
+      const focused = engagedRef.current;
+      camera.position.x = THREE.MathUtils.damp(camera.position.x, (focused ? .08 : 0) + pointer.x * .18, 3, delta);
+      camera.position.z = THREE.MathUtils.damp(camera.position.z, focused ? .25 : 1.2, 4.5, delta);
+      camera.lookAt(focused ? -.72 : camera.position.x * .18, 1.35, focused ? -3.75 : -4.4);
       renderer.render(scene, camera);
     };
     tick();

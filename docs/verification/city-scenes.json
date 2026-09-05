@@ -1,0 +1,172 @@
+{
+  "passed": true,
+  "triangles": 310129,
+  "reports": [
+    {
+      "scene": "wall",
+      "frameRate": 8,
+      "effectiveStep": 0.05,
+      "steps": 140,
+      "modes": [
+        "jump",
+        "wallRun",
+        "fall",
+        "wallCrawl",
+        "wallJump",
+        "doubleJump",
+        "roll",
+        "run",
+        "land"
+      ],
+      "events": [
+        "wall-jump",
+        "wall-contact",
+        "double-jump",
+        "land"
+      ],
+      "penetrations": 0
+    },
+    {
+      "scene": "wall",
+      "frameRate": 30,
+      "effectiveStep": 0.03333333333333333,
+      "steps": 210,
+      "modes": [
+        "jump",
+        "fall",
+        "wallRun",
+        "wallCrawl",
+        "wallJump",
+        "doubleJump",
+        "roll",
+        "run",
+        "land"
+      ],
+      "events": [
+        "wall-jump",
+        "wall-contact",
+        "double-jump",
+        "land"
+      ],
+      "penetrations": 0
+    },
+    {
+      "scene": "wall",
+      "frameRate": 60,
+      "effectiveStep": 0.016666666666666666,
+      "steps": 420,
+      "modes": [
+        "jump",
+        "fall",
+        "wallRun",
+        "wallCrawl",
+        "wallJump",
+        "doubleJump",
+        "land",
+        "run"
+      ],
+      "events": [
+        "wall-jump",
+        "wall-contact",
+        "double-jump",
+        "land"
+      ],
+      "penetrations": 0
+    },
+    {
+      "scene": "wall",
+      "frameRate": 120,
+      "effectiveStep": 0.008333333333333333,
+      "steps": 840,
+      "modes": [
+        "jump",
+        "fall",
+        "wallRun",
+        "wallCrawl",
+        "wallJump",
+        "doubleJump",
+        "land",
+        "run"
+      ],
+      "events": [
+        "wall-jump",
+        "wall-contact",
+        "double-jump",
+        "land"
+      ],
+      "penetrations": 0
+    },
+    {
+      "scene": "roll",
+      "frameRate": 8,
+      "effectiveStep": 0.05,
+      "steps": 140,
+      "modes": [
+        "fall",
+        "roll",
+        "run",
+        "jump",
+        "land",
+        "idle"
+      ],
+      "events": [
+        "land"
+      ],
+      "penetrations": 0
+    },
+    {
+      "scene": "roll",
+      "frameRate": 30,
+      "effectiveStep": 0.03333333333333333,
+      "steps": 210,
+      "modes": [
+        "fall",
+        "roll",
+        "run",
+        "jump",
+        "land",
+        "idle"
+      ],
+      "events": [
+        "land"
+      ],
+      "penetrations": 0
+    },
+    {
+      "scene": "roll",
+      "frameRate": 60,
+      "effectiveStep": 0.016666666666666666,
+      "steps": 420,
+      "modes": [
+        "fall",
+        "roll",
+        "run",
+        "jump",
+        "land",
+        "idle"
+      ],
+      "events": [
+        "land"
+      ],
+      "penetrations": 0
+    },
+    {
+      "scene": "roll",
+      "frameRate": 120,
+      "effectiveStep": 0.008333333333333333,
+      "steps": 840,
+      "modes": [
+        "fall",
+        "roll",
+        "run",
+        "jump",
+        "land",
+        "idle"
+      ],
+      "events": [
+        "land"
+      ],
+      "penetrations": 0
+    }
+  ]
+}

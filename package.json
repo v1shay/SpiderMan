@@ -22,7 +22,11 @@
     "test:wall": "node --experimental-strip-types scripts/verify-wall-surface.mjs && node --experimental-strip-types scripts/verify-wall-pose.mjs && node --experimental-strip-types scripts/verify-wall-camera.mjs",
     "test:surfaces": "node --experimental-strip-types scripts/verify-mesh-world.mjs && node --experimental-strip-types scripts/verify-map-surfaces.mjs",
     "format": "oxfmt",
-    "verify:services": "node --env-file=.env.local scripts/verify-services.mjs"
+    "verify:services": "node --env-file=.env.local scripts/verify-services.mjs",
+    "test:2099": "node --experimental-strip-types scripts/verify-2099.mjs",
+    "test:integrated": "node --experimental-strip-types scripts/verify-integrated-swing.mjs new-york-city",
+    "test:scenes": "node --experimental-strip-types scripts/verify-city-scenes.mjs",
+    "test": "npm run test:traversal && npm run test:2099 && npm run test:wall && npm run test:swing-assistance && npm run test:surfaces && npm run test:integrated && npm run test:scenes"
   },
   "dependencies": {
     "@supabase/supabase-js": "2.112.4",

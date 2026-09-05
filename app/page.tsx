@@ -1,8 +1,10 @@
 'use client';
 
-import { Activity, Gauge, Map, Move3d, Navigation, Play, Radio, Rotate3d } from 'lucide-react';
-import { lazy, Suspense, useEffect, useState } from 'react';
-import type { GameHud } from '@/components/game/SpiderGame';
+import { Activity, Gauge, Move3d, Navigation, Play, Radio, Rotate3d } from 'lucide-react';
+import { lazy, Suspense, useEffect, useState, useRef } from 'react';
+import { RaceHud } from '@/components/game/RaceHud';
+import { emptyRaceView } from '@/lib/race-session';
+import type { GameHud, SpiderGameHandle, MapPlayer } from '@/components/game/SpiderGame';
 import { SpideyTracker } from '@/components/game/SpideyTracker';
 import SuitShowroom from '@/components/game/SuitShowroom';
 import { DISTRICTS, SUITS, type DistrictId, type SuitId } from '@/lib/game-config';
@@ -14,7 +16,12 @@ const SpiderGame = lazy(() => import('@/components/game/SpiderGame'));
 type Phase = 'select' | 'loading' | 'game';
 
 export default function Home() {
-  const [selected, setSelected] = useState<SuitId>('tobey');
+  const gameRef = useRef<SpiderGameHandle>(null);
+  const [raceView, setRaceView] = useState(emptyRaceView);
+  const [mapPlayers, setMapPlayers] = useState<MapPlayer[]>([]);
+  const [night, setNight] = useState(false);
+  const [selected, setSelected] = useState<SuitId>('miguel');
+  const [lobbyEngaged, setLobbyEngaged] = useState(true);
   const [selectedMap, setSelectedMap] = useState<DistrictId>('new-york-city');
   const [phase, setPhase] = useState<Phase>('select');
   const [status, setStatus] = useState('Waiting for suit selection');
@@ -64,41 +71,26 @@ export default function Home() {
 
   if (phase === 'select') {
     return (
-      <main className="launch-screen">
+      <main className={`launch-screen ${lobbyEngaged ? 'is-hero-focused' : ''}`}>
         <SuitShowroom
           selected={selected}
+          engaged={lobbyEngaged}
           progress={playerProgress}
           onSelect={(id) => {
             const suit = SUITS.find((item) => item.id === id);
             if (suit && isSuitUnlocked(suit, playerProgress)) setSelected(id);
           }}
+          onEngage={() => setLobbyEngaged(true)}
           onStatus={(message, nextProgress) => setShowroomStatus({ message, progress: Math.round(nextProgress) })}
         />
         <div className="warehouse-vignette" aria-hidden="true" />
         <header className="launch-header">
           <div className="brand-lockup" aria-label="SpiderMan"><span className="brand-title">SpiderMan</span></div>
         </header>
+        <p className="hero-engage-hint">Click Spider-Man 2099 to activate the suit</p>
         <section className="selector-shell" aria-label="Game setup">
           <div className="launch-actions">
-            <fieldset className="map-picker">
-              <legend className="map-picker-label"><Map aria-hidden="true" /> Maps</legend>
-              <div className="map-toggle-row">
-                {DISTRICTS.map((district) => (
-                  <button
-                    key={district.id}
-                    type="button"
-                    className="map-toggle"
-                    data-accent={district.accent}
-                    data-selected={district.id === selectedMap}
-                    aria-pressed={district.id === selectedMap}
-                    onClick={() => setSelectedMap(district.id)}
-                  >
-                    <strong>{district.name}</strong>
-                    <small>{district.subtitle}</small>
-                  </button>
-                ))}
-              </div>
-            </fieldset>
+            <div className="city-brief"><span>NEW YORK · 2099</span><p>Own the skyline.</p><small>Build momentum. Release into a flip. Run the walls.</small></div>
             <button className="enter-city" type="button" onClick={enterCity}>
               <Play aria-hidden="true" /> Start Game
             </button>
@@ -112,6 +104,7 @@ export default function Home() {
     <main className="game-shell">
       <Suspense fallback={null}>
         <SpiderGame
+          ref={gameRef} night={night} onRaceView={setRaceView} onMapPlayers={setMapPlayers}
           key={`${selected}:${selectedMap}`}
           suitId={selected}
           districtId={selectedMap}
@@ -137,12 +130,13 @@ export default function Home() {
 
       {phase === 'game' && (
         <>
+          <RaceHud view={raceView} action={action=>gameRef.current?.raceAction(action)} night={night} onNight={()=>setNight(value=>!value)}/>
           <header className="game-topbar">
             <div className="game-brand"><strong>{activeSuit.traversal === 'ironman' ? 'Iron Man' : 'SpiderMan'}</strong></div>
             <div className="district-readout"><Navigation aria-hidden="true" /><span><small>Current sector</small><strong>{activeDistrict.name}</strong></span></div>
             <div className={`stream-state ${online.status === 'online' ? '' : 'busy'}`}>
               <Radio aria-hidden="true" />
-              <span>{online.status === 'online' ? `${online.count} ${online.count === 1 ? 'player' : 'players'} online` : online.status === 'error' ? 'Multiplayer reconnecting' : 'Connecting players'}</span>
+              <span>{online.status === 'online' ? `${online.count} ${online.count === 1 ? 'player' : 'players'} online` : online.status === 'error' ? 'Solo · network unavailable' : online.status === 'disabled' ? 'Solo skyline' : 'Connecting players'}</span>
             </div>
           </header>
 
@@ -157,18 +151,19 @@ export default function Home() {
 
           <aside className="controls-card">
             <div><kbd>WASD</kbd><span>Move</span></div>
+            <div><kbd>Cursor</kbd><span>Aim / steer movement</span></div>
             <div><kbd>↑ ↓ ← →</kbd><span>Look</span></div>
-            <div><kbd>Space</kbd><span>{activeSuit.traversal === 'ironman' ? 'Repulsor ascent' : 'Jump / swing'}</span></div>
-            <div><kbd>Click</kbd><span>{activeSuit.traversal === 'ironman' ? 'Tap cruise / hold boost' : 'Web / zip'}</span></div>
-            <div><kbd>E</kbd><span>{activeSuit.traversal === 'ironman' ? 'Toggle cruise' : 'Zip / point launch'}</span></div>
+            <div><kbd>Space</kbd><span>{activeSuit.traversal === 'ironman' ? 'Repulsor ascent' : 'Jump / double jump'}</span></div>
+            <div><kbd>Click</kbd><span>{activeSuit.traversal === 'ironman' ? 'Tap cruise / hold boost' : 'Hold swing · release to flip'}</span></div>
+            <div><kbd>E</kbd><span>{activeSuit.traversal === 'ironman' ? 'Toggle cruise' : 'Zip to wall / point launch'}</span></div>
             {activeSuit.traversal === 'ironman' && <div><kbd>F</kbd><span>Hover / free fall</span></div>}
             <div><kbd>Shift</kbd><span>{activeSuit.traversal === 'ironman' ? 'Descend' : 'Dive'}</span></div>
-            {activeSuit.traversal === 'spider' && <div><kbd>Q</kbd><span>Toggle crawl · Jump to detach</span></div>}
-            <div><kbd>M</kbd><span>Maps</span></div>
+            {activeSuit.traversal === 'spider' && <div><kbd>Q</kbd><span>Crawl / release wall</span></div>}
+            <div><kbd>R</kbd><span>Roll · F for aerial tricks</span></div><div><kbd>M</kbd><span>City tracker</span></div>
             <Rotate3d aria-hidden="true" />
           </aside>
 
-          <SpideyTracker open={trackerOpen} current={currentDistrict} loaded={loadedDistricts} onClose={() => setTrackerOpen(false)} onOpen={() => setTrackerOpen(true)} onTravel={travelTo} />
+          <SpideyTracker players={mapPlayers} finish={raceView.course?.finish ?? null} open={trackerOpen} current={currentDistrict} loaded={loadedDistricts} onClose={() => setTrackerOpen(false)} onOpen={() => setTrackerOpen(true)} onTravel={travelTo} />
         </>
       )}
     </main>
