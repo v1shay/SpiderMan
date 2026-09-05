@@ -3,6 +3,7 @@
 import { useEffect, useRef } from 'react';
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import { supportLegacyMaterials, calibrate2099Materials } from '@/lib/gltf-materials';
 import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.js';
 import { SUITS, type SuitId } from '@/lib/game-config';
 import { isSuitUnlocked, type PlayerProgress } from '@/lib/progression';
@@ -98,7 +99,7 @@ export default function SuitShowroom({ selected, engaged, progress, onSelect, on
     floor.receiveShadow = true;
     scene.add(floor);
 
-    const loader = new GLTFLoader();
+    const loader = supportLegacyMaterials(new GLTFLoader());
     loader.setMeshoptDecoder(MeshoptDecoder);
     const displays: DisplaySuit[] = [];
     const clickableMeshes: THREE.Object3D[] = [];
@@ -147,7 +148,7 @@ export default function SuitShowroom({ selected, engaged, progress, onSelect, on
         warehouseRoot.position.set(-4.351744, 4.867527, 8.737152);
         scene.add(warehouseRoot);
 
-        const libraryPromise = load<{ scene: THREE.Group; animations: THREE.AnimationClip[] }>('/assets/suits/spider-rigged.glb');
+        const libraryPromise = load<{ scene: THREE.Group; animations: THREE.AnimationClip[] }>(LOBBY_SUIT.animationSource!);
         await Promise.all(LOBBY_SUITS.map(async (suit, index) => {
           const start = 30 + (index / LOBBY_SUITS.length) * 62;
           const gltf = await load<{ scene: THREE.Group; animations: THREE.AnimationClip[] }>(suit.model, (ratio) => {
@@ -155,6 +156,7 @@ export default function SuitShowroom({ selected, engaged, progress, onSelect, on
           });
           if (disposed) return;
           prepareMaterials(gltf.scene, renderer, 'character');
+          calibrate2099Materials(gltf.scene);
           const authored = suitAnimationClips(gltf.animations, suit);
           applySuitRestPose(gltf.scene, suit, authored);
           if (suit.animationSource && suit.animationSource !== suit.model) {

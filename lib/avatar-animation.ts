@@ -6,6 +6,7 @@ import { PavitrAnimationGraph } from './pavitr-animation.ts';
 import { IronManAnimationGraph } from './ironman-animation.ts';
 import { SymbioteAnimationGraph } from './symbiote-animation.ts';
 import { MuaSpiderAnimationGraph } from './mua-spider-animation.ts';
+import { ContextualAnimationGraph } from './contextual-animation.ts';
 
 const canonical = (name: string) => name.toLowerCase().replace(/[^a-z0-9]/g, '');
 const findClip = (clips: readonly THREE.AnimationClip[], names: readonly string[]) => {
@@ -35,6 +36,13 @@ export type AvatarMotion = {
   anchor?: THREE.Vector3 | null;
   lobby?: boolean;
   boost?: boolean;
+  mode?: string;
+  actionSequence?: number;
+  timeToLanding?: number;
+  trickClearance?: boolean;
+  trickRequest?: number;
+  moveForward?: number;
+  moveStrafe?: number;
 };
 
 /** One source of state/clip transitions for the showroom and playable avatar. */
@@ -53,22 +61,17 @@ export class AvatarAnimator {
   private swingVerticalSpeed = 0;
   private baseY: number;
   private contactSamples: { mesh: THREE.SkinnedMesh; indices: number[] }[] = [];
-  private bodySamples: { mesh: THREE.SkinnedMesh; indices: number[] }[] = [];
+  private bodySamples: { mesh: THREE.Mesh; indices: number[] }[] = [];
   private handSamples: { mesh: THREE.SkinnedMesh; left: number[]; right: number[] }[] = [];
   private pavitr?: PavitrAnimationGraph;
   private ironman?: IronManAnimationGraph;
   private symbiote?: SymbioteAnimationGraph;
   private muaSpider?: MuaSpiderAnimationGraph;
+  private contextual?: ContextualAnimationGraph;
   private bodySupportTime = 0;
   private inverse = new THREE.Matrix4();
   private point = new THREE.Vector3();
-  private normal = new THREE.Vector3();
-  private desired = new THREE.Vector3();
-  private parentQuaternion = new THREE.Quaternion();
-  private deltaQuaternion = new THREE.Quaternion();
   private handSide = 'right';
-  private aimedBone: THREE.Bone | null = null;
-  private preAim = new THREE.Quaternion();
   private emotes: THREE.AnimationClip[];
   private forcedLobbyEmote?: THREE.AnimationClip;
   private forcedLobbyEmoteUntil = 0;
@@ -107,6 +110,10 @@ export class AvatarAnimator {
     this.clips = suit.id === 'pavitr' ? source.filter(clip => canonical(clip.name).startsWith('armatureanimspidermanpavitr')) : [...source];
     this.mixer = new THREE.AnimationMixer(root);
     this.bones = collectRigBones(root);
+    if (suit.id === 'miguel' && this.clips.some(clip => clip.name === 'mixamo:Running')) {
+      this.contextual = new ContextualAnimationGraph(this.clips);
+      this.clips.push(...this.contextual.derived);
+    }
     this.baseY = root.position.y;
     this.idle = findClip(this.clips, ['shellidle', 'stand', 'idle', 'passive', 'combatidle']);
     const run = findClip(this.clips, ['runaboveground', 'run', 'bullywalking', 'walk']);
@@ -176,11 +183,14 @@ export class AvatarAnimator {
     for (const clip of this.clips) this.actions.set(clip, this.mixer.clipAction(clip));
     root.updateMatrixWorld(true);
     root.traverse((object) => {
+      if (this.contextual && object instanceof THREE.Mesh && !(object instanceof THREE.SkinnedMesh) && object.visible) {
+        this.bodySamples.push({ mesh: object, indices: Array.from({ length: object.geometry.getAttribute('position').count }, (_, i) => i) });
+      }
       if (!(object instanceof THREE.SkinnedMesh) || !object.visible) return;
       const joints = object.geometry.getAttribute('skinIndex');
       const weights = object.geometry.getAttribute('skinWeight');
       if (!joints || !weights) return;
-      if (this.pavitr || this.ironman || this.muaSpider) {
+      if (this.pavitr || this.ironman || this.muaSpider || this.contextual) {
         // Entry includes a handstand. Sample each joint's extremities, including
         // palms and head, so inverted poses never use the shoes as their floor.
         const selected = new Set<number>();
@@ -200,7 +210,10 @@ export class AvatarAnimator {
         }
         for (const ext of extrema.values()) for (const i of [...ext.low, ...ext.high]) selected.add(i);
         for (let i = 0; i < 192; i++) selected.add(Math.floor(i * (joints.count - 1) / 191));
-        this.bodySamples.push({ mesh: object, indices: [...selected] });
+        // A rolling 2099 can contact the floor with any part of the suit,
+        // including the wrist fins. Full skin probes are limited to the short
+        // roll/landing window; sparse extremities missed a fin by 4 cm.
+        this.bodySamples.push({ mesh: object, indices: this.contextual ? Array.from({ length: joints.count }, (_, i) => i) : [...selected] });
         const hands = { mesh: object, left: [] as number[], right: [] as number[] };
         for (const side of ['left', 'right'] as const) for (const index of selected) {
           let weight = 0;
@@ -272,8 +285,6 @@ export class AvatarAnimator {
     // Ground/contact state is authoritative even if a stale network/physics
     // mode still says run on the first frame off a ledge.
     if (!motion.grounded && motion.pose === 'run') motion = { ...motion, pose: (motion.verticalSpeed ?? 0) > 1 ? 'jump' : 'fall' };
-    if (this.aimedBone) this.aimedBone.quaternion.copy(this.preAim);
-    this.aimedBone = null;
     for (const overlay of this.overlays) overlay.bone.quaternion.copy(overlay.before);
     this.overlays.length = 0;
     this.elapsed += delta;
@@ -289,7 +300,7 @@ export class AvatarAnimator {
     this.stateTime += delta;
     this.pose = motion.pose;
     this.root.position.y = this.baseY;
-    const native = this.pavitr?.select(delta, motion)
+    const native = this.contextual?.select(delta, motion) ?? this.pavitr?.select(delta, motion)
       ?? this.ironman?.select(delta, motion)
       ?? this.symbiote?.select(delta, motion)
       ?? this.muaSpider?.select(delta, motion);
@@ -314,6 +325,7 @@ export class AvatarAnimator {
         : motion.pose === 'run' ? THREE.MathUtils.clamp((motion.speed ?? 8) / 9, .65, 1.65)
         : motion.pose === 'swing' ? .85 + (motion.tension ?? 0) * .25 : 1;
       action.setEffectiveTimeScale(native?.rate ?? rate);
+      if (native?.time !== undefined) action.time = native.time;
       if (clip === this.swingDown || clip === this.swingUp) {
         action.setEffectiveTimeScale(0);
         // Arc-driven playback never enters swingEnd's released backflip.
@@ -398,24 +410,30 @@ export class AvatarAnimator {
   }
 
   private aimWebArm(anchor: THREE.Vector3) {
-    // Rotate the real arm toward the anchor in its parent's space. This is a
-    // small additive aim adjustment, never a replacement for the authored pose.
-    const upper = this.bones.find((entry) => entry.role === `${this.handSide}Arm`)?.bone;
-    const fore = this.bones.find((entry) => entry.role === `${this.handSide}ForeArm`)?.bone;
-    if (!upper || !fore || !upper.parent) return;
+    const upper = this.bones.find(e => e.role === `${this.handSide}Arm`)?.bone;
+    const fore = this.bones.find(e => e.role === `${this.handSide}ForeArm`)?.bone;
+    const hand = this.bones.find(e => e.role === `${this.handSide}Hand`)?.bone;
+    if (!upper?.parent || !fore || !hand) return;
     this.root.parent?.updateMatrixWorld(true);
-    upper.getWorldPosition(this.point);
-    fore.getWorldPosition(this.normal).sub(this.point).normalize();
-    this.desired.copy(anchor).sub(this.point).normalize();
-    upper.parent.getWorldQuaternion(this.parentQuaternion).invert();
-    this.normal.applyQuaternion(this.parentQuaternion);
-    this.desired.applyQuaternion(this.parentQuaternion);
-    this.deltaQuaternion.setFromUnitVectors(this.normal, this.desired);
-    const amount = Math.min(1, this.stateTime * 7) * .45;
-    this.deltaQuaternion.slerp(new THREE.Quaternion(), 1 - amount);
-    this.aimedBone = upper;
-    this.preAim.copy(upper.quaternion);
-    upper.quaternion.premultiply(this.deltaQuaternion);
+    const shoulder = upper.getWorldPosition(new THREE.Vector3()), elbow = fore.getWorldPosition(new THREE.Vector3()), wrist = hand.getWorldPosition(new THREE.Vector3());
+    const first = shoulder.distanceTo(elbow), second = elbow.distanceTo(wrist), axis = anchor.clone().sub(shoulder).normalize();
+    const reach = (first + second) * .94;
+    const along = (first*first - second*second + reach*reach)/(2*reach);
+    const pole = elbow.clone().sub(shoulder); pole.addScaledVector(axis,-pole.dot(axis));
+    if (pole.lengthSq() < .001) pole.set(this.handSide === 'left' ? 1 : -1,0,0).applyQuaternion(this.root.getWorldQuaternion(new THREE.Quaternion())).addScaledVector(axis,-pole.dot(axis));
+    pole.normalize();
+    const targetElbow = shoulder.clone().addScaledVector(axis,along).addScaledVector(pole,Math.sqrt(Math.max(0,first*first-along*along)));
+    const targetWrist = shoulder.clone().addScaledVector(axis,reach);
+    const turn = (bone: THREE.Bone,from:THREE.Vector3,to:THREE.Vector3) => {
+      this.overlays.push({bone,before:bone.quaternion.clone()});
+      const parent=bone.parent!.getWorldQuaternion(new THREE.Quaternion());
+      const delta=new THREE.Quaternion().setFromUnitVectors(from.normalize(),to.normalize());
+      bone.quaternion.premultiply(parent.clone().invert().multiply(delta).multiply(parent)).normalize();
+      this.root.parent?.updateMatrixWorld(true);
+    };
+    turn(upper,elbow.clone().sub(shoulder),targetElbow.clone().sub(shoulder));
+    const newElbow=fore.getWorldPosition(new THREE.Vector3());
+    turn(fore,hand.getWorldPosition(new THREE.Vector3()).sub(newElbow),targetWrist.sub(newElbow));
   }
 
   webHand(target: THREE.Vector3) {

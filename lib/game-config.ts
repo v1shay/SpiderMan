@@ -43,11 +43,11 @@ export type SuitConfig = {
 
 const traversalLibrary = '/assets/suits/spider-rigged.glb';
 
-export const SUITS: readonly SuitConfig[] = [
+const suitArchive: readonly SuitConfig[] = [
   { id: 'tobey', name: 'Tobey Maguire', universe: 'Raimi Trilogy', model: '/assets/suits/tobey.glb', modelYaw: Math.PI, animationSource: traversalLibrary, traversal: 'spider' },
   { id: 'spider-rigged', name: 'Spider-Man', universe: 'Classic Rigged', model: traversalLibrary, modelYaw: Math.PI, traversal: 'spider' },
   { id: 'miles', name: 'Miles Morales', universe: 'Earth-1610', model: '/assets/suits/miles.glb', modelYaw: Math.PI, animationSource: traversalLibrary, discardRigidMeshes: true, traversal: 'spider' },
-  { id: 'miguel', name: 'Spider-Man 2099', universe: 'Nueva York', model: '/assets/suits/miguel-2099.glb', modelYaw: Math.PI, animationSource: traversalLibrary, traversal: 'spider' },
+  { id: 'miguel', name: 'Spider-Man 2099', universe: 'Nueva York', model: '/assets/suits/miguel-2099.glb', modelYaw: Math.PI, animationSource: '/assets/animations/mixamo-2099.glb', traversal: 'spider' },
   // Pavitr must use his own animation pack, never the shared retargeted library.
   { id: 'pavitr', name: 'Pavitr Prabhakar', universe: 'Mumbattan', model: '/assets/suits/pavitr.glb', modelYaw: Math.PI, traversal: 'spider' },
   { id: 'playstation', name: 'PlayStation Spider-Man', universe: 'Insomniac', model: '/assets/suits/playstation.glb', modelYaw: Math.PI, animationSource: traversalLibrary, traversal: 'spider' },
@@ -58,6 +58,9 @@ export const SUITS: readonly SuitConfig[] = [
   { id: 'venom', name: 'Venom Spider-Man', universe: 'PlayStation', model: '/assets/suits/venom.glb', modelYaw: Math.PI, animationSource: traversalLibrary, traversal: 'spider' },
   { id: 'ironman', name: 'Iron Man', universe: 'Ultimate Alliance', model: '/assets/suits/ironman-mua.glb', modelYaw: Math.PI / 2, traversal: 'ironman' },
 ] as const;
+
+// This edition is built and calibrated exclusively around the supplied 2099 rig.
+export const SUITS: readonly SuitConfig[] = suitArchive.filter(suit => suit.id === 'miguel');
 
 export type DistrictId =
   | 'new-york-city'
@@ -92,30 +95,6 @@ export const DISTRICTS: readonly DistrictConfig[] = [
     id: 'new-york-city', name: 'New York City', subtitle: 'City Core',
     model: '/assets/districts/new-york-city-2026.glb', collisionData: '/assets/districts/new-york-city-2026-collisions.json',
     position: [0, 0, 0], spawn: [0, 0], targetWidth: 360, sourceGroundY: 0, rotation: 0, accent: 'red', map: [47, 52],
-  },
-  {
-    id: 'new-york-buildings', name: 'New York Buildings', subtitle: 'Landmark Swing District',
-    model: '/assets/districts/new-york-buildings.glb', collisionData: '/assets/districts/new-york-buildings-collisions.json',
-    position: [0, 0, 0], spawn: [0, -205], targetWidth: 280, sourceGroundY: 0.0045, rotation: 0,
-    spawnYaw: Math.PI, spawnClearance: 5, accent: 'blue', map: [56, 50],
-  },
-  {
-    id: 'street-city', name: 'Street City', subtitle: 'Tower Blocks',
-    model: '/assets/districts/street-city.glb', collisionData: '/assets/districts/street-city-collisions.json',
-    position: [0, 0, 0], spawn: [0, 0], targetWidth: 320, sourceGroundY: 0.011, rotation: 0, accent: 'green', map: [51, 59],
-  },
-  {
-    id: 'city-night', name: 'Spider-Man City Night', subtitle: 'Midnight Bridge',
-    model: '/assets/districts/city-night.glb', collisionData: '/assets/districts/city-night-collisions.json',
-    position: [0, 0, 0], spawn: [0, 105], targetWidth: 320, sourceGroundY: 0.6761, rotation: 0, accent: 'red', map: [60, 44],
-  },
-  {
-    id: 'backstreet', name: 'Backstreet', subtitle: 'Neon Alleys',
-    model: '/assets/districts/backstreet.glb', collisionData: '/assets/districts/backstreet-collisions.json',
-    // This source file has enormous/corrupt bounds. A 12 m normalized width
-    // makes its authored doors roughly human scale; the previous 120 m value
-    // made a doorway read like a multi-storey wall.
-    position: [0, 0, 0], spawn: [0, 5], targetWidth: 12, sourceGroundY: 1982.6573, rotation: 0, spawnYaw: 0, spawnPitch: .18, spawnClearance: .9, accent: 'green', map: [39, 45],
   },
 ] as const;
 

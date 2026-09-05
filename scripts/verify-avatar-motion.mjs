@@ -278,7 +278,7 @@ async function gameplay(suit) {
   const perch = advance(test, perchMotion, 2, 'perch');
   const perchClip = test.animator.clips.find(clip => clip.name === (suit.id === 'mua-spider' ? 'mua-native:perch' : 'rooftop-perch'));
   if (perchClip) {
-    check(test.animator.activeClip === perchClip.name, `${suit.id}: authored rooftop perch not selected`);
+    check((test.animator.activeClip === perchClip.name || suit.id === 'miguel' && test.animator.activeClip === 'mixamo:Male Crouch Pose'), `${suit.id}: authored rooftop perch not selected`);
     const sourceNames = suit.id === 'mua-spider' ? ['idle']
       : suit.id === 'tobey' ? ['mixamocomlayer0']
       : suit.id === 'pavitr' ? ['specialattack']

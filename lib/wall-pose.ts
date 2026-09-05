@@ -58,7 +58,7 @@ export class WallPose {
     frame.quaternion.identity();
   }
 
-  apply(frame: THREE.Group, bones: readonly RigBone[], wall: SurfaceContact) {
+  apply(frame: THREE.Group, bones: readonly RigBone[], wall: SurfaceContact, motion?: { mode: string; velocity: THREE.Vector3 }) {
     const actor = frame.parent;
     if (!actor) return;
     actor.updateMatrixWorld(true);
@@ -74,7 +74,18 @@ export class WallPose {
     const up = new THREE.Vector3(0, 1, 0);
     const wallRight = new THREE.Vector3().crossVectors(up, normal).normalize();
     const source = new THREE.Quaternion().setFromRotationMatrix(new THREE.Matrix4().makeBasis(sourceRight, sourceUp, sourceBack));
-    const target = new THREE.Quaternion().setFromRotationMatrix(new THREE.Matrix4().makeBasis(wallRight, up, normal));
+    let targetBasis = new THREE.Matrix4().makeBasis(wallRight, up, normal);
+    if (motion?.mode === 'wallRun') {
+      const travel = motion.velocity.clone().addScaledVector(normal, -motion.velocity.dot(normal)).normalize();
+      if (travel.lengthSq() > .1) {
+        // The run uses the facade as its floor: soles point into it and the
+        // chest follows lateral travel. Crawl keeps its climbing orientation.
+        const back = travel.negate();
+        const runRight = new THREE.Vector3().crossVectors(normal, back).normalize();
+        targetBasis = new THREE.Matrix4().makeBasis(runRight, normal, back);
+      }
+    }
+    const target = new THREE.Quaternion().setFromRotationMatrix(targetBasis);
     const parentRotation = actor.getWorldQuaternion(new THREE.Quaternion());
     frame.quaternion.copy(parentRotation).invert().multiply(target.multiply(source.invert())).multiply(parentRotation);
     actor.updateMatrixWorld(true);
@@ -127,7 +138,7 @@ export class WallPose {
       const along = (upperLength ** 2 - lowerLength ** 2 + reach ** 2) / (2 * reach);
       const pole = k.clone().sub(h).addScaledVector(axis, -k.clone().sub(h).dot(axis));
       if (pole.lengthSq() < 1e-6) pole.copy(normal).addScaledVector(axis, -normal.dot(axis));
-      if (pole.dot(normal) < 0) pole.negate();
+      // Preserve the authored knee pole; do not mirror it across the wall.
       pole.normalize();
       const targetKnee = h.clone().addScaledVector(axis, along).addScaledVector(pole, Math.sqrt(Math.max(0, upperLength ** 2 - along ** 2)));
       const turn = (bone: THREE.Bone, from: THREE.Vector3, to: THREE.Vector3) => {

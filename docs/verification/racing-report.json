@@ -1,0 +1,45 @@
+{
+  "passed": true,
+  "checks": [
+    "Shared far course and alternating side",
+    "Invitation never teleports receivers",
+    "Explicit acceptance and nonparticipant isolation",
+    "Wrong host start rejected",
+    "Same exact start, finish and countdown across clients",
+    "Duplicate start does not teleport again",
+    "Simultaneous racing start",
+    "Finish propagation and one-time completion",
+    "Uninvited finish and nonfinite coordinates rejected",
+    "Solo fallback launches without accepted peers",
+    "Cancelled host invitation resets accepted receiver",
+    "Timer formats centiseconds",
+    "Ghost preserves complete skeleton and interpolates movement",
+    "Wind corridor lifts and glides only inside its volume"
+  ],
+  "sharedCourse": {
+    "id": "nyc2099-v4:0.0,30.0,0.0:-700.0,30.0,0.0",
+    "start": [
+      0,
+      30,
+      0
+    ],
+    "finish": [
+      -700,
+      30,
+      0
+    ],
+    "side": 2
+  },
+  "finishes": [
+    {
+      "id": "player-b-2099",
+      "course": "nyc2099-v4:0.0,30.0,0.0:-700.0,30.0,0.0",
+      "time": 22000
+    },
+    {
+      "id": "player-a-2099",
+      "course": "nyc2099-v4:0.0,30.0,0.0:-700.0,30.0,0.0",
+      "time": 23000
+    }
+  ]
+}

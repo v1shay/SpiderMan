@@ -224,6 +224,15 @@ function isMixamoRig(root: THREE.Object3D) {
 }
 
 export function retargetMixamoClips(source: readonly THREE.AnimationClip[], sourceRig: THREE.Object3D, targetRig: THREE.Object3D) {
+  // The offline 2099 pack is already calibrated to this exact character.
+  // Animation-only glTF has transform nodes but no skin, so GLTFLoader does
+  // not mark them as Bones. Validate every binding before using it directly.
+  if (source.length && source.every(clip => clip.name.startsWith('mixamo:'))) {
+    return source.filter(clip => clip.tracks.every(track => {
+      const name = track.name.slice(0, track.name.lastIndexOf('.'));
+      return targetRig.getObjectByName(name) instanceof THREE.Bone;
+    })).map(clip => clip.clone());
+  }
   if (!isMixamoRig(sourceRig) || !isMixamoRig(targetRig)) return [];
   const sourceBones = new Map<string, THREE.Bone>();
   const targetBones = new Map<string, THREE.Bone>();

@@ -3,12 +3,17 @@
 import { useEffect, useRef, useState } from 'react';
 import Image from 'next/image';
 import { Map as MapIcon, Volume2, X } from 'lucide-react';
-import type { Map as MapLibreMap, Marker, StyleSpecification } from 'maplibre-gl';
+import type { Map as MapLibreMap, Marker, StyleSpecification, GeoJSONSource } from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { DISTRICTS, type DistrictId } from '@/lib/game-config';
 import styles from './SpideyTracker.module.css';
 
+export type TrackerPlayer = { id:string; position:[number,number,number]; self:boolean };
+export const worldToMap = (point: [number,number,number]): [number,number] => [-73.9855 + point[0] / (111320*Math.cos(40.758*Math.PI/180)), 40.758 - point[2]/111320];
+
 type Props = {
+  players?: TrackerPlayer[];
+  finish?: [number,number,number] | null;
   open: boolean;
   current: DistrictId;
   loaded: ReadonlySet<DistrictId>;
@@ -85,6 +90,7 @@ function createTrackerStyle(sourceStyle: StyleSpecification): StyleSpecification
     }
 
     if (layer.type === 'symbol') {
+      layer.layout = { ...layer.layout, visibility: 'none' };
       const isRoadLabel = /road|street|highway/.test(id);
       const isPlace = /place|city|town|village|state|country/.test(id);
       layer.paint = {
@@ -101,7 +107,10 @@ function createTrackerStyle(sourceStyle: StyleSpecification): StyleSpecification
   return style;
 }
 
-export function SpideyTracker({ open, current, loaded, onClose, onOpen, onTravel }: Props) {
+export function SpideyTracker({ open, current, loaded, onClose, onOpen, onTravel, players = [], finish = null }: Props) {
+  const liveRef = useRef({players,finish});
+  useEffect(() => { liveRef.current = {players,finish}; }, [players,finish]);
+  const updateLiveRef = useRef<() => void>(() => undefined);
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MapLibreMap | null>(null);
   const markersRef = useRef(new Map<DistrictId, { marker: Marker; element: HTMLButtonElement }>());
@@ -152,28 +161,34 @@ export function SpideyTracker({ open, current, loaded, onClose, onOpen, onTravel
         map.addControl(new maplibregl.NavigationControl({ showCompass: true, showZoom: true, visualizePitch: true }), 'bottom-right');
         map.addControl(new maplibregl.AttributionControl({ compact: true }), 'bottom-left');
 
+        const liveMarkers = new Map<string, Marker>();
+        const updateLive = () => {
+          if (!map.isStyleLoaded()) return;
+          const {players: peers,finish: goal} = liveRef.current;
+          const ids = new Set(peers.map(p=>p.id)); if (goal) ids.add('race-finish');
+          for (const [id,marker] of liveMarkers) if (!ids.has(id)) {marker.remove();liveMarkers.delete(id);}
+          const all = [...peers.map(p=>({id:p.id,position:p.position,label:p.self?'YOU':`SPIDER ${p.id.slice(0,4)}`,self:p.self})), ...(goal?[{id:'race-finish',position:goal,label:'FINISH',self:false}]:[])];
+          for (const entry of all) {
+            let marker = liveMarkers.get(entry.id);
+            if (!marker) {const element=document.createElement('div');element.className='live-map-player';element.style.cssText=`font-family:Comback Home,Impact,sans-serif;color:${entry.self?'white':'#7deaff'};font-size:16px;text-shadow:0 2px 6px #000;border:1px solid #84f0ff99;border-radius:10px;background:#07192bd9;padding:5px 8px;white-space:nowrap`;element.textContent=entry.label;element.setAttribute('aria-label',entry.label);marker=new maplibregl.Marker({element}).setLngLat(worldToMap(entry.position)).addTo(map);liveMarkers.set(entry.id,marker);}
+            marker.setLngLat(worldToMap(entry.position));
+          }
+          const self = peers.find(p=>p.self);
+          const data:GeoJSON.FeatureCollection = {type:'FeatureCollection',features:self&&goal?[{type:'Feature',properties:{},geometry:{type:'LineString',coordinates:[worldToMap(self.position),worldToMap(goal)]}}]:[]};
+          (map.getSource('race-wayfinder') as GeoJSONSource|undefined)?.setData(data);
+          const points=all.map(p=>worldToMap(p.position));
+          if (points.length && points.some(point=>!map.getBounds().contains(point))) {const bounds=new maplibregl.LngLatBounds(points[0],points[0]);points.forEach(p=>bounds.extend(p));map.fitBounds(bounds,{padding:85,maxZoom:15,duration:350});}
+        };
+        updateLiveRef.current = updateLive;
         void map.once('load', () => {
           if (disposed) return;
           setMapStatus('online');
 
-          for (const district of DISTRICTS) {
-            const element = document.createElement('button');
-            element.type = 'button';
-            element.className = styles.marker;
-            element.dataset.district = district.id;
-            element.dataset.accent = district.accent;
-            element.dataset.current = String(district.id === trackerStateRef.current.current);
-            element.dataset.loaded = String(trackerStateRef.current.loaded.has(district.id));
-            element.setAttribute('aria-label', `Travel to ${district.name}`);
-            element.innerHTML = `<span class="${styles.markerCore}"><span></span></span><strong>${district.name}</strong><small>${district.subtitle}</small>`;
-            element.addEventListener('click', () => onTravelRef.current(district.id));
-
-            const marker = new maplibregl.Marker({ element, anchor: 'center' })
-              .setLngLat(DISTRICT_COORDINATES[district.id])
-              .addTo(map);
-            markerStore.set(district.id, { marker, element });
-          }
-
+          map.addSource('race-wayfinder',{type:'geojson',data:{type:'FeatureCollection',features:[]}});
+          map.addLayer({id:'race-wayfinder-glow',type:'line',source:'race-wayfinder',paint:{'line-color':'#61e6ff','line-width':10,'line-opacity':.18}});
+          map.addLayer({id:'race-wayfinder-line',type:'line',source:'race-wayfinder',paint:{'line-color':'#bcfbff','line-width':2.5,'line-dasharray':[2,1]}});
+          map.jumpTo({center:worldToMap(liveRef.current.players.find(p=>p.self)?.position ?? [0,0,0]),zoom:14.5,bearing:0,pitch:24});
+          updateLive();
           map.resize();
         });
       } catch (error) {
@@ -191,6 +206,7 @@ export function SpideyTracker({ open, current, loaded, onClose, onOpen, onTravel
       abortController.abort();
       for (const { marker } of markerStore.values()) marker.remove();
       markerStore.clear();
+      updateLiveRef.current = () => undefined;
       mapInstance?.remove();
     };
   }, [open]);
@@ -205,9 +221,11 @@ export function SpideyTracker({ open, current, loaded, onClose, onOpen, onTravel
 
     const map = mapRef.current;
     if (open && map?.loaded()) {
-      map.flyTo({ center: DISTRICT_COORDINATES[current], zoom: 12.6, bearing: -24, pitch: 38, duration: 800, essential: true });
+      map.flyTo({ center: DISTRICT_COORDINATES[current], zoom: 14.5, bearing: 0, pitch: 24, duration: 800, essential: true });
     }
   }, [current, loaded, open]);
+
+  useEffect(() => { if (open) updateLiveRef.current(); }, [players,finish,open]);
 
   if (!open) {
     return (
@@ -233,7 +251,7 @@ export function SpideyTracker({ open, current, loaded, onClose, onOpen, onTravel
       </header>
 
       <div className={styles.mapShell}>
-        <div ref={containerRef} className={styles.map} aria-label="Interactive map of New York City districts" />
+        <div ref={containerRef} className={styles.map} aria-label="Live player positions and race route across New York" />
         <div className={styles.scanlines} aria-hidden="true" />
         <div className={styles.cornerLabel}>
           <span>Current sector</span>
@@ -241,7 +259,7 @@ export function SpideyTracker({ open, current, loaded, onClose, onOpen, onTravel
           <small>40.7580° N · 73.9855° W</small>
         </div>
         {mapStatus === 'error' && (
-          <output className={styles.mapError}>Live street grid unavailable. District fast travel remains online.</output>
+          <output className={styles.mapError}>Live street grid unavailable. The in-world finish beacon remains active.</output>
         )}
         <nav className={styles.districtRail} aria-label="Fast travel districts">
           {DISTRICTS.map((district) => (

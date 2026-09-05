@@ -1,0 +1,278 @@
+{
+  "map": "new-york-city",
+  "triangles": 310129,
+  "textureDecoding": false,
+  "trials": [
+    {
+      "trial": "central-street",
+      "frames": 960,
+      "start": [
+        16,
+        0.169,
+        16
+      ],
+      "end": [
+        -60.527,
+        5.096,
+        75.29
+      ],
+      "distance": 116.073,
+      "maxHeight": 8.841,
+      "maxSpeed": 49.098,
+      "airtimeSeconds": 15.75,
+      "swingSeconds": 2.017,
+      "longestAttachmentSeconds": 1.717,
+      "immediateDetaches": 0,
+      "stalledHeldFrames": 636,
+      "contacts": 10149,
+      "wallFrames": 741,
+      "penetrationFrames": 0,
+      "assistanceFrames": 37,
+      "probes": 133,
+      "anchorSearches": 155,
+      "meanAnchorCandidates": 1.194,
+      "events": {
+        "jump": 2,
+        "web-attached": 2,
+        "land": 1
+      },
+      "detaches": {},
+      "detachSamples": [],
+      "sampleFailures": [],
+      "cpuFrameMeanMs": 0.848,
+      "cpuFrameP95Ms": 2.062
+    },
+    {
+      "trial": "cross-street",
+      "frames": 360,
+      "start": [
+        16,
+        0.169,
+        -16
+      ],
+      "end": [
+        94.966,
+        7.682,
+        -63.773
+      ],
+      "distance": 119.465,
+      "maxHeight": 8.965,
+      "maxSpeed": 45.575,
+      "airtimeSeconds": 5.067,
+      "swingSeconds": 2.417,
+      "longestAttachmentSeconds": 1.517,
+      "immediateDetaches": 4,
+      "stalledHeldFrames": 5,
+      "contacts": 296,
+      "wallFrames": 74,
+      "penetrationFrames": 0,
+      "assistanceFrames": 36,
+      "probes": 176,
+      "anchorSearches": 31,
+      "meanAnchorCandidates": 10.355,
+      "events": {
+        "jump": 3,
+        "web-attached": 8,
+        "web-released": 1
+      },
+      "detaches": {
+        "blocked-web": 4,
+        "solid-rope-conflict": 1,
+        "landed": 1
+      },
+      "detachSamples": [
+        {
+          "frame": 99,
+          "reason": "blocked-web",
+          "age": 91,
+          "position": [
+            63.131,
+            3.965,
+            -27.103
+          ],
+          "velocity": [
+            42.387,
+            5.036,
+            -6.823
+          ],
+          "rope": 30.641,
+          "excess": 0,
+          "obstructionDistance": 9.419
+        },
+        {
+          "frame": 215,
+          "reason": "solid-rope-conflict",
+          "age": 9,
+          "position": [
+            70.888,
+            4.163,
+            -32.406
+          ],
+          "velocity": [
+            2.374,
+            -3.277,
+            -3.338
+          ],
+          "rope": 31.211,
+          "excess": 0.319,
+          "obstructionDistance": null
+        },
+        {
+          "frame": 248,
+          "reason": "landed",
+          "age": 20,
+          "position": [
+            75.811,
+            0.002,
+            -37.877
+          ],
+          "velocity": [
+            14.42,
+            0,
+            -15.507
+          ],
+          "rope": 28.312,
+          "excess": 0.026,
+          "obstructionDistance": null
+        },
+        {
+          "frame": 270,
+          "reason": "blocked-web",
+          "age": 10,
+          "position": [
+            80.54,
+            2.999,
+            -42.903
+          ],
+          "velocity": [
+            14.287,
+            15.011,
+            -14.929
+          ],
+          "rope": 40.244,
+          "excess": 0,
+          "obstructionDistance": 20.18
+        },
+        {
+          "frame": 292,
+          "reason": "blocked-web",
+          "age": 10,
+          "position": [
+            86.788,
+            6.589,
+            -48.952
+          ],
+          "velocity": [
+            20.955,
+            4.57,
+            -17.108
+          ],
+          "rope": 66.865,
+          "excess": 0,
+          "obstructionDistance": 11.954
+        },
+        {
+          "frame": 306,
+          "reason": "blocked-web",
+          "age": 2,
+          "position": [
+            91.908,
+            6.831,
+            -53.213
+          ],
+          "velocity": [
+            21.973,
+            -2.464,
+            -19.674
+          ],
+          "rope": 5.378,
+          "excess": -0.238,
+          "obstructionDistance": 3.799
+        }
+      ],
+      "sampleFailures": [],
+      "cpuFrameMeanMs": 0.516,
+      "cpuFrameP95Ms": 1.348
+    },
+    {
+      "trial": "unrendered-repeat-tile",
+      "frames": 360,
+      "start": [
+        2592,
+        0.169,
+        -1450.035
+      ],
+      "end": [
+        2514.185,
+        0.169,
+        -1403.373
+      ],
+      "distance": 120.215,
+      "maxHeight": 7.734,
+      "maxSpeed": 51.208,
+      "airtimeSeconds": 5.9,
+      "swingSeconds": 3.033,
+      "longestAttachmentSeconds": 1.65,
+      "immediateDetaches": 1,
+      "stalledHeldFrames": 9,
+      "contacts": 180,
+      "wallFrames": 45,
+      "penetrationFrames": 0,
+      "assistanceFrames": 23,
+      "probes": 114,
+      "anchorSearches": 21,
+      "meanAnchorCandidates": 7.429,
+      "events": {
+        "jump": 1,
+        "web-attached": 4,
+        "double-jump": 1,
+        "web-released": 1,
+        "land": 2
+      },
+      "detaches": {
+        "blocked-web": 2
+      },
+      "detachSamples": [
+        {
+          "frame": 73,
+          "reason": "blocked-web",
+          "age": 65,
+          "position": [
+            2575.623,
+            5.862,
+            -1422.583
+          ],
+          "velocity": [
+            -24.566,
+            -9.509,
+            34.505
+          ],
+          "rope": 32.151,
+          "excess": -0.398,
+          "obstructionDistance": 9.561
+        },
+        {
+          "frame": 207,
+          "reason": "blocked-web",
+          "age": 1,
+          "position": [
+            2519.856,
+            6.103,
+            -1405.618
+          ],
+          "velocity": [
+            -2.858,
+            6.539,
+            -4.867
+          ],
+          "rope": 5,
+          "excess": -1.081,
+          "obstructionDistance": 1.459
+        }
+      ],
+      "sampleFailures": [],
+      "cpuFrameMeanMs": 0.467,
+      "cpuFrameP95Ms": 1.074
+    }
+  ]
+}

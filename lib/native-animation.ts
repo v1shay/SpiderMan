@@ -20,4 +20,6 @@ export type NativeSelection = {
   loop: typeof THREE.LoopOnce | typeof THREE.LoopPingPong | typeof THREE.LoopRepeat;
   rate: number;
   bodySupport?: boolean;
+  /** Arc-scrubbed pose, evaluated without advancing the animation clock. */
+  time?: number;
 };

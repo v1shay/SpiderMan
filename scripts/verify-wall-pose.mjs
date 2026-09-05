@@ -43,7 +43,7 @@ for (const suit of SUITS.filter(suit => suit.traversal === 'spider')) {
       actor.updateMatrixWorld(true);
       assert.ok(!animator.activeClip.startsWith('procedural:'), `${suit.id}: missing keyed crawl animation`);
       const active = animator.clips.find(clip => clip.name === animator.activeClip);
-      assert.ok(ownNames.has(active.name) || ['retargeted-wall-crawl', 'local-wall-crawl'].includes(active.name), `${suit.id}: unexpected crawl clip`);
+      assert.ok(ownNames.has(active.name) || ['retargeted-wall-crawl', 'local-wall-crawl', 'context:wall-crawl-fast', 'context:wall-crawl-slow'].includes(active.name), `${suit.id}: unexpected crawl clip`);
       for (const [role, positions] of limbPositions) {
         positions.push(animator.bones.find(entry => entry.role === role).bone.getWorldPosition(new THREE.Vector3()));
       }
@@ -90,7 +90,7 @@ for (const suit of SUITS.filter(suit => suit.traversal === 'spider')) {
     pose.reset(frame);
     animator.update(.04, { pose: 'crawl', speed: 4, crawlDirection: -1, grounded: false });
     const backwardDelta = (pausedTime - action.time + active.duration) % active.duration;
-    assert.ok(Math.abs(backwardDelta - .04) < 1e-4, `${suit.id}: descending crawl does not reverse playback`);
+    assert.ok(Math.abs(backwardDelta - .04 * Math.abs(action.getEffectiveTimeScale())) < 1e-4, `${suit.id}: descending crawl does not reverse playback`);
     for (let step = 0; step < 30; step++) animator.update(1 / 30, { pose: 'jump', grounded: false, verticalSpeed: 8 });
     assert.ok(!action.isRunning() || action.getEffectiveWeight() < .001, `${suit.id}: crawl still contributes after jumping`);
   }
