@@ -1,8 +1,12 @@
 export type SuitId =
   | 'amazing'
   | 'miles-new'
+  | 'miles-animated'
   | 'no-way-home'
   | 'tobey'
+  | 'symbiote-tobey'
+  | 'mocap-spider'
+  | 'classic-spider'
   | 'spider-rigged'
   | 'miles'
   | 'miguel'
@@ -158,6 +162,10 @@ export const SUITS: readonly SuitConfig[] = [
       ['miles-new', 'Miles Morales'],
       ['no-way-home', 'No Way Home'],
       ['tobey', 'Tobey Maguire'],
+      ['symbiote-tobey', 'Symbiote Tobey'],
+      ['miles-animated', 'Spider-Verse Miles'],
+      ['mocap-spider', 'Mocap Spider-Man'],
+      ['classic-spider', 'Classic Spider-Man'],
     ] as const
   ).map(([id, name]) => ({
     id,

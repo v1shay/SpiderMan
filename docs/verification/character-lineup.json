@@ -43,5 +43,41 @@
     "maximumRelativeSkinSpan": 1.47924251195538,
     "danceRelativeSkinSpan": 1.393938174710091,
     "passed": true
+  },
+  {
+    "id": "symbiote-tobey",
+    "clips": 63,
+    "samples": 806,
+    "worstLimbDirection": 0.9999991053514421,
+    "maximumRelativeSkinSpan": 1.4936100777573391,
+    "danceRelativeSkinSpan": 1.3123163719326354,
+    "passed": true
+  },
+  {
+    "id": "miles-animated",
+    "clips": 63,
+    "samples": 806,
+    "worstLimbDirection": 0.9999991052007036,
+    "maximumRelativeSkinSpan": 1.5272166407681207,
+    "danceRelativeSkinSpan": 1.3125308763485681,
+    "passed": true
+  },
+  {
+    "id": "mocap-spider",
+    "clips": 63,
+    "samples": 806,
+    "worstLimbDirection": 0.9999991053114937,
+    "maximumRelativeSkinSpan": 1.457103327541153,
+    "danceRelativeSkinSpan": 1.0300566818337729,
+    "passed": true
+  },
+  {
+    "id": "classic-spider",
+    "clips": 63,
+    "samples": 806,
+    "worstLimbDirection": 0.9999991053977413,
+    "maximumRelativeSkinSpan": 1.5188996686901504,
+    "danceRelativeSkinSpan": 1.167735103185002,
+    "passed": true
   }
 ]
