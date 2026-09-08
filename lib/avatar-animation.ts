@@ -1,6 +1,13 @@
 import * as THREE from 'three';
+import { WebWingVisual } from './traversal-extras-visual.ts';
 import type { SuitConfig } from './game-config';
-import { animateRigBones, boneRole, collectRigBones, freezeClipPose, type ProceduralPose } from './three-assets.ts';
+import {
+  animateRigBones,
+  boneRole,
+  collectRigBones,
+  freezeClipPose,
+  type ProceduralPose,
+} from './three-assets.ts';
 import { createWallCrawlClip } from './wall-crawl-animation.ts';
 import { PavitrAnimationGraph } from './pavitr-animation.ts';
 import { IronManAnimationGraph } from './ironman-animation.ts';
@@ -8,23 +15,30 @@ import { SymbioteAnimationGraph } from './symbiote-animation.ts';
 import { MuaSpiderAnimationGraph } from './mua-spider-animation.ts';
 import { ContextualAnimationGraph } from './contextual-animation.ts';
 
-const canonical = (name: string) => name.toLowerCase().replace(/[^a-z0-9]/g, '');
-const findClip = (clips: readonly THREE.AnimationClip[], names: readonly string[]) => {
+const canonical = (name: string) =>
+  name.toLowerCase().replace(/[^a-z0-9]/g, '');
+const findClip = (
+  clips: readonly THREE.AnimationClip[],
+  names: readonly string[],
+) => {
   for (const name of names) {
-    const clip = clips.find((item) => canonical(item.name) === name)
-      ?? clips.find((item) => canonical(item.name).endsWith(name));
+    const clip =
+      clips.find((item) => canonical(item.name) === name) ??
+      clips.find((item) => canonical(item.name).endsWith(name));
     if (clip) return clip;
   }
   return undefined;
 };
 
-const hasMotion = (clip: THREE.AnimationClip) => clip.tracks.some(track => {
-  const size = track.getValueSize();
-  for (let index = size; index < track.values.length; index++) {
-    if (Math.abs(track.values[index] - track.values[index % size]) > 1e-5) return true;
-  }
-  return false;
-});
+const hasMotion = (clip: THREE.AnimationClip) =>
+  clip.tracks.some((track) => {
+    const size = track.getValueSize();
+    for (let index = size; index < track.values.length; index++) {
+      if (Math.abs(track.values[index] - track.values[index % size]) > 1e-5)
+        return true;
+    }
+    return false;
+  });
 
 export type AvatarMotion = {
   pose: ProceduralPose;
@@ -37,6 +51,7 @@ export type AvatarMotion = {
   lobby?: boolean;
   boost?: boolean;
   mode?: string;
+  charge?: number;
   actionSequence?: number;
   timeToLanding?: number;
   trickClearance?: boolean;
@@ -51,18 +66,24 @@ export class AvatarAnimator {
   readonly suit: SuitConfig;
   readonly mixer: THREE.AnimationMixer;
   readonly bones;
+  private readonly webWings: WebWingVisual;
   readonly clips: THREE.AnimationClip[];
   private actions = new Map<THREE.AnimationClip, THREE.AnimationAction>();
   private current: THREE.AnimationAction | null = null;
   private pose: ProceduralPose = 'idle';
   private elapsed = 0;
+  private glideBlend = 0;
   private stateTime = 0;
   private swingRising = false;
   private swingVerticalSpeed = 0;
   private baseY: number;
   private contactSamples: { mesh: THREE.SkinnedMesh; indices: number[] }[] = [];
   private bodySamples: { mesh: THREE.Mesh; indices: number[] }[] = [];
-  private handSamples: { mesh: THREE.SkinnedMesh; left: number[]; right: number[] }[] = [];
+  private handSamples: {
+    mesh: THREE.SkinnedMesh;
+    left: number[];
+    right: number[];
+  }[] = [];
   private pavitr?: PavitrAnimationGraph;
   private ironman?: IronManAnimationGraph;
   private symbiote?: SymbioteAnimationGraph;
@@ -87,81 +108,146 @@ export class AvatarAnimator {
   activeClip = 'procedural';
   contactError = 0;
   supportMode: 'soles' | 'body' = 'soles';
-  get cruiseBlend() { return this.ironman?.cruiseBlend ?? 1; }
+  get cruiseBlend() {
+    return this.ironman?.cruiseBlend ?? 1;
+  }
 
   /** Start a fresh, non-repeating random showroom dance on every model click. */
   playRandomLobbyEmote(random = Math.random) {
     if (!this.emotes.length) return undefined;
     let index = Math.floor(random() * this.emotes.length);
-    if (this.emotes.length > 1 && index === this.previousLobbyEmote) index = (index + 1) % this.emotes.length;
+    if (this.emotes.length > 1 && index === this.previousLobbyEmote)
+      index = (index + 1) % this.emotes.length;
     this.previousLobbyEmote = index;
     this.forcedLobbyEmote = this.emotes[index];
-    this.forcedLobbyEmoteUntil = this.elapsed + Math.max(.65, this.forcedLobbyEmote.duration);
+    this.forcedLobbyEmoteUntil =
+      this.elapsed + Math.max(0.65, this.forcedLobbyEmote.duration);
     const action = this.actions.get(this.forcedLobbyEmote);
     if (action === this.current) action?.reset().setEffectiveWeight(1).play();
     return this.forcedLobbyEmote.name;
   }
 
-  constructor(root: THREE.Object3D, suit: SuitConfig, source: readonly THREE.AnimationClip[]) {
+  constructor(
+    root: THREE.Object3D,
+    suit: SuitConfig,
+    source: readonly THREE.AnimationClip[],
+  ) {
     this.root = root;
     this.suit = suit;
     // Defense in depth: even an accidentally appended shared library cannot
     // override Pavitr's supplied pack in the lobby, gameplay or remote avatars.
-    this.clips = suit.id === 'pavitr' ? source.filter(clip => canonical(clip.name).startsWith('armatureanimspidermanpavitr')) : [...source];
+    this.clips =
+      suit.id === 'pavitr'
+        ? source.filter((clip) =>
+            canonical(clip.name).startsWith('armatureanimspidermanpavitr'),
+          )
+        : [...source];
     this.mixer = new THREE.AnimationMixer(root);
     this.bones = collectRigBones(root);
-    if (suit.id === 'miguel' && this.clips.some(clip => clip.name === 'mixamo:Running')) {
+    this.webWings = new WebWingVisual(root, this.bones);
+    if (this.clips.some((clip) => clip.name === 'mixamo:Running')) {
       this.contextual = new ContextualAnimationGraph(this.clips);
       this.clips.push(...this.contextual.derived);
     }
     this.baseY = root.position.y;
-    this.idle = findClip(this.clips, ['shellidle', 'stand', 'idle', 'passive', 'combatidle']);
-    const run = findClip(this.clips, ['runaboveground', 'run', 'bullywalking', 'walk']);
+    this.idle = findClip(this.clips, [
+      'shellidle',
+      'stand',
+      'idle',
+      'passive',
+      'combatidle',
+    ]);
+    const run = findClip(this.clips, [
+      'runaboveground',
+      'run',
+      'bullywalking',
+      'walk',
+    ]);
     // Pavitr's Run_ABOVEGROUND export has just one keyframe. Do not pretend
     // that holding that frame is a running animation; use the local gait when
     // there is no motion, without borrowing another character's clips.
-    this.run = run && (suit.id !== 'pavitr' || hasMotion(run)) ? run : undefined;
-    const authoredPerch = suit.id === 'venom' ? undefined
-      : suit.id === 'tobey' ? findClip(this.clips, ['mixamocomlayer0'])
-      : suit.id === 'pavitr' ? findClip(this.clips, ['specialattack'])
-      : suit.id === 'playstation' ? findClip(this.clips, ['swingtoland'])
-        : suit.id === 'symbiote' ? findClip(this.clips, ['swingtoland'])
-          : findClip(this.clips, ['swingend', 'lowcrawl', 'crawl']);
+    this.run =
+      run && (suit.id !== 'pavitr' || hasMotion(run)) ? run : undefined;
+    const authoredPerch =
+      suit.id === 'venom'
+        ? undefined
+        : suit.id === 'tobey'
+          ? findClip(this.clips, ['mixamocomlayer0'])
+          : suit.id === 'pavitr'
+            ? findClip(this.clips, ['specialattack'])
+            : suit.id === 'playstation'
+              ? findClip(this.clips, ['swingtoland'])
+              : suit.id === 'symbiote'
+                ? findClip(this.clips, ['swingtoland'])
+                : findClip(this.clips, ['swingend', 'lowcrawl', 'crawl']);
     if (authoredPerch) {
-      const time = suit.id === 'tobey' ? 1.473 : suit.id === 'pavitr' ? 2.3075 : suit.id === 'playstation' ? 1.52
-        : suit.id === 'symbiote' ? 1.52 : canonical(authoredPerch.name) === 'swingend' ? 1.568 : .568;
-      this.perch = freezeClipPose(authoredPerch, Math.min(time, authoredPerch.duration), 'rooftop-perch');
+      const time =
+        suit.id === 'tobey'
+          ? 1.473
+          : suit.id === 'pavitr'
+            ? 2.3075
+            : suit.id === 'playstation'
+              ? 1.52
+              : suit.id === 'symbiote'
+                ? 1.52
+                : canonical(authoredPerch.name) === 'swingend'
+                  ? 1.568
+                  : 0.568;
+      this.perch = freezeClipPose(
+        authoredPerch,
+        Math.min(time, authoredPerch.duration),
+        'rooftop-perch',
+      );
       this.clips.push(this.perch);
     }
     this.hang = findClip(this.clips, ['hanging']);
     const swingStart = findClip(this.clips, ['swingstart']);
     const swingEnd = findClip(this.clips, ['swingend']);
     if (swingStart && swingEnd) {
-      this.swingDown = swingStart.clone(); this.swingDown.name = 'arc-downswing';
-      this.swingUp = swingEnd.clone(); this.swingUp.name = 'arc-upswing';
+      this.swingDown = swingStart.clone();
+      this.swingDown.name = 'arc-downswing';
+      this.swingUp = swingEnd.clone();
+      this.swingUp.name = 'arc-upswing';
       this.clips.push(this.swingDown, this.swingUp);
     }
     if (!this.hang) {
       const swing = findClip(this.clips, ['swingtoland', 'swingstart']);
       if (swing) {
-        this.hang = freezeClipPose(swing, Math.min(.48, swing.duration * .25), 'sustained-swing');
+        this.hang = freezeClipPose(
+          swing,
+          Math.min(0.48, swing.duration * 0.25),
+          'sustained-swing',
+        );
         this.clips.push(this.hang);
       }
     }
     // Deliberately exclude attacks, root-motion acrobatics and fly-offscreen
     // clips from a tightly spaced selection lineup.
-    this.emotes = this.clips.filter((clip) => /(?:shellfidget|fidgetvictoryin|hiphop|moonwalk|silly1|silly2|scream)$/.test(canonical(clip.name)));
+    const assignedDance = this.clips.filter(
+      (clip) => clip.name === `lobby:dance:${suit.id}`,
+    );
+    this.emotes = assignedDance.length
+      ? assignedDance
+      : this.clips.filter((clip) =>
+          /(?:shellfidget|fidgetvictoryin|hiphop|moonwalk|silly1|silly2|scream)/.test(
+            canonical(clip.name),
+          ),
+        );
     if (suit.id === 'pavitr') {
       const passive = findClip(this.clips, ['passive']);
       if (passive) this.emotes.push(passive);
       this.pavitr = new PavitrAnimationGraph(this.clips);
       this.clips.push(...this.pavitr.derived);
     }
-    if (suit.id === 'ironman' && this.clips.some(clip => clip.name === 'fly_fast')) {
+    if (
+      suit.id === 'ironman' &&
+      this.clips.some((clip) => clip.name === 'fly_fast')
+    ) {
       this.ironman = new IronManAnimationGraph(this.clips);
       this.clips.push(...this.ironman.derived);
     }
-    if (suit.id === 'symbiote') this.symbiote = new SymbioteAnimationGraph(this.clips);
+    if (suit.id === 'symbiote')
+      this.symbiote = new SymbioteAnimationGraph(this.clips);
     if (suit.id === 'mua-spider') {
       this.muaSpider = new MuaSpiderAnimationGraph(this.clips);
       this.clips.push(...this.muaSpider.derived);
@@ -171,20 +257,39 @@ export class AvatarAnimator {
     if (suit.traversal === 'spider') {
       // Symbiote's Low Crawl is a ground-combat animation. Preserve the new
       // facade-calibrated cycle instead of rotating that clip onto a wall.
-      this.crawl = suit.id === 'symbiote' ? undefined : findClip(this.clips, ['lowcrawl', 'crawl']);
+      this.crawl =
+        suit.id === 'symbiote'
+          ? undefined
+          : findClip(this.clips, ['lowcrawl', 'crawl']);
       if (!this.crawl || !hasMotion(this.crawl)) {
-        this.crawl = createWallCrawlClip(root, this.bones, suit.id === 'pavitr');
+        this.crawl = createWallCrawlClip(
+          root,
+          this.bones,
+          suit.id === 'pavitr',
+        );
         this.clips.push(this.crawl);
       }
     }
     // Authored and retargeted libraries can both name a clip `stand`/`Run`.
     // Clip identity preserves the authored-first selection instead of silently
     // playing a same-named fallback with a different rest-pose orientation.
-    for (const clip of this.clips) this.actions.set(clip, this.mixer.clipAction(clip));
+    for (const clip of this.clips)
+      this.actions.set(clip, this.mixer.clipAction(clip));
     root.updateMatrixWorld(true);
     root.traverse((object) => {
-      if (this.contextual && object instanceof THREE.Mesh && !(object instanceof THREE.SkinnedMesh) && object.visible) {
-        this.bodySamples.push({ mesh: object, indices: Array.from({ length: object.geometry.getAttribute('position').count }, (_, i) => i) });
+      if (
+        this.contextual &&
+        object instanceof THREE.Mesh &&
+        !(object instanceof THREE.SkinnedMesh) &&
+        object.visible
+      ) {
+        this.bodySamples.push({
+          mesh: object,
+          indices: Array.from(
+            { length: object.geometry.getAttribute('position').count },
+            (_, i) => i,
+          ),
+        });
       }
       if (!(object instanceof THREE.SkinnedMesh) || !object.visible) return;
       const joints = object.geometry.getAttribute('skinIndex');
@@ -194,60 +299,109 @@ export class AvatarAnimator {
         // Entry includes a handstand. Sample each joint's extremities, including
         // palms and head, so inverted poses never use the shoes as their floor.
         const selected = new Set<number>();
-        const extrema = new Map<number, { min: number[]; max: number[]; low: number[]; high: number[] }>();
+        const extrema = new Map<
+          number,
+          { min: number[]; max: number[]; low: number[]; high: number[] }
+        >();
         for (let i = 0; i < joints.count; i++) {
           object.getVertexPosition(i, this.point);
           let strongest = 0;
-          for (let j = 1; j < 4; j++) if (weights.getComponent(i, j) > weights.getComponent(i, strongest)) strongest = j;
+          for (let j = 1; j < 4; j++)
+            if (weights.getComponent(i, j) > weights.getComponent(i, strongest))
+              strongest = j;
           const joint = joints.getComponent(i, strongest);
           let ext = extrema.get(joint);
-          if (!ext) { ext = { min: [Infinity, Infinity, Infinity], max: [-Infinity, -Infinity, -Infinity], low: [i, i, i], high: [i, i, i] }; extrema.set(joint, ext); }
+          if (!ext) {
+            ext = {
+              min: [Infinity, Infinity, Infinity],
+              max: [-Infinity, -Infinity, -Infinity],
+              low: [i, i, i],
+              high: [i, i, i],
+            };
+            extrema.set(joint, ext);
+          }
           for (let axis = 0; axis < 3; axis++) {
             const value = this.point.getComponent(axis);
-            if (value < ext.min[axis]) { ext.min[axis] = value; ext.low[axis] = i; }
-            if (value > ext.max[axis]) { ext.max[axis] = value; ext.high[axis] = i; }
+            if (value < ext.min[axis]) {
+              ext.min[axis] = value;
+              ext.low[axis] = i;
+            }
+            if (value > ext.max[axis]) {
+              ext.max[axis] = value;
+              ext.high[axis] = i;
+            }
           }
         }
-        for (const ext of extrema.values()) for (const i of [...ext.low, ...ext.high]) selected.add(i);
-        for (let i = 0; i < 192; i++) selected.add(Math.floor(i * (joints.count - 1) / 191));
+        for (const ext of extrema.values())
+          for (const i of [...ext.low, ...ext.high]) selected.add(i);
+        for (let i = 0; i < 192; i++)
+          selected.add(Math.floor((i * (joints.count - 1)) / 191));
         // A rolling 2099 can contact the floor with any part of the suit,
         // including the wrist fins. Full skin probes are limited to the short
         // roll/landing window; sparse extremities missed a fin by 4 cm.
-        this.bodySamples.push({ mesh: object, indices: this.contextual ? Array.from({ length: joints.count }, (_, i) => i) : [...selected] });
-        const hands = { mesh: object, left: [] as number[], right: [] as number[] };
-        for (const side of ['left', 'right'] as const) for (const index of selected) {
-          let weight = 0;
-          for (let j = 0; j < 4; j++) {
-            const name = object.skeleton.bones[joints.getComponent(index, j)].name.toLowerCase();
-            if (name.includes(`${side}hand`)) weight += weights.getComponent(index, j);
+        this.bodySamples.push({
+          mesh: object,
+          indices: this.contextual
+            ? Array.from({ length: joints.count }, (_, i) => i)
+            : [...selected],
+        });
+        const hands = {
+          mesh: object,
+          left: [] as number[],
+          right: [] as number[],
+        };
+        for (const side of ['left', 'right'] as const)
+          for (const index of selected) {
+            let weight = 0;
+            for (let j = 0; j < 4; j++) {
+              const name =
+                object.skeleton.bones[
+                  joints.getComponent(index, j)
+                ].name.toLowerCase();
+              if (name.includes(`${side}hand`))
+                weight += weights.getComponent(index, j);
+            }
+            if (weight > 0.35) hands[side].push(index);
           }
-          if (weight > .35) hands[side].push(index);
-        }
         this.handSamples.push(hands);
       }
-      const footBones = object.skeleton.bones.map((bone) => boneRole(bone.name).endsWith('Foot'));
+      const footBones = object.skeleton.bones.map((bone) =>
+        boneRole(bone.name).endsWith('Foot'),
+      );
       const indices: number[] = [];
       for (let i = 0; i < joints.count; i++) {
         let weight = 0;
         for (let component = 0; component < 4; component++) {
-          if (footBones[joints.getComponent(i, component)]) weight += weights.getComponent(i, component);
+          if (footBones[joints.getComponent(i, component)])
+            weight += weights.getComponent(i, component);
         }
-        if (weight > .35) indices.push(i);
+        if (weight > 0.35) indices.push(i);
       }
       // Bounded sole probes, including each extremity. No full mesh bounds in
       // the render loop; all sampling follows actual skinned shoe vertices.
       if (indices.length) {
         const selected = new Set<number>();
-        for (let i = 0; i < 96; i++) selected.add(indices[Math.floor(i * (indices.length - 1) / 95)]);
+        for (let i = 0; i < 96; i++)
+          selected.add(indices[Math.floor((i * (indices.length - 1)) / 95)]);
         for (let axis = 0; axis < 3; axis++) {
-          let low = Infinity, high = -Infinity, lowIndex = indices[0], highIndex = indices[0];
+          let low = Infinity,
+            high = -Infinity,
+            lowIndex = indices[0],
+            highIndex = indices[0];
           for (const index of indices) {
             object.getVertexPosition(index, this.point);
             const value = this.point.getComponent(axis);
-            if (value < low) { low = value; lowIndex = index; }
-            if (value > high) { high = value; highIndex = index; }
+            if (value < low) {
+              low = value;
+              lowIndex = index;
+            }
+            if (value > high) {
+              high = value;
+              highIndex = index;
+            }
           }
-          selected.add(lowIndex); selected.add(highIndex);
+          selected.add(lowIndex);
+          selected.add(highIndex);
         }
         this.contactSamples.push({ mesh: object, indices: [...selected] });
       }
@@ -256,104 +410,227 @@ export class AvatarAnimator {
 
   private choose(motion: AvatarMotion): THREE.AnimationClip | undefined {
     if (motion.lobby) {
-      if (this.forcedLobbyEmote && this.elapsed < this.forcedLobbyEmoteUntil) return this.forcedLobbyEmote;
+      if (this.forcedLobbyEmote && this.elapsed < this.forcedLobbyEmoteUntil)
+        return this.forcedLobbyEmote;
       this.forcedLobbyEmote = undefined;
       const period = this.pavitr ? 12 : 22;
       const cycle = this.elapsed % period;
-      const emote = this.emotes[Math.floor(this.elapsed / period) % this.emotes.length];
-      if (emote && cycle > 3 && cycle < 3 + Math.min(18, emote.duration)) return emote;
+      const emote =
+        this.emotes[Math.floor(this.elapsed / period) % this.emotes.length];
+      if (emote && cycle > 3 && cycle < 3 + Math.min(18, emote.duration))
+        return emote;
       return this.idle;
     }
     switch (motion.pose) {
-      case 'perch': return this.perch;
-      case 'idle': return this.idle;
-      case 'run': return this.run;
-      case 'swing': return this.swingDown && this.swingUp ? this.swingRising ? this.swingUp : this.swingDown : this.hang;
-      case 'zip': return findClip(this.clips, ['jumpup']) ?? this.hang;
+      case 'perch':
+        return this.perch;
+      case 'idle':
+        return this.idle;
+      case 'run':
+        return this.run;
+      case 'swing':
+        return this.swingDown && this.swingUp
+          ? this.swingRising
+            ? this.swingUp
+            : this.swingDown
+          : this.hang;
+      case 'zip':
+        return findClip(this.clips, ['jumpup']) ?? this.hang;
       // Venom's supplied Jump has its own heavy squat/launch silhouette. Keep
       // it authored-first instead of letting the appended shared `jumpUp`
       // clip win only because its alias appears earlier in the generic list.
-      case 'jump': return this.suit.id === 'venom' ? findClip(this.clips, ['jump']) : findClip(this.clips, ['jumpup', 'jump']);
-      case 'fall': return findClip(this.clips, ['jumpdown', 'bracedrop']);
-      case 'dive': return findClip(this.clips, ['bracedrop', 'jumpdown']);
-      case 'crawl': case 'wall': return this.crawl;
-      default: return undefined;
+      case 'jump':
+        return this.suit.id === 'venom'
+          ? findClip(this.clips, ['jump'])
+          : findClip(this.clips, ['jumpup', 'jump']);
+      case 'fall':
+        return findClip(this.clips, ['jumpdown', 'bracedrop']);
+      case 'dive':
+        return findClip(this.clips, ['bracedrop', 'jumpdown']);
+      case 'crawl':
+      case 'wall':
+        return this.crawl;
+      default:
+        return undefined;
     }
   }
 
   update(delta: number, motion: AvatarMotion) {
     // Ground/contact state is authoritative even if a stale network/physics
     // mode still says run on the first frame off a ledge.
-    if (!motion.grounded && motion.pose === 'run') motion = { ...motion, pose: (motion.verticalSpeed ?? 0) > 1 ? 'jump' : 'fall' };
-    for (const overlay of this.overlays) overlay.bone.quaternion.copy(overlay.before);
+    if (!motion.grounded && motion.pose === 'run')
+      motion = {
+        ...motion,
+        pose: (motion.verticalSpeed ?? 0) > 1 ? 'jump' : 'fall',
+      };
+    for (const overlay of this.overlays)
+      overlay.bone.quaternion.copy(overlay.before);
     this.overlays.length = 0;
     this.elapsed += delta;
     const changed = this.pose !== motion.pose;
-    this.swingVerticalSpeed = THREE.MathUtils.damp(this.swingVerticalSpeed, motion.verticalSpeed ?? 0, 12, delta);
-    if (changed && motion.pose === 'swing') this.swingRising = (motion.verticalSpeed ?? 0) > 2;
+    this.swingVerticalSpeed = THREE.MathUtils.damp(
+      this.swingVerticalSpeed,
+      motion.verticalSpeed ?? 0,
+      12,
+      delta,
+    );
+    if (changed && motion.pose === 'swing')
+      this.swingRising = (motion.verticalSpeed ?? 0) > 2;
     else if (this.swingVerticalSpeed > 3) this.swingRising = true;
     else if (this.swingVerticalSpeed < -3) this.swingRising = false;
     if (changed) {
       this.stateTime = 0;
-      if (motion.pose === 'swing') this.handSide = this.handSide === 'right' ? 'left' : 'right';
+      if (motion.pose === 'swing')
+        this.handSide = this.handSide === 'right' ? 'left' : 'right';
     }
     this.stateTime += delta;
     this.pose = motion.pose;
     this.root.position.y = this.baseY;
-    const native = this.contextual?.select(delta, motion) ?? this.pavitr?.select(delta, motion)
-      ?? this.ironman?.select(delta, motion)
-      ?? this.symbiote?.select(delta, motion)
-      ?? this.muaSpider?.select(delta, motion);
+    const native =
+      this.contextual?.select(delta, motion) ??
+      this.pavitr?.select(delta, motion) ??
+      this.ironman?.select(delta, motion) ??
+      this.symbiote?.select(delta, motion) ??
+      this.muaSpider?.select(delta, motion);
     const clip = native?.clip ?? this.choose(motion);
     // The outgoing inverted pose still contributes during the crossfade.
-    this.bodySupportTime = native?.bodySupport ? .22 : Math.max(0, this.bodySupportTime - delta);
-    this.supportMode = this.bodySupportTime > 0 && motion.grounded ? 'body' : 'soles';
-    const action = clip ? this.actions.get(clip) ?? null : null;
+    this.bodySupportTime = native?.bodySupport
+      ? 0.22
+      : Math.max(0, this.bodySupportTime - delta);
+    this.supportMode =
+      this.bodySupportTime > 0 && motion.grounded ? 'body' : 'soles';
+    const action = clip ? (this.actions.get(clip) ?? null) : null;
     if (action !== this.current) {
-      this.current?.fadeOut(.16);
+      this.current?.fadeOut(0.16);
       if (action) {
-        const once = motion.lobby ? this.emotes.includes(clip!) : ['jump', 'fall', 'zip', 'dive'].includes(motion.pose);
-        action.reset().setLoop(native?.loop ?? (once ? THREE.LoopOnce : THREE.LoopRepeat), Infinity);
-        action.clampWhenFinished = native ? native.loop === THREE.LoopOnce : once;
+        const once = motion.lobby
+          ? this.emotes.includes(clip!)
+          : ['jump', 'fall', 'zip', 'dive'].includes(motion.pose);
+        action
+          .reset()
+          .setLoop(
+            native?.loop ?? (once ? THREE.LoopOnce : THREE.LoopRepeat),
+            Infinity,
+          );
+        action.clampWhenFinished = native
+          ? native.loop === THREE.LoopOnce
+          : once;
         action.enabled = true;
-        action.setEffectiveWeight(1).fadeIn(.16).play();
+        action.setEffectiveWeight(1).fadeIn(0.16).play();
       }
       this.current = action;
     }
     if (action) {
-      const rate = motion.pose === 'crawl' || motion.pose === 'wall' ? THREE.MathUtils.clamp((motion.speed ?? 0) / 4, 0, 1.5) * (motion.crawlDirection ?? 1)
-        : motion.pose === 'run' ? THREE.MathUtils.clamp((motion.speed ?? 8) / 9, .65, 1.65)
-        : motion.pose === 'swing' ? .85 + (motion.tension ?? 0) * .25 : 1;
+      const rate =
+        motion.pose === 'crawl' || motion.pose === 'wall'
+          ? THREE.MathUtils.clamp((motion.speed ?? 0) / 4, 0, 1.5) *
+            (motion.crawlDirection ?? 1)
+          : motion.pose === 'run'
+            ? THREE.MathUtils.clamp((motion.speed ?? 8) / 9, 0.65, 1.65)
+            : motion.pose === 'swing'
+              ? 0.85 + (motion.tension ?? 0) * 0.25
+              : 1;
       action.setEffectiveTimeScale(native?.rate ?? rate);
       if (native?.time !== undefined) action.time = native.time;
       if (clip === this.swingDown || clip === this.swingUp) {
         action.setEffectiveTimeScale(0);
         // Arc-driven playback never enters swingEnd's released backflip.
-        action.time = clip === this.swingDown
-          ? this.stateTime < .24 ? .7 + this.stateTime * 2.5 : 1.3 + THREE.MathUtils.clamp(1 - Math.abs(this.swingVerticalSpeed) / 24, 0, 1) * .6
-          : .05 + THREE.MathUtils.clamp(this.swingVerticalSpeed / 24, 0, 1) * .4;
+        action.time =
+          clip === this.swingDown
+            ? this.stateTime < 0.24
+              ? 0.7 + this.stateTime * 2.5
+              : 1.3 +
+                THREE.MathUtils.clamp(
+                  1 - Math.abs(this.swingVerticalSpeed) / 24,
+                  0,
+                  1,
+                ) *
+                  0.6
+            : 0.05 +
+              THREE.MathUtils.clamp(this.swingVerticalSpeed / 24, 0, 1) * 0.4;
       }
     }
     this.mixer.update(delta);
-    this.activeClip = clip?.name ?? `procedural:${motion.pose}`;
-    if (!action) {
-      const fallback = motion.lobby && this.elapsed % 14 > 9 ? 'emote' : motion.pose;
-      animateRigBones(this.bones, fallback, this.elapsed, delta, this.suit.rigPreset);
-    }
-    if (action && motion.pose === 'swing') {
-      const trough = (1 - THREE.MathUtils.clamp(Math.abs(motion.verticalSpeed ?? 0) / 5, 0, 1)) * (motion.tension ?? 0);
-      for (const entry of this.bones) {
-        if (!['leftLeg', 'rightLeg', 'leftUpLeg', 'rightUpLeg'].includes(entry.role)) continue;
-        this.overlays.push({ bone: entry.bone, before: entry.bone.quaternion.clone() });
-        entry.bone.quaternion.premultiply(new THREE.Quaternion().setFromAxisAngle(entry.axisX, trough * (entry.role.endsWith('UpLeg') ? -.12 : -.22)));
+    this.glideBlend = THREE.MathUtils.damp(
+      this.glideBlend,
+      motion.mode === 'glide' ? 1 : 0,
+      10,
+      delta,
+    );
+    if (motion.mode === 'glide') {
+      this.root.parent?.updateMatrixWorld(true);
+      const left = this.bones
+        .find((b) => b.role === 'leftArm')
+        ?.bone.getWorldPosition(new THREE.Vector3());
+      const right = this.bones
+        .find((b) => b.role === 'rightArm')
+        ?.bone.getWorldPosition(new THREE.Vector3());
+      if (left && right) {
+        const across = right.clone().sub(left).normalize();
+        this.aimWebArm(
+          left.clone().addScaledVector(across, -2),
+          'left',
+          this.glideBlend,
+        );
+        this.aimWebArm(
+          right.clone().addScaledVector(across, 2),
+          'right',
+          this.glideBlend,
+        );
       }
     }
-    if (!motion.grounded && motion.anchor && (motion.pose === 'swing' || motion.pose === 'zip')) this.aimWebArm(motion.anchor);
+    this.webWings.update(motion.mode === 'glide', delta, motion.speed ?? 0);
+    this.activeClip = clip?.name ?? `procedural:${motion.pose}`;
+    if (!action) {
+      const fallback =
+        motion.lobby && this.elapsed % 14 > 9 ? 'emote' : motion.pose;
+      animateRigBones(
+        this.bones,
+        fallback,
+        this.elapsed,
+        delta,
+        this.suit.rigPreset,
+      );
+    }
+    if (action && motion.pose === 'swing') {
+      const trough =
+        (1 -
+          THREE.MathUtils.clamp(
+            Math.abs(motion.verticalSpeed ?? 0) / 5,
+            0,
+            1,
+          )) *
+        (motion.tension ?? 0);
+      for (const entry of this.bones) {
+        if (
+          !['leftLeg', 'rightLeg', 'leftUpLeg', 'rightUpLeg'].includes(
+            entry.role,
+          )
+        )
+          continue;
+        this.overlays.push({
+          bone: entry.bone,
+          before: entry.bone.quaternion.clone(),
+        });
+        entry.bone.quaternion.premultiply(
+          new THREE.Quaternion().setFromAxisAngle(
+            entry.axisX,
+            trough * (entry.role.endsWith('UpLeg') ? -0.12 : -0.22),
+          ),
+        );
+      }
+    }
+    if (
+      !motion.grounded &&
+      motion.anchor &&
+      (motion.pose === 'swing' || motion.pose === 'zip')
+    )
+      this.aimWebArm(motion.anchor);
     if (motion.grounded) {
       this.groundSoles();
-      if (this.pavitr && this.supportMode === 'soles') this.clearGroundFingers();
-    }
-    else this.contactError = 0;
+      if (this.pavitr && this.supportMode === 'soles')
+        this.clearGroundFingers();
+    } else this.contactError = 0;
   }
 
   /** Keep the source perch's fingertips above the roof without lifting feet. */
@@ -363,27 +640,63 @@ export class AvatarAnimator {
     holder.updateMatrixWorld(true);
     this.inverse.copy(holder.matrixWorld).invert();
     for (const side of ['left', 'right'] as const) {
-      const hand = this.bones.find(entry => entry.role === `${side}Hand`)?.bone;
+      const hand = this.bones.find(
+        (entry) => entry.role === `${side}Hand`,
+      )?.bone;
       if (!hand?.parent) continue;
       let saved = false;
       for (let pass = 0; pass < 3; pass++) {
         let low = Infinity;
         const tip = new THREE.Vector3();
-        for (const probe of this.handSamples) for (const index of probe[side]) {
-          probe.mesh.getVertexPosition(index, this.point).applyMatrix4(probe.mesh.matrixWorld).applyMatrix4(this.inverse);
-          if (this.point.y < low) { low = this.point.y; tip.copy(this.point); }
+        for (const probe of this.handSamples)
+          for (const index of probe[side]) {
+            probe.mesh
+              .getVertexPosition(index, this.point)
+              .applyMatrix4(probe.mesh.matrixWorld)
+              .applyMatrix4(this.inverse);
+            if (this.point.y < low) {
+              low = this.point.y;
+              tip.copy(this.point);
+            }
+          }
+        if (low >= 0.008) break;
+        if (!saved) {
+          this.overlays.push({ bone: hand, before: hand.quaternion.clone() });
+          saved = true;
         }
-        if (low >= .008) break;
-        if (!saved) { this.overlays.push({ bone: hand, before: hand.quaternion.clone() }); saved = true; }
-        const pivot = hand.getWorldPosition(new THREE.Vector3()).applyMatrix4(this.inverse);
+        const pivot = hand
+          .getWorldPosition(new THREE.Vector3())
+          .applyMatrix4(this.inverse);
         const from = tip.clone().sub(pivot);
-        const targetY = THREE.MathUtils.clamp(.015 - pivot.y, -from.length(), from.length());
-        const to = from.clone().setY(0).normalize().multiplyScalar(Math.sqrt(Math.max(0, from.lengthSq() - targetY * targetY))).setY(targetY);
-        const holderRotation = holder.getWorldQuaternion(new THREE.Quaternion());
-        const parentInverse = hand.parent.getWorldQuaternion(new THREE.Quaternion()).invert();
-        from.applyQuaternion(holderRotation).applyQuaternion(parentInverse).normalize();
-        to.applyQuaternion(holderRotation).applyQuaternion(parentInverse).normalize();
-        hand.quaternion.premultiply(new THREE.Quaternion().setFromUnitVectors(from, to)).normalize();
+        const targetY = THREE.MathUtils.clamp(
+          0.015 - pivot.y,
+          -from.length(),
+          from.length(),
+        );
+        const to = from
+          .clone()
+          .setY(0)
+          .normalize()
+          .multiplyScalar(
+            Math.sqrt(Math.max(0, from.lengthSq() - targetY * targetY)),
+          )
+          .setY(targetY);
+        const holderRotation = holder.getWorldQuaternion(
+          new THREE.Quaternion(),
+        );
+        const parentInverse = hand.parent
+          .getWorldQuaternion(new THREE.Quaternion())
+          .invert();
+        from
+          .applyQuaternion(holderRotation)
+          .applyQuaternion(parentInverse)
+          .normalize();
+        to.applyQuaternion(holderRotation)
+          .applyQuaternion(parentInverse)
+          .normalize();
+        hand.quaternion
+          .premultiply(new THREE.Quaternion().setFromUnitVectors(from, to))
+          .normalize();
         holder.updateMatrixWorld(true);
       }
     }
@@ -396,9 +709,14 @@ export class AvatarAnimator {
     holder.updateMatrixWorld(true);
     this.inverse.copy(holder.matrixWorld).invert();
     let lowest = Infinity;
-    for (const { mesh, indices } of this.supportMode === 'body' ? this.bodySamples : this.contactSamples) {
+    for (const { mesh, indices } of this.supportMode === 'body'
+      ? this.bodySamples
+      : this.contactSamples) {
       for (const index of indices) {
-        mesh.getVertexPosition(index, this.point).applyMatrix4(mesh.matrixWorld).applyMatrix4(this.inverse);
+        mesh
+          .getVertexPosition(index, this.point)
+          .applyMatrix4(mesh.matrixWorld)
+          .applyMatrix4(this.inverse);
         lowest = Math.min(lowest, this.point.y);
       }
     }
@@ -409,36 +727,76 @@ export class AvatarAnimator {
     this.root.updateMatrixWorld(true);
   }
 
-  private aimWebArm(anchor: THREE.Vector3) {
-    const upper = this.bones.find(e => e.role === `${this.handSide}Arm`)?.bone;
-    const fore = this.bones.find(e => e.role === `${this.handSide}ForeArm`)?.bone;
-    const hand = this.bones.find(e => e.role === `${this.handSide}Hand`)?.bone;
+  private aimWebArm(anchor: THREE.Vector3, side = this.handSide, strength = 1) {
+    const upper = this.bones.find((e) => e.role === `${side}Arm`)?.bone;
+    const fore = this.bones.find((e) => e.role === `${side}ForeArm`)?.bone;
+    const hand = this.bones.find((e) => e.role === `${side}Hand`)?.bone;
     if (!upper?.parent || !fore || !hand) return;
     this.root.parent?.updateMatrixWorld(true);
-    const shoulder = upper.getWorldPosition(new THREE.Vector3()), elbow = fore.getWorldPosition(new THREE.Vector3()), wrist = hand.getWorldPosition(new THREE.Vector3());
-    const first = shoulder.distanceTo(elbow), second = elbow.distanceTo(wrist), axis = anchor.clone().sub(shoulder).normalize();
-    const reach = (first + second) * .94;
-    const along = (first*first - second*second + reach*reach)/(2*reach);
-    const pole = elbow.clone().sub(shoulder); pole.addScaledVector(axis,-pole.dot(axis));
-    if (pole.lengthSq() < .001) pole.set(this.handSide === 'left' ? 1 : -1,0,0).applyQuaternion(this.root.getWorldQuaternion(new THREE.Quaternion())).addScaledVector(axis,-pole.dot(axis));
+    const shoulder = upper.getWorldPosition(new THREE.Vector3()),
+      elbow = fore.getWorldPosition(new THREE.Vector3()),
+      wrist = hand.getWorldPosition(new THREE.Vector3());
+    const first = shoulder.distanceTo(elbow),
+      second = elbow.distanceTo(wrist),
+      axis = anchor.clone().sub(shoulder).normalize();
+    const reach = (first + second) * 0.94;
+    const along =
+      (first * first - second * second + reach * reach) / (2 * reach);
+    const pole = elbow.clone().sub(shoulder);
+    pole.addScaledVector(axis, -pole.dot(axis));
+    if (pole.lengthSq() < 0.001)
+      pole
+        .set(this.handSide === 'left' ? 1 : -1, 0, 0)
+        .applyQuaternion(this.root.getWorldQuaternion(new THREE.Quaternion()))
+        .addScaledVector(axis, -pole.dot(axis));
     pole.normalize();
-    const targetElbow = shoulder.clone().addScaledVector(axis,along).addScaledVector(pole,Math.sqrt(Math.max(0,first*first-along*along)));
-    const targetWrist = shoulder.clone().addScaledVector(axis,reach);
-    const turn = (bone: THREE.Bone,from:THREE.Vector3,to:THREE.Vector3) => {
-      this.overlays.push({bone,before:bone.quaternion.clone()});
-      const parent=bone.parent!.getWorldQuaternion(new THREE.Quaternion());
-      const delta=new THREE.Quaternion().setFromUnitVectors(from.normalize(),to.normalize());
-      bone.quaternion.premultiply(parent.clone().invert().multiply(delta).multiply(parent)).normalize();
+    const targetElbow = shoulder
+      .clone()
+      .addScaledVector(axis, along)
+      .addScaledVector(
+        pole,
+        Math.sqrt(Math.max(0, first * first - along * along)),
+      );
+    const targetWrist = shoulder.clone().addScaledVector(axis, reach);
+    const turn = (bone: THREE.Bone, from: THREE.Vector3, to: THREE.Vector3) => {
+      this.overlays.push({ bone, before: bone.quaternion.clone() });
+      const parent = bone.parent!.getWorldQuaternion(new THREE.Quaternion());
+      const delta = new THREE.Quaternion().setFromUnitVectors(
+        from.normalize(),
+        to.normalize(),
+      );
+      bone.quaternion
+        .premultiply(parent.clone().invert().multiply(delta).multiply(parent))
+        .normalize();
       this.root.parent?.updateMatrixWorld(true);
     };
-    turn(upper,elbow.clone().sub(shoulder),targetElbow.clone().sub(shoulder));
-    const newElbow=fore.getWorldPosition(new THREE.Vector3());
-    turn(fore,hand.getWorldPosition(new THREE.Vector3()).sub(newElbow),targetWrist.sub(newElbow));
+    turn(upper, elbow.clone().sub(shoulder), targetElbow.clone().sub(shoulder));
+    const newElbow = fore.getWorldPosition(new THREE.Vector3());
+    turn(
+      fore,
+      hand.getWorldPosition(new THREE.Vector3()).sub(newElbow),
+      targetWrist.sub(newElbow),
+    );
+    if (strength < 1)
+      for (const overlay of this.overlays.slice(-2))
+        overlay.bone.quaternion.slerpQuaternions(
+          overlay.before,
+          overlay.bone.quaternion.clone(),
+          strength,
+        );
+    this.root.parent?.updateMatrixWorld(true);
   }
 
   webHand(target: THREE.Vector3) {
-    const hand = this.bones.find((entry) => entry.role === `${this.handSide}Hand`)?.bone;
-    if (hand) { this.root.parent?.updateMatrixWorld(true); return hand.getWorldPosition(target); }
-    return this.root.getWorldPosition(target).add(new THREE.Vector3(0, 1.45, 0));
+    const hand = this.bones.find(
+      (entry) => entry.role === `${this.handSide}Hand`,
+    )?.bone;
+    if (hand) {
+      this.root.parent?.updateMatrixWorld(true);
+      return hand.getWorldPosition(target);
+    }
+    return this.root
+      .getWorldPosition(target)
+      .add(new THREE.Vector3(0, 1.45, 0));
   }
 }

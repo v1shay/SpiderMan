@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { advancedWindVelocity, ADVANCED_TRAVERSAL_CONFIG } from './traversal-advanced.ts';
 import type {RaceCourse,RacePoint} from './race-session';
 import type {RepeatingMeshWorld} from './repeating-mesh-world';
 import type {TraversalState} from './traversal-physics';
@@ -23,6 +24,10 @@ export function applyWind(state:TraversalState,lanes:readonly WindLane[],delta:n
  for(const lane of lanes){const axis=lane.end.clone().sub(lane.start),length=axis.length(),dir=axis.divideScalar(length),along=point.clone().sub(lane.start).dot(dir);if(along<0||along>length)continue;
  const nearest=lane.start.clone().addScaledVector(dir,along),offset=point.clone().sub(nearest),distance=offset.length();if(distance>lane.radius)continue;
  const weight=THREE.MathUtils.smoothstep(1-distance/lane.radius,0,.6);
+ if(state.advanced?.enabled){
+   Object.assign(state.velocity,advancedWindVelocity(state.velocity,dir,nearest.y-point.y,weight,delta,ADVANCED_TRAVERSAL_CONFIG.maximumSpeed));
+   active=true;continue;
+ }
  const gain=(1-Math.exp(-1.4*delta))*weight;state.velocity.x=THREE.MathUtils.lerp(state.velocity.x,dir.x*35,gain);state.velocity.z=THREE.MathUtils.lerp(state.velocity.z,dir.z*35,gain);
  state.velocity.y+= (30 + THREE.MathUtils.clamp((nearest.y-point.y)*1.8,-10,12)-state.velocity.y*2.5)*weight*delta;active=true;
  }

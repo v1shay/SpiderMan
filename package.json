@@ -26,7 +26,11 @@
     "test:2099": "node --experimental-strip-types scripts/verify-2099.mjs",
     "test:integrated": "node --experimental-strip-types scripts/verify-integrated-swing.mjs new-york-city",
     "test:scenes": "node --experimental-strip-types scripts/verify-city-scenes.mjs",
-    "test": "npm run test:traversal && npm run test:2099 && npm run test:wall && npm run test:swing-assistance && npm run test:surfaces && npm run test:integrated && npm run test:scenes"
+    "test:refinements": "node --experimental-strip-types scripts/verify-traversal-refinements.mjs",
+    "test:explosive": "node --experimental-strip-types scripts/verify-wall-run-loop.mjs && node --experimental-strip-types scripts/verify-feel-math.mjs && node --experimental-strip-types scripts/verify-feel-integration.mjs && node --experimental-strip-types scripts/verify-advanced-traversal.mjs",
+    "test": "npm run test:traversal && npm run test:2099 && npm run test:wall && npm run test:swing-assistance && npm run test:surfaces && npm run test:integrated && npm run test:scenes && npm run test:explosive && npm run test:refinements && npm run test:city-horizon && npm run test:characters",
+    "test:city-horizon": "node --experimental-strip-types scripts/verify-city-horizon.mjs",
+    "test:characters": "node --experimental-strip-types scripts/verify-character-lineup.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "2.112.4",

@@ -1,27 +1,27 @@
 {
   "passed": true,
-  "sourceClips": 58,
+  "sourceClips": 61,
   "generatedClips": 1,
-  "skinnedPoseSamples": 1829,
+  "skinnedPoseSamples": 1953,
   "animationVariety": [
+    "mixamo:Front Flip",
     "mixamo:Backflip",
-    "mixamo:Big Jump",
     "mixamo:Front Flip",
-    "mixamo:Run To Flip",
-    "mixamo:Aerial Evade",
-    "mixamo:Big Jump",
+    "mixamo:Running Forward Flip",
+    "mixamo:Backflip",
     "mixamo:Front Flip",
-    "mixamo:Run To Flip",
-    "mixamo:Aerial Evade",
-    "mixamo:Big Jump",
+    "mixamo:Running Forward Flip",
     "mixamo:Front Flip",
-    "mixamo:Run To Flip",
-    "mixamo:Aerial Evade",
-    "mixamo:Big Jump",
+    "mixamo:Front Twist Flip",
+    "mixamo:Running Forward Flip",
     "mixamo:Front Flip",
-    "mixamo:Run To Flip",
-    "mixamo:Aerial Evade",
-    "mixamo:Big Jump"
+    "mixamo:Backflip",
+    "mixamo:Front Flip",
+    "mixamo:Backflip",
+    "mixamo:Running Forward Flip",
+    "mixamo:Front Twist Flip",
+    "mixamo:Front Flip",
+    "mixamo:Backflip"
   ],
   "swingVariety": [
     "context:swing-a",
@@ -44,7 +44,7 @@
     "no root translation",
     "grounded roll and landing clearance",
     "deterministic graph",
-    "landing-time trick rejection",
+    "explicit ground-level double-jump flips",
     "three nonrepeating swings",
     "fast wall run",
     "slow wall crawl",
@@ -468,6 +468,34 @@
       "tracks": 65,
       "samples": 31,
       "maxSkinnedSpan": 3.233
+    },
+    {
+      "clip": "mixamo:Flying",
+      "duration": 2.633,
+      "tracks": 71,
+      "samples": 31,
+      "maxSkinnedSpan": 2.397
+    },
+    {
+      "clip": "mixamo:Web Slingshot Charge",
+      "duration": 1.3,
+      "tracks": 71,
+      "samples": 31,
+      "maxSkinnedSpan": 2.749
+    },
+    {
+      "clip": "mixamo:Web Slingshot Hold",
+      "duration": 1.8,
+      "tracks": 71,
+      "samples": 31,
+      "maxSkinnedSpan": 2.749
+    },
+    {
+      "clip": "lobby:dance:miguel",
+      "duration": 7.8,
+      "tracks": 65,
+      "samples": 31,
+      "maxSkinnedSpan": 2.371
     }
   ]
 }

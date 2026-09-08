@@ -1,0 +1,26 @@
+{
+  "method": "World-space anatomical retarget, original 2099 bone lengths; controller-owned translation",
+  "clips": [
+    {
+      "name": "Flying",
+      "file": "X Bot@Flying.fbx",
+      "sha256": "13bdf8091e3c998cd241574f095db3e0d58bf5d5ca92bf776bd9074d1489d886",
+      "duration": 2.633333444595337,
+      "tracks": 71
+    },
+    {
+      "name": "Web Slingshot Charge",
+      "file": "mixamo_web_slingshot_charge_0_to_100.fbx",
+      "sha256": "4f65412acafe85a5632f2e47cfb1518a4a7508df43c2df9b386a1be1c7a6c099",
+      "duration": 1.2999999523162842,
+      "tracks": 71
+    },
+    {
+      "name": "Web Slingshot Hold",
+      "file": "mixamo_web_slingshot_hold.fbx",
+      "sha256": "3226013fdcbe182518c222b703fc217d03af0188184e0cf8240bd8bd000624d7",
+      "duration": 1.7999999523162842,
+      "tracks": 71
+    }
+  ]
+}

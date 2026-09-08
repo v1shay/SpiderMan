@@ -16,7 +16,7 @@
         "doubleJump",
         "roll",
         "run",
-        "land"
+        "idle"
       ],
       "events": [
         "wall-jump",
@@ -40,7 +40,7 @@
         "doubleJump",
         "roll",
         "run",
-        "land"
+        "idle"
       ],
       "events": [
         "wall-jump",
@@ -62,8 +62,9 @@
         "wallCrawl",
         "wallJump",
         "doubleJump",
-        "land",
-        "run"
+        "roll",
+        "run",
+        "idle"
       ],
       "events": [
         "wall-jump",
@@ -86,7 +87,7 @@
         "wallJump",
         "doubleJump",
         "land",
-        "run"
+        "idle"
       ],
       "events": [
         "wall-jump",
@@ -105,8 +106,6 @@
         "fall",
         "roll",
         "run",
-        "jump",
-        "land",
         "idle"
       ],
       "events": [
@@ -123,8 +122,6 @@
         "fall",
         "roll",
         "run",
-        "jump",
-        "land",
         "idle"
       ],
       "events": [
@@ -141,8 +138,6 @@
         "fall",
         "roll",
         "run",
-        "jump",
-        "land",
         "idle"
       ],
       "events": [
@@ -159,8 +154,6 @@
         "fall",
         "roll",
         "run",
-        "jump",
-        "land",
         "idle"
       ],
       "events": [

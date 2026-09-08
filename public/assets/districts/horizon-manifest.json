@@ -1,0 +1,23 @@
+[
+  {
+    "city": "procedural-city",
+    "sourceTriangles": 645083,
+    "horizonTriangles": 47514,
+    "drawGroups": 51,
+    "bytes": 1350464
+  },
+  {
+    "city": "new-york-city",
+    "sourceTriangles": 310151,
+    "horizonTriangles": 38163,
+    "drawGroups": 48,
+    "bytes": 1097288
+  },
+  {
+    "city": "cyberpunk-city",
+    "sourceTriangles": 1257909,
+    "horizonTriangles": 45512,
+    "drawGroups": 16,
+    "bytes": 1495624
+  }
+]

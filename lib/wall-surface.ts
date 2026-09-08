@@ -4,12 +4,18 @@ import type { MeshSurfaceHit } from './mesh-world';
 
 type Cast = (origin: THREE.Vector3, direction: THREE.Vector3, maximum: number, minNormalY?: number) => MeshSurfaceHit | null;
 
-/** A short sole-height ray measures an actual facade, not a body-sized box. */
+/** Three short sole-height probes tolerate a facade seam without inventing contact. */
 export function probeWallFeet(position: Vector3Like, normal: Vector3Like, cast: Cast): SurfaceContact | null {
   const toward = new THREE.Vector3(normal.x, 0, normal.z).normalize().negate();
-  const foot = cast(new THREE.Vector3(position.x, position.y + .18, position.z), toward, .59);
-  if (!foot || Math.abs(foot.normal.y) > .35 || foot.normal.dot(toward) > -.75) return null;
-  return { point: foot.point, normal: foot.normal, feetTouching: true, colliderId: 'rendered-facade' };
+  if (toward.lengthSq() < 1e-8) return null;
+  const side = new THREE.Vector3(-toward.z, 0, toward.x);
+  for (const offset of [0, -.18, .18]) {
+    const origin = new THREE.Vector3(position.x, position.y + .18, position.z).addScaledVector(side, offset);
+    const foot = cast(origin, toward, .59);
+    if (!foot || Math.abs(foot.normal.y) > .35 || foot.normal.dot(toward) > -.75) continue;
+    return { point: foot.point, normal: foot.normal, feetTouching: true, colliderId: 'rendered-facade' };
+  }
+  return null;
 }
 
 /** Return a supported, clear top across the rim. Never teleport to this point. */

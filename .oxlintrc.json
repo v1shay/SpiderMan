@@ -23,6 +23,7 @@
     "typeCheck": true
   },
   "ignorePatterns": [
+    ".spiderman-explosive-v2-backup/**",
     ".next/**",
     ".vinext/**",
     "out/**",

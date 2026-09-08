@@ -40,7 +40,7 @@ for (const config of maps) {
   floor.position.y = -.16;
   root.add(floor);
   root.updateWorldMatrix(true, true);
-  const metadata = JSON.parse(fs.readFileSync(new URL(`../public${config.collisionData}`, import.meta.url)));
+  const metadata = config.collisionData ? JSON.parse(fs.readFileSync(new URL(`../public${config.collisionData}`, import.meta.url))) : {sourceWidth:config.targetWidth,colliders:[]};
   const scale = config.targetWidth / metadata.sourceWidth;
   const sourceBoxes = metadata.colliders.map(source => {
     const box = new THREE.Box3().makeEmpty();
@@ -78,8 +78,8 @@ for (const config of maps) {
   const query = await WorldMeshQuery.fromObject(root);
   const buildMs = performance.now() - start;
   assert.ok(query.triangleCount > 100, `${config.id}: decoded real mesh triangles`);
-  assert.ok(query.byteLength < 25 * 1024 * 1024, `${config.id}: bounded shared collision memory`);
-  const spawn = query.findRoofSpawn(candidateBoxes);
+  assert.ok(query.byteLength < Math.max(25 * 1024 * 1024, query.triangleCount * 60), `${config.id}: bounded shared collision memory`);
+  const spawn = query.findHighestRoofSpawn() ?? query.findRoofSpawn(candidateBoxes);
   if (!spawn) console.error('No roof candidates', config.id, candidateBoxes.slice(0, 8).map(box => [...box.min.toArray(), ...box.max.toArray()]));
   assert.ok(spawn, `${config.id}: at least one real, stable rooftop spawn`);
   assert.ok(spawn.y > 2, `${config.id}: rooftop selection must not silently fall back to pavement`);

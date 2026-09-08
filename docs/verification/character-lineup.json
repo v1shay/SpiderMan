@@ -1,0 +1,47 @@
+[
+  {
+    "id": "miguel",
+    "clips": 63,
+    "samples": 806,
+    "worstLimbDirection": 0.9999999999999993,
+    "maximumRelativeSkinSpan": 1.5490336974992263,
+    "danceRelativeSkinSpan": 1.1547661233778859,
+    "passed": true
+  },
+  {
+    "id": "amazing",
+    "clips": 63,
+    "samples": 806,
+    "worstLimbDirection": 0.9999991053007188,
+    "maximumRelativeSkinSpan": 1.481656691036926,
+    "danceRelativeSkinSpan": 1.1602929185482527,
+    "passed": true
+  },
+  {
+    "id": "miles-new",
+    "clips": 63,
+    "samples": 806,
+    "worstLimbDirection": 0.999999105292326,
+    "maximumRelativeSkinSpan": 1.4899845184353149,
+    "danceRelativeSkinSpan": 1.2960155264880926,
+    "passed": true
+  },
+  {
+    "id": "no-way-home",
+    "clips": 63,
+    "samples": 806,
+    "worstLimbDirection": 0.9999991054171149,
+    "maximumRelativeSkinSpan": 1.4884543636709102,
+    "danceRelativeSkinSpan": 1.1882789048082631,
+    "passed": true
+  },
+  {
+    "id": "tobey",
+    "clips": 63,
+    "samples": 806,
+    "worstLimbDirection": 0.9999991054092496,
+    "maximumRelativeSkinSpan": 1.47924251195538,
+    "danceRelativeSkinSpan": 1.393938174710091,
+    "passed": true
+  }
+]

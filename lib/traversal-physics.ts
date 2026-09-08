@@ -1,3 +1,6 @@
+import { createAdvancedRuntime, cloneAdvancedRuntime, advancedReleaseVelocity, catchVelocity, glideVelocity, chargedJumpVelocity, slingshotVelocity, pointLaunchVelocity, turnHorizontal, loopAngle, swingPhase, ADVANCED_TUNING, type AdvancedRuntime } from './traversal-advanced.ts';
+import { chargedSwingRelease, steerSwingTangent, arcadeWallRunVelocity, arcadeAirZipVelocity, hasWallRunSupport, AIR_ZIP } from './traversal-feel.ts';
+
 /**
  * Deterministic, renderer-agnostic traversal physics for a Spider-Man-style game.
  *
@@ -28,7 +31,11 @@ export type TraversalMode =
   | 'perch'
   | 'land'
   | 'roll'
-  | 'doubleJump';
+  | 'doubleJump'
+  | 'glide'
+  | 'slingshot'
+  | 'chargeJump'
+  | 'cornerTether';
 
 export type TraversalEventType =
   | 'jump'
@@ -42,7 +49,11 @@ export type TraversalEventType =
   | 'wall-jump'
   | 'perched'
   | 'double-jump'
-  | 'roll';
+  | 'roll'
+  | 'slingshot-launch'
+  | 'glide-started'
+  | 'corner-tether'
+  | 'loop-completed';
 
 export interface TraversalAabb {
   min: Vector3Like;
@@ -71,6 +82,19 @@ export interface WebAnchorCandidate {
 }
 
 export interface TraversalInput {
+  glidePressed?: boolean;
+  /** Positive pitches up; negative dives. */
+  glidePitch?: number;
+  chargeJumpHeld?: boolean;
+  chargeJumpReleased?: boolean;
+  slingshotHeld?: boolean;
+  slingshotReleased?: boolean;
+  cornerHeld?: boolean;
+  loopHeld?: boolean;
+  /** Losing focus cancels charged abilities without firing them. */
+  cancelAbilities?: boolean;
+  /** Air dash is RMB; point grapple/launch remains on E. */
+  zipStyle?: 'air' | 'point';
   /** Desired world-space movement direction. It does not need to be normalized. */
   move?: Vector3Like;
   /** Horizontal camera direction, used for assistance and camera-relative launches. */
@@ -100,6 +124,11 @@ export interface TraversalInput {
 }
 
 export interface TraversalEnvironment {
+  /** True when the caller resolves triangle collision after this step. */
+  externalCollision?: boolean;
+  hasLineOfSight?: (origin: Vector3Like, target: Vector3Like) => boolean;
+  slingshotAnchors?: readonly [WebAnchorCandidate, WebAnchorCandidate] | null;
+  cornerTarget?: { anchor: WebAnchorCandidate; direction: Vector3Like } | null;
   groundY?: number;
   /** Swept, supported corridor for a full landing roll. */
   canRoll?: (position: Vector3Like, velocity: Vector3Like) => boolean;
@@ -115,7 +144,7 @@ export interface TraversalEnvironment {
 }
 
 export interface SwingRuntime {
-  /** Visible anchor stays fixed; the simulation pivot captures it gradually. */
+  /** Arcade mode uses the real anchor immediately; legacy mode retains capture. */
   pivot?: Vector3Like;
   captureStart?: Vector3Like;
   anchor: Vector3Like;
@@ -132,6 +161,7 @@ export interface SwingRuntime {
 }
 
 export interface ZipRuntime {
+  airDash?: boolean;
   target: Vector3Like;
   surfacePoint?: Vector3Like;
   direction?: Vector3Like;
@@ -144,6 +174,8 @@ export interface ZipRuntime {
 }
 
 export interface WallRuntime {
+  /** Speed budget carried through a run and brief probe gaps. */
+  runEntrySpeed?: number;
   point: Vector3Like;
   normal: Vector3Like;
   colliderId?: string;
@@ -153,6 +185,7 @@ export interface WallRuntime {
 }
 
 export interface TraversalState {
+  advanced?: AdvancedRuntime;
   position: Vector3Like;
   velocity: Vector3Like;
   grounded: boolean;
@@ -179,8 +212,10 @@ export interface TraversalState {
   rollSeconds?: number;
   landingImpact?: number;
   groundJump?: boolean;
+  wallCarrySpeed?: number;
+  wallCarryUntil?: number;
   actionSequence?: number;
-  mantle: { target: Vector3Like; elapsed: number } | null;
+  mantle: { target: Vector3Like; elapsed: number; lowObstacle?: boolean } | null;
   swingNeedsRelease?: boolean;
   /** One ground push-off per cooldown, never a per-frame hovering force. */
   swingGroundLaunchAfter?: number;
@@ -241,6 +276,11 @@ export interface TraversalStepResult {
 }
 
 export interface TraversalConfig {
+  advancedTraversal?: boolean;
+  cameraMotionScale?: number;
+  allowSkyFallback?: boolean;
+  /** Opt-in assisted policy, enabled by SpiderGame. Legacy tests remain available. */
+  arcadeTraversal?: boolean;
   gravity: number;
   groundAcceleration: number;
   airAcceleration: number;
@@ -425,6 +465,7 @@ function mergeConfig(overrides?: Partial<TraversalConfig>): TraversalConfig {
 function cloneState(state: TraversalState): TraversalState {
   return {
     ...state,
+    advanced: state.advanced ? cloneAdvancedRuntime(state.advanced) : undefined,
     position: copy(state.position),
     velocity: copy(state.velocity),
     swing: state.swing ? { ...state.swing, anchor: copy(state.swing.anchor) } : null,
@@ -439,6 +480,7 @@ export function createTraversalState(position: Vector3Like = vector(), velocity:
     position: copy(position),
     velocity: copy(velocity),
     grounded: false,
+    advanced: createAdvancedRuntime(),
     mode: 'fall',
     swing: null,
     zip: null,
@@ -532,7 +574,11 @@ function chooseSwingAnchor(
       const ground = environment.sampleGround?.(state.position, .2, 14);
       const safeArc = ground === null || ground === undefined ? 1
         : saturate((candidate.point.y - ground - 2.8) / Math.max(5, range * .7));
-      return { ...candidate, weight: (candidate.weight ?? 1) * (.65 + retainedMomentum * .5 + safeArc * .6) };
+      const elevation = saturate((candidate.point.y - state.position.y) / Math.max(range, 1));
+      const quality = config.advancedTraversal
+        ? .35 + retainedMomentum * .8 + safeArc * .7 + elevation * .65
+        : .65 + retainedMomentum * .5 + safeArc * .6;
+      return { ...candidate, weight: (candidate.weight ?? 1) * quality };
     });
   return selectTraversalAnchor(state.position, aim, candidates, {
     ...config, anchorMaximumDistance: Math.min(config.anchorMaximumDistance, config.swingMaximumLength),
@@ -568,11 +614,20 @@ function attachSwing(
   config: TraversalConfig,
   events: TraversalEvent[],
 ): void {
+  if (config.advancedTraversal && !state.grounded && state.elapsed < (state.wallCarryUntil ?? 0)) {
+    state.velocity = scale(normalize(state.velocity, input.cameraForward), Math.max(length(state.velocity), state.wallCarrySpeed ?? 0));
+    state.wallCarrySpeed = 0; state.wallCarryUntil = 0;
+  }
   const initialLength = clamp(distance(state.position, anchor.point), config.swingMinimumLength, config.swingMaximumLength);
+  if (config.advancedTraversal && !state.grounded) {
+    state.velocity = catchVelocity(state.velocity, subtract(state.position, anchor.point),
+      input.cameraForward ?? input.move ?? vector(0, 0, -1), config.maximumSpeed);
+  }
+  if (state.advanced) { state.advanced.gliding = false; state.advanced.corner = null; state.advanced.loop = null; }
   state.swing = {
     anchor: copy(anchor.point),
-    pivot: add(state.position, vector(0, initialLength, 0)),
-    captureStart: add(state.position, vector(0, initialLength, 0)),
+    pivot: config.arcadeTraversal ? copy(anchor.point) : add(state.position, vector(0, initialLength, 0)),
+    captureStart: config.arcadeTraversal ? undefined : add(state.position, vector(0, initialLength, 0)),
     anchorId: anchor.id,
     ropeLength: initialLength,
     maximumLength: initialLength,
@@ -587,7 +642,7 @@ function attachSwing(
   state.mantle = null;
   state.perchSeconds = 0;
   if (state.grounded && state.elapsed >= (state.swingGroundLaunchAfter ?? 0)) {
-    state.swing.launchRopeLength = clamp(anchor.point.y - state.position.y - 3,
+    if (!config.arcadeTraversal) state.swing.launchRopeLength = clamp(anchor.point.y - state.position.y - 3,
       Math.max(config.swingMinimumLength, initialLength * .56), initialLength);
     const direction = normalize(horizontal(input.move ?? vector()),
       normalize(horizontal(input.cameraForward ?? state.velocity), vector(0, 0, -1)));
@@ -616,6 +671,33 @@ function releaseSwing(
 ): void {
   const swing = state.swing;
   if (!swing) return;
+  if (config.advancedTraversal) {
+    const advanced = state.advanced ?? (state.advanced = createAdvancedRuntime());
+    if (swing.attachedSeconds > .22) {
+      advanced.flow = state.elapsed - advanced.lastReleaseAt < ADVANCED_TUNING.chainWindow
+        ? Math.min(ADVANCED_TUNING.chainMaximum, advanced.flow + 1) : 0;
+      advanced.lastReleaseAt = state.elapsed;
+    }
+    state.velocity = advancedReleaseVelocity(state.velocity, swing.attachedSeconds,
+      subtract(state.position, swing.anchor), input.cameraForward ?? input.move ?? vector(0, 0, -1),
+      config.maximumSpeed, advanced.flow, Boolean(input.jumpPressed));
+    advanced.pulse = swing.attachedSeconds > .06 ? 1 : advanced.pulse;
+    advanced.loop = null;
+    state.swingReleaseSeconds = .55;
+    state.actionSequence = (state.actionSequence ?? 0) + 1;
+    state.swing = null;
+    events.push(event('web-released', state, { anchorId: swing.anchorId, strength: swing.tension }));
+    return;
+  }
+  if (config.arcadeTraversal) {
+    state.velocity = chargedSwingRelease(state.velocity, swing.attachedSeconds,
+      input.cameraForward ?? input.move ?? vector(0, 0, -1), config.maximumSpeed);
+    state.swingReleaseSeconds = .55;
+    state.actionSequence = (state.actionSequence ?? 0) + 1;
+    state.swing = null;
+    events.push(event('web-released', state, { anchorId: swing.anchorId, strength: swing.tension }));
+    return;
+  }
   const radial = normalize(subtract(state.position, swing.pivot ?? swing.anchor), vector(0, -1, 0));
   const tangentVelocity = reject(state.velocity, radial);
   const cameraForward = normalize(horizontal(input.cameraForward ?? input.move ?? tangentVelocity), vector(0, 0, -1));
@@ -638,7 +720,29 @@ function releaseSwing(
   events.push(event('web-released', state, { anchorId: releasedAnchor, strength: releasedStrength }));
 }
 
-function startZip(state: TraversalState, target: WebAnchorCandidate, config: TraversalConfig, events: TraversalEvent[]): void {
+function startZip(state: TraversalState, target: WebAnchorCandidate, config: TraversalConfig, events: TraversalEvent[], input: TraversalInput): void {
+  if (config.arcadeTraversal && input.zipStyle === 'air') {
+    if (config.advancedTraversal) {
+      const advanced = state.advanced ?? (state.advanced = createAdvancedRuntime());
+      if (state.elapsed < advanced.zipAfter) return;
+      advanced.zipAfter = state.elapsed + ADVANCED_TUNING.zipCooldown;
+      advanced.gliding = false; advanced.corner = null; advanced.loop = null; advanced.pulse = .7;
+    }
+    const direction = normalize(horizontal(input.aimDirection ?? input.cameraForward ?? subtract(target.point, state.position)),
+      normalize(horizontal(input.cameraForward ?? state.velocity), vector(0, 0, -1)));
+    state.zip = { airDash: true, target: copy(target.point), surfacePoint: copy(target.point), direction,
+      targetId: target.id, elapsed: 0, startingDistance: distance(state.position, target.point), targetKind: target.kind };
+    state.swing = null;
+    state.swingNeedsRelease = true;
+    state.wallCrawlActive = false;
+    state.wallRunActive = false;
+    state.mantle = null;
+    state.perchSeconds = 0;
+    // An air zip flows into a run, not the stationary arrival of a point grapple.
+    state.wallApproach = 'swing'; state.wallApproachUntil = state.elapsed + 1;
+    events.push(event('zip-started', state, { anchorId: target.id }));
+    return;
+  }
   state.wallApproach = 'zip'; state.wallApproachUntil = state.elapsed + 4;
   const normal = target.normal ? normalize(target.normal) : vector();
   const endpoint = add(target.point, scale(normal, Math.abs(normal.y) < .45 ? config.playerRadius + .04 : .015));
@@ -681,7 +785,12 @@ function pointLaunch(
   const targetDirection = normalize(horizontal(subtract(zip.target, state.position)), incoming);
   const direction = normalize(lerpVector(incoming, targetDirection, 0.3), incoming);
   const inherited = Math.min(length(horizontal(state.velocity)) * 0.55, 18);
-  state.velocity = add(scale(direction, config.pointLaunchSpeed + inherited), vector(0, config.pointLaunchLift, 0));
+  state.velocity = config.advancedTraversal
+    ? pointLaunchVelocity(state.velocity, direction,
+      distance(state.position, zip.target) < Math.max(1.4, length(state.velocity) * .045), config.maximumSpeed)
+    : add(scale(direction, config.pointLaunchSpeed + inherited), vector(0, config.pointLaunchLift, 0));
+  state.jumpBufferSeconds = 0;
+  if (config.advancedTraversal && state.advanced) state.advanced.pulse = 1;
   state.zip = null;
   state.pointLaunchSeconds = 0.32;
   state.grounded = false;
@@ -702,8 +811,10 @@ function applyGroundMovement(state: TraversalState, move: Vector3Like, config: T
   const desired = scale(normalize(horizontal(move)), config.runSpeed);
   if ((state.rollSeconds ?? 0) > 0) { state.velocity.x *= Math.exp(-.7 * delta); state.velocity.z *= Math.exp(-.7 * delta); return; }
   const rate = lengthSquared(horizontal(move)) > EPSILON ? config.groundAcceleration : config.groundFriction;
-  state.velocity.x = damp(state.velocity.x, desired.x, rate / Math.max(config.runSpeed, 1), delta);
-  state.velocity.z = damp(state.velocity.z, desired.z, rate / Math.max(config.runSpeed, 1), delta);
+  state.velocity.x = damp(state.velocity.x, desired.x, (lengthSquared(horizontal(move)) > EPSILON ? rate / Math.max(config.runSpeed, 1) : 12), delta);
+  state.velocity.z = damp(state.velocity.z, desired.z, (lengthSquared(horizontal(move)) > EPSILON ? rate / Math.max(config.runSpeed, 1) : 12), delta);
+  if (lengthSquared(horizontal(move)) < EPSILON && length(horizontal(state.velocity)) < .08) { state.velocity.x = 0; state.velocity.z = 0; }
+  state.wallCarrySpeed = 0; state.wallCarryUntil = 0;
 }
 
 function applyAirMovement(state: TraversalState, move: Vector3Like, config: TraversalConfig, delta: number): void {
@@ -786,16 +897,31 @@ function applySwing(
   const pumping = config.swingPumpAcceleration * (.18 + inputStrength * inputAgreement * .82)
     * (.45 + bottomOfArc * .55) * (.62 + swing.pressure * .38) * (.65 + holdCharge * .35) * speedHeadroom;
   state.velocity = add(state.velocity, scale(naturalTangent, pumping * delta));
-  state.velocity = add(state.velocity, scale(tangentInput, config.swingSteerAcceleration * saturate(swing.attachedSeconds / .85) * (.3 + bottomOfArc * .7) * inputStrength * speedHeadroom * delta));
+  if (config.arcadeTraversal) {
+    if (!state.advanced?.loop) state.velocity = steerSwingTangent(state.velocity, radial, tangentInput, delta,
+      config.swingSteerAcceleration * (.3 + bottomOfArc * .7) * inputStrength);
+  } else {
+    state.velocity = add(state.velocity, scale(tangentInput, config.swingSteerAcceleration * saturate(swing.attachedSeconds / .85) * (.3 + bottomOfArc * .7) * inputStrength * speedHeadroom * delta));
+  }
   state.velocity.y -= config.gravity * delta;
+  if (config.advancedTraversal && state.advanced?.loop) {
+    const loop = state.advanced.loop;
+    const loopTangent = normalize(cross(loop.axis, radial));
+    const desiredSpeed = Math.min(config.maximumSpeed * .94,
+      Math.sqrt(Math.max(0, 5 * config.gravity * swing.ropeLength)) + 5);
+    const along = dot(state.velocity, loopTangent);
+    state.velocity = add(state.velocity, scale(loopTangent,
+      Math.min(ADVANCED_TUNING.loopMotorAcceleration * delta, Math.max(0, desiredSpeed - along))));
+  }
   applyLowSwingGroundAssistance(state, input, environment, config, delta);
   swing.tension = saturate((springAcceleration + lengthSquared(reject(state.velocity, radial)) / Math.max(swing.ropeLength, 1)) / 70);
 }
 
 /**
  * Small predictive descent brake, inspired by assisted traversal rather than a
- * claim about Insomniac's proprietary solver. It only spends downward kinetic
- * energy: never moves the body, reverses a fall, or substitutes for collision.
+ * claim about Insomniac's proprietary solver. Legacy mode only brakes descent.
+ * Advanced mode may spend a capped impulse to reach a small upward velocity.
+ * Neither mode moves the body directly or substitutes for collision.
  */
 function applyLowSwingGroundAssistance(
   state: TraversalState,
@@ -808,7 +934,7 @@ function applyLowSwingGroundAssistance(
   if (!swing || !environment.sampleGround || input.diveHeld || state.velocity.y >= -.25
     || swing.attachedSeconds < .08 || config.gravity <= 0) return;
   const usedImpulse = swing.groundAssistImpulse ?? 0;
-  const remainingImpulse = Math.max(0, 4 - usedImpulse);
+  const remainingImpulse = Math.max(0, (config.advancedTraversal ? ADVANCED_TUNING.skimImpulseBudget : 4) - usedImpulse);
   if (remainingImpulse <= EPSILON) return;
   const lookAheadSeconds = .3;
   const maximumDrop = 8;
@@ -824,8 +950,9 @@ function applyLowSwingGroundAssistance(
     - .5 * config.gravity * lookAheadSeconds * lookAheadSeconds;
   const desiredClearance = Math.max(.65, config.playerRadius * 1.65);
   const risk = saturate((ground + desiredClearance - predictedFootY) / 2.5);
-  const maximumAcceleration = Math.min(24, config.gravity * .8);
-  const impulse = Math.min(maximumAcceleration * risk * delta, remainingImpulse, -state.velocity.y);
+  const maximumAcceleration = config.advancedTraversal ? ADVANCED_TUNING.skimUpAcceleration : Math.min(24, config.gravity * .8);
+  const impulse = Math.min(maximumAcceleration * risk * delta, remainingImpulse,
+    config.advancedTraversal ? 2 - state.velocity.y : -state.velocity.y);
   state.velocity.y += impulse;
   swing.groundAssistImpulse = usedImpulse + impulse;
 }
@@ -874,9 +1001,18 @@ function applyZip(
   const zip = state.zip;
   if (!zip) return;
   zip.elapsed += delta;
+  if (config.arcadeTraversal && zip.airDash) {
+    state.velocity = arcadeAirZipVelocity(state.velocity, zip.direction ?? input.cameraForward ?? vector(0, 0, -1),
+      delta, config.zipMaximumSpeed, config.maximumSpeed, config.gravity);
+    if (zip.elapsed >= AIR_ZIP.duration) {
+      state.zip = null;
+      events.push(event('zip-cancelled', state, { anchorId: zip.targetId }));
+    }
+    return;
+  }
   const offset = subtract(zip.target, state.position);
   const remaining = length(offset);
-  if (input.jumpPressed && remaining <= config.pointLaunchWindow) {
+  if ((input.jumpPressed || config.advancedTraversal && state.jumpBufferSeconds > 0) && remaining <= config.pointLaunchWindow) {
     pointLaunch(state, input, config, events);
     return;
   }
@@ -967,13 +1103,24 @@ export function acceptTraversalWallContact(
   const tangent = reject(incoming, normal);
   const speed = length(tangent);
   const wasSwinging = Boolean(state.swing) || (state.wallApproach === 'swing' && state.elapsed < (state.wallApproachUntil ?? 0));
-  const wasZipping = Boolean(state.zip) || (state.wallApproach === 'zip' && state.elapsed < (state.wallApproachUntil ?? 0));
+  const wasZipping = Boolean(state.zip && !state.zip.airDash) || (state.wallApproach === 'zip' && state.elapsed < (state.wallApproachUntil ?? 0));
   state.swing = null; state.zip = null;
   state.swingNeedsRelease = true;
   state.wall = { ...contact, normal, feetTouching: true, contactSeconds: 0, graceSeconds: config.wallContactGrace };
   state.wallRunActive = !wasZipping && !state.grounded && (wasSwinging || speed >= config.wallRunMinimumSpeed || impact > 10);
   state.wallCrawlActive = !state.wallRunActive;
   state.grounded = false;
+  if (state.wallRunActive && config.arcadeTraversal) {
+    state.wall.runEntrySpeed = Math.min(config.advancedTraversal ? 26 : config.maximumSpeed, length(incoming));
+    if (config.advancedTraversal) {
+      state.wallCarrySpeed = Math.min(config.maximumSpeed, length(incoming)); state.wallCarryUntil = state.elapsed + 3;
+    }
+    state.velocity = arcadeWallRunVelocity(incoming, normal, input.cameraForward ?? incoming,
+      state.wall.runEntrySpeed, config.advancedTraversal ? 26 : config.maximumSpeed, config.wallRunSpeed, config.wallRunLift, input.wallClimb);
+    state.actionSequence = (state.actionSequence ?? 0) + 1;
+    if (wasSwinging) state.swingReleaseSeconds = 0;
+    return true;
+  }
   if (state.wallRunActive) {
     // Keep travel along the facade instead of converting every impact into an
     // upward run. A nearly head-on arrival chooses the closest wall tangent.
@@ -999,6 +1146,34 @@ function applyWallTraversal(
   delta: number,
 ): void {
   const wall = state.wall;
+  if (config.arcadeTraversal && wall && state.wallRunActive && !state.swing && !state.zip && !state.mantle) {
+    if (wall.feetTouching) {
+      const normal = normalize(horizontal(wall.normal));
+      if (config.advancedTraversal) {
+        const side = normalize(cross(UP, normal));
+        const strafe = clamp(value(input.wallStrafe), -1, 1), climb = clamp(value(input.wallClimb), -1, 1);
+        const requested = add(scale(side, strafe), vector(0, climb, 0));
+        const current = reject(state.velocity, normal);
+        const desired = length(requested) > .1 ? scale(normalize(requested), climb && !strafe ? 16 : 22)
+          : scale(normalize(current, side), Math.min(22, length(current)));
+        state.velocity = add(lerpVector(current, desired, 1 - Math.exp(-6 * delta)), scale(normal, -.8));
+        wall.runEntrySpeed = Math.min(26, length(state.velocity));
+        state.wallCarrySpeed = Math.max(length(state.velocity), (state.wallCarrySpeed ?? 0) * Math.exp(-.18 * delta));
+        state.grounded = false;
+        return;
+      }
+      const previousSpeed = Math.max(wall.runEntrySpeed ?? 0, length(reject(state.velocity, normal)));
+      const steered = add(state.velocity, scale(reject(input.move ?? vector(), normal), 4 * delta));
+      state.velocity = arcadeWallRunVelocity(steered, normal, input.cameraForward ?? steered,
+        previousSpeed, config.maximumSpeed, config.wallRunSpeed, config.wallRunLift, input.wallClimb);
+      wall.runEntrySpeed = length(reject(state.velocity, normal));
+      state.grounded = false;
+    } else {
+      // A missed probe grants state continuity, not adhesion to empty space.
+      state.velocity.y -= config.gravity * delta;
+    }
+    return;
+  }
   if (!wall || !wall.feetTouching || (!state.wallCrawlActive && !state.wallRunActive) || state.swing || state.zip || state.mantle) return;
   if (state.grounded) {
     // Q at the base of a facade should flow directly from pavement to wall
@@ -1042,7 +1217,7 @@ function applyMantle(state: TraversalState, config: TraversalConfig, delta: numb
   // Rise completely above the rim before crossing it. Both segments are swept
   // by the same world collision controller as ordinary locomotion.
   const movement = offset.y > .035 ? vector(0, offset.y, 0) : offset;
-  state.velocity = scale(normalize(movement), Math.min(config.wallMantleSpeed, length(movement) / Math.max(.001, delta)));
+  state.velocity = scale(normalize(movement), Math.min(mantle.lowObstacle ? 8 : config.wallMantleSpeed, length(movement) / Math.max(.001, delta)));
   state.grounded = false;
 }
 
@@ -1216,17 +1391,19 @@ function createContext(state: TraversalState, input: TraversalInput, config: Tra
   const tension = state.swing?.tension ?? 0;
   const wallBlend = state.wall && (state.mode === 'wallRun' || state.mode === 'wallCrawl') ? 1 : 0;
   const launchBlend = saturate(Math.max(state.pointLaunchSeconds, state.swingReleaseSeconds ?? 0) / 0.32);
+  const motionScale = config.advancedTraversal ? clamp(config.cameraMotionScale ?? 1, 0, 1) : 1;
+  const pulse = config.advancedTraversal ? state.advanced?.pulse ?? 0 : 0;
   const speedBlend = saturate(horizontalSpeed / config.maximumSpeed);
   const diveBlend = state.mode === 'dive' ? 1 : 0;
   const swingBlend = state.mode === 'swing' ? saturate(0.4 + tension * 0.6) : 0;
-  const bodyPitch = state.mode === 'dive'
+  const bodyPitch = state.mode === 'glide' ? clamp(-Math.atan2(state.velocity.y, horizontalSpeed), -.65, .7) : state.mode === 'dive'
     ? -0.72
     : state.mode === 'swing'
       ? clamp(-state.velocity.y / 42, -0.55, 0.55)
       : clamp(-state.velocity.y / 58, -0.32, 0.38);
   const bodyRoll = clamp(-lateral * (0.18 + speedBlend * 0.42) + (state.wall?.normal.x ?? 0) * wallBlend * 0.3, -0.78, 0.78);
   const fov = clamp(
-    config.baseFov + speedBlend * 17 + diveBlend * 5 + launchBlend * 6 + tension * 2,
+    config.baseFov + (speedBlend * 17 + diveBlend * 5 + launchBlend * 6 + tension * 2 + pulse * 5) * motionScale,
     config.baseFov,
     config.maximumFov,
   );
@@ -1246,9 +1423,9 @@ function createContext(state: TraversalState, input: TraversalInput, config: Tra
     },
     camera: {
       fov,
-      followDistance: 6.7 + speedBlend * 5.8 + diveBlend * 1.6,
-      heightOffset: 2.35 - diveBlend * 0.85 + launchBlend * 0.45,
-      roll: clamp(-lateral * speedBlend * 0.16 + bodyRoll * 0.16, -0.25, 0.25),
+      followDistance: 6.7 + (speedBlend * 5.8 + diveBlend * 1.6 + pulse * .7) * motionScale,
+      heightOffset: 2.35 + (-diveBlend * .85 + launchBlend * .45 + (config.advancedTraversal ? clamp(state.velocity.y * .025, -.7, 1) : 0)) * motionScale,
+      roll: clamp(-lateral * speedBlend * 0.16 + bodyRoll * 0.16, -0.25, 0.25) * motionScale,
       shake: saturate((speedBlend - 0.38) / 0.62) * 0.16 + launchBlend * 0.1,
       lookAhead: add(scale(forward, 2.4 + speedBlend * 9), scale(UP, clamp(state.velocity.y * 0.1, -3, 4))),
       speedLines: saturate((speed - 24) / 35),
@@ -1259,19 +1436,23 @@ function createContext(state: TraversalState, input: TraversalInput, config: Tra
     wallNormal: state.wall ? copy(state.wall.normal) : null,
     webAnchor: state.swing ? copy(state.swing.anchor) : null,
     webTension: tension,
-    canPointLaunch: Boolean(state.zip && distance(state.position, state.zip.target) <= config.pointLaunchWindow),
+    canPointLaunch: Boolean(state.zip && !state.zip.airDash && distance(state.position, state.zip.target) <= config.pointLaunchWindow),
   };
 }
 
 function updateMode(state: TraversalState, input: TraversalInput): void {
   const horizontalSpeed = length(horizontal(state.velocity));
-  if (state.pointLaunchSeconds > 0) state.mode = 'pointLaunch';
+  if (state.advanced?.sling) state.mode = 'slingshot';
+  else if (state.grounded && (state.advanced?.chargeJump ?? 0) > 0) state.mode = 'chargeJump';
+  else if (state.advanced?.gliding && !state.grounded && !state.swing && !state.zip) state.mode = 'glide';
+  else if (state.advanced?.corner && !state.grounded) state.mode = 'cornerTether';
+  else if (state.pointLaunchSeconds > 0) state.mode = 'pointLaunch';
   else if (state.wallJumpSeconds > 0) state.mode = 'wallJump';
   else if (state.perchSeconds > 0) state.mode = 'perch';
   else if (state.swing) state.mode = 'swing';
   else if (state.zip) state.mode = 'webZip';
   else if (state.mantle) state.mode = 'mantle';
-  else if (state.wall && state.wall.feetTouching && state.wallRunActive) state.mode = 'wallRun';
+  else if (state.wallRunActive && hasWallRunSupport(state.wall)) state.mode = 'wallRun';
   else if (state.wall && state.wall.feetTouching && state.wallCrawlActive) state.mode = 'wallCrawl';
   else if (!state.grounded && (state.doubleJumpSeconds ?? 0) > 0) state.mode = 'doubleJump';
   else if (state.grounded && (state.rollSeconds ?? 0) > 0) state.mode = 'roll';
@@ -1321,7 +1502,7 @@ export function stepTraversalInPlace(
   let result: TraversalStepResult | null = null;
   for (let index = 0; index < steps; index += 1) {
     const tickInput = index === 0 ? input : { ...input,
-      jumpPressed: false, swingPressed: false, swingReleased: false, zipPressed: false, zipReleased: false, wallCrawlPressed: false };
+      jumpPressed: false, rollPressed: false, trickPressed: false, swingPressed: false, swingReleased: false, zipPressed: false, zipReleased: false, wallCrawlPressed: false, glidePressed: false, chargeJumpReleased: false, slingshotReleased: false };
     result = stepTraversalTick(state, tickInput, environment, delta / steps, config);
     events.push(...result.events);
   }
@@ -1355,7 +1536,10 @@ function stepTraversalTick(
     events.push(event('roll', state));
   }
 
-  if (environment.wallContact !== undefined) updateWallFromContact(state, environment.wallContact, config, delta, events);
+  if (config.advancedTraversal) input = prepareAdvancedInput(state, input, environment, config, delta, events);
+
+  // Refresh external contact now; the post-motion update advances the clock once.
+  if (environment.wallContact !== undefined) updateWallFromContact(state, environment.wallContact, config, 0, events);
   if (!input.swingHeld && !input.swingPressed) state.swingNeedsRelease = false;
   if (input.wallCrawlPressed) {
     state.wallCrawlActive = !state.wallCrawlActive && Boolean(state.wall?.feetTouching) && !state.swing && !state.zip;
@@ -1369,9 +1553,15 @@ function stepTraversalTick(
     state.wallRunActive = false;
     state.mantle = null;
   }
-  if (!state.wall?.feetTouching) { state.wallCrawlActive = false; state.wallRunActive = false; }
+  if (!state.wall?.feetTouching) {
+    state.wallCrawlActive = false;
+    if (!config.arcadeTraversal || !hasWallRunSupport(state.wall)) {
+      if (config.arcadeTraversal && state.wallRunActive && input.swingHeld) state.swingNeedsRelease = false;
+      state.wallRunActive = false;
+    }
+  }
 
-  if ((input.swingPressed || input.swingHeld) && !input.swingReleased && !state.swing && !state.zip
+  if ((input.swingPressed || input.swingHeld) && !state.advanced?.gliding && !state.advanced?.sling && !state.advanced?.corner && !input.swingReleased && !state.swing && !state.zip
     && !state.swingNeedsRelease && state.elapsed >= (state.swingRetryAfter ?? 0)) {
     const anchor = chooseSwingAnchor(state, input, environment, config);
     if (anchor) attachSwing(state, anchor, input, config, events);
@@ -1382,18 +1572,27 @@ function stepTraversalTick(
     state.wallDetachUntil = state.elapsed + .3; state.swingNeedsRelease = false;
     state.swingReleaseSeconds = .4;
   }
+  if (config.advancedTraversal && input.jumpPressed && state.swing) {
+    releaseSwing(state, input, config, events);
+    state.swingNeedsRelease = true;
+    state.jumpBufferSeconds = 0;
+    input = { ...input, jumpPressed: false };
+  }
   if ((input.swingReleased || input.swingHeld === false) && state.swing) releaseSwing(state, input, config, events);
 
   if (input.zipPressed && !state.zip) {
-    const target = chooseZipTarget(state, input, environment, config);
-    if (target) startZip(state, target, config, events);
+    const target = chooseZipTarget(state, input, environment, config)
+      ?? (config.advancedTraversal && input.zipStyle === 'air'
+        ? { id: 'air-zip-no-anchor', point: add(state.position, scale(normalize(horizontal(input.cameraForward ?? vector(0, 0, -1))), 40)), kind: 'generic' as const }
+        : null);
+    if (target) startZip(state, target, config, events, input);
   }
   if ((input.zipReleased || input.zipHeld === false) && state.zip && !input.jumpPressed) {
     const targetId = state.zip.targetId;
     state.zip = null;
     events.push(event('zip-cancelled', state, { anchorId: targetId }));
   }
-  if (state.zip && !traversalLineOfSight(state.position, state.zip.target, environment.anchorColliders ?? environment.colliders ?? [])) {
+  if (state.zip && !state.zip.airDash && !traversalLineOfSight(state.position, state.zip.target, environment.anchorColliders ?? environment.colliders ?? [])) {
     events.push(event('zip-cancelled', state, { anchorId: state.zip.targetId }));
     state.zip = null;
   }
@@ -1424,7 +1623,7 @@ function stepTraversalTick(
   } else if (input.jumpPressed && !state.grounded && !state.swing && !state.zip && !state.wall
     && (state.airJumps ?? 0) < 1 && state.airSeconds > .08) {
     state.airJumps = 1; state.doubleJumpSeconds = .7; state.jumpBufferSeconds = 0;
-    state.velocity.y = Math.max(state.velocity.y, config.jumpSpeed * .98);
+    state.velocity.y = Math.max(state.velocity.y, (config.advancedTraversal ? 18 : config.jumpSpeed * .98));
     state.actionSequence = (state.actionSequence ?? 0) + 1;
     events.push(event('double-jump', state, { strength: state.velocity.y }));
   }
@@ -1438,11 +1637,25 @@ function stepTraversalTick(
     events.push(event('point-launch', state, { strength: length(state.velocity) }));
   }
 
-  if (state.grounded && !state.swing && !state.zip && !state.wallCrawlActive && !state.wallRunActive && !state.mantle) applyGroundMovement(state, move, config, delta);
-  else if (!state.swing && !state.zip && !state.wallCrawlActive && !state.wallRunActive && !state.mantle) applyAirMovement(state, move, config, delta);
+  const advancedOwnsMovement = Boolean(config.advancedTraversal && (state.advanced?.gliding || state.advanced?.sling || state.advanced?.corner || state.advanced?.chargeJump));
+  if (!advancedOwnsMovement && state.grounded && !state.swing && !state.zip && !state.wallCrawlActive && !state.wallRunActive && !state.mantle) applyGroundMovement(state, move, config, delta);
+  else if (!advancedOwnsMovement && !state.swing && !state.zip && !state.wallCrawlActive && !state.wallRunActive && !state.mantle) applyAirMovement(state, move, config, delta);
 
   applyWallTraversal(state, input, config, delta);
-  if (state.mantle) applyMantle(state, config, delta);
+  if (config.advancedTraversal && state.advanced?.gliding) {
+    const glideForward = normalize(horizontal(input.cameraForward ?? state.velocity), vector(0, 0, -1));
+    const glideRight = cross(glideForward, UP);
+    const glideSteer = clamp(dot(horizontal(move), glideRight), -1, 1);
+    const glideHeading = normalize(add(glideForward, scale(glideRight, glideSteer * .85)), glideForward);
+    state.velocity = glideVelocity(state.velocity, glideHeading,
+      value(input.glidePitch), delta, config.gravity, config.maximumSpeed);
+  } else if (config.advancedTraversal && state.advanced?.corner) {
+    const corner = state.advanced.corner;
+    state.velocity = turnHorizontal(state.velocity, corner.direction, delta, ADVANCED_TUNING.cornerTurnRate);
+    state.velocity.y -= config.gravity * delta;
+    corner.seconds += delta;
+    if (corner.seconds >= ADVANCED_TUNING.cornerSeconds) state.advanced.corner = null;
+  } else if (state.mantle) applyMantle(state, config, delta);
   else if (state.swing) applySwing(state, input, environment, config, delta);
   else if (state.zip) applyZip(state, input, config, delta, events);
   else if (!state.grounded && !state.wallCrawlActive && !state.wallRunActive) {
@@ -1463,7 +1676,13 @@ function stepTraversalTick(
   // position must not turn an airborne swing into a running animation.
   const support = resolveMotion(state, environment, config, 0);
   updateWallFromContact(state, support.wall ?? ropeCollision?.wall ?? collision.wall ?? environment.wallContact ?? null, config, delta, events);
-  if (!state.wall?.feetTouching) { state.wallCrawlActive = false; state.wallRunActive = false; }
+  if (!state.wall?.feetTouching) {
+    state.wallCrawlActive = false;
+    if (!config.arcadeTraversal || !hasWallRunSupport(state.wall)) {
+      if (config.arcadeTraversal && state.wallRunActive && input.swingHeld) state.swingNeedsRelease = false;
+      state.wallRunActive = false;
+    }
+  }
   state.grounded = support.grounded;
   if (state.wall?.feetTouching) acceptTraversalWallContact(state, state.wall, incomingVelocity, input, config);
   if (state.mantle && distance(state.position, state.mantle.target) < .09) {
@@ -1472,7 +1691,7 @@ function stepTraversalTick(
     state.velocity = vector();
     state.perchSeconds = .2;
   }
-  if (state.zip) {
+  if (state.zip && !state.zip.airDash) {
     const zip = state.zip;
     const remaining = distance(state.position, zip.target);
     const blockedAtTarget = collision.blocked && dot(state.velocity, normalize(subtract(zip.target, state.position))) < .2;
@@ -1496,8 +1715,150 @@ function stepTraversalTick(
   }
   if (state.grounded) state.airSeconds = 0;
   else state.airSeconds += delta;
+  if (config.advancedTraversal && !environment.externalCollision) commitAdvancedMotion(state, input, config, delta, events);
   updateMode(state, input);
   return { state, context: createContext(state, input, config, delta), events };
+}
+
+/** Input arbitration: a successful action consumes its own edge, never another
+ * frame's input. Charging has no authority to teleport or ignore lost support. */
+function prepareAdvancedInput(state: TraversalState, input: TraversalInput, environment: TraversalEnvironment,
+  config: TraversalConfig, delta: number, events: TraversalEvent[]): TraversalInput {
+  const a = state.advanced ?? (state.advanced = createAdvancedRuntime());
+  a.enabled = true;
+  a.pulse *= Math.exp(-7 * delta);
+  const chest = add(state.position, vector(0, 1.3, 0));
+  const visible = (target: Vector3Like) => environment.hasLineOfSight
+    ? environment.hasLineOfSight(chest, target)
+    : traversalLineOfSight(chest, target, environment.anchorColliders ?? environment.colliders ?? []);
+  if (input.cancelAbilities) {
+    a.gliding = false; a.sling = null; a.chargeJump = 0; a.corner = null; a.loop = null;
+    if (state.swing) events.push(event('web-released', state, { anchorId: state.swing.anchorId, strength: 0 }));
+    state.swing = null; state.zip = null; state.swingNeedsRelease = false;
+    return { ...input, swingHeld: false, swingPressed: false, swingReleased: false,
+      zipPressed: false, zipHeld: false, chargeJumpHeld: false, chargeJumpReleased: false, slingshotHeld: false,
+      slingshotReleased: false, glidePressed: false, cornerHeld: false, loopHeld: false };
+  }
+  if (state.grounded) { a.gliding = false; a.flow = 0; a.diveSpeed = 0; a.corner = null; a.loop = null; }
+  if (input.diveHeld && state.velocity.y < 0 && !state.grounded) {
+    a.diveSpeed = Math.max(a.diveSpeed, -state.velocity.y); a.diveUntil = state.elapsed + .8;
+  } else if (state.elapsed > a.diveUntil) a.diveSpeed = 0;
+  if (input.swingPressed || input.zipPressed || input.jumpPressed || input.wallCrawlPressed || input.diveHeld) {
+    a.gliding = false; a.corner = null;
+  }
+  // Fresh direct input wins over a charge already in progress.
+  if (input.jumpPressed || input.swingPressed || input.zipPressed || input.wallCrawlPressed) {
+    a.sling = null; a.chargeJump = 0;
+  }
+  if (input.glidePressed && !state.grounded && !state.wallRunActive && !state.wallCrawlActive && !state.mantle && !a.sling) {
+    a.gliding = !a.gliding && length(state.velocity) >= 8;
+    if (a.gliding) {
+      if (state.swing) events.push(event('web-released', state, { anchorId: state.swing.anchorId, strength: 0 }));
+      state.swing = null; state.zip = null; state.swingNeedsRelease = true; state.perchSeconds = 0;
+      state.wall = null; a.corner = null; a.loop = null;
+      events.push(event('glide-started', state));
+    }
+  }
+  if (!state.grounded && state.coyoteSeconds <= 0) { a.chargeJump = 0; a.sling = null; }
+  if (input.chargeJumpHeld && state.grounded && !state.swing && !state.zip && !a.sling) {
+    a.chargeJump = Math.min(ADVANCED_TUNING.chargeJumpSeconds, a.chargeJump + delta);
+    state.velocity.x *= Math.exp(-8 * delta); state.velocity.z *= Math.exp(-8 * delta);
+    state.jumpBufferSeconds = 0;
+  }
+  if (input.chargeJumpReleased && a.chargeJump > 0 && (state.grounded || state.coyoteSeconds > 0)) {
+    state.velocity = chargedJumpVelocity(state.velocity, a.chargeJump, config.jumpSpeed, config.maximumSpeed);
+    a.chargeJump = 0; a.pulse = 1; state.grounded = false; state.coyoteSeconds = 0;
+    state.jumpBufferSeconds = 0; state.groundJump = true; state.airJumps = 0; state.perchSeconds = 0;
+    state.actionSequence = (state.actionSequence ?? 0) + 1;
+    events.push(event('jump', state, { strength: state.velocity.y }));
+    input = { ...input, jumpPressed: false };
+  } else if (!input.chargeJumpHeld && !input.chargeJumpReleased) a.chargeJump = 0;
+  if (input.slingshotHeld && state.grounded && !state.swing && !state.zip && !input.jumpPressed) {
+    if (!a.sling && environment.slingshotAnchors) {
+      const pair = environment.slingshotAnchors;
+      const forward = normalize(horizontal(input.cameraForward ?? vector(0, 0, -1)));
+      const right = cross(forward, UP);
+      const offsets = pair.map(anchor => subtract(anchor.point, chest));
+      const valid = pair.every((anchor, i) => anchor.id !== 'sky-fallback' && anchor.kind === 'facade'
+        && anchor.lineOfSight !== false && anchor.normal && Math.abs(anchor.normal.y) < .45
+        && length(offsets[i]) >= 4 && length(offsets[i]) <= 70 && dot(offsets[i], forward) > 2
+        && visible(anchor.point));
+      if (valid && dot(offsets[0], right) * dot(offsets[1], right) < -4
+        && distance(pair[0].point, pair[1].point) > 8) {
+        a.sling = { anchors: [copy(pair[0].point), copy(pair[1].point)], direction: forward, seconds: 0 };
+        a.chargeJump = 0; state.jumpBufferSeconds = 0;
+      }
+    }
+    if (a.sling) {
+      a.sling.seconds = Math.min(ADVANCED_TUNING.slingChargeSeconds, a.sling.seconds + delta);
+      a.sling.direction = normalize(input.aimDirection ?? input.cameraForward ?? a.sling.direction);
+      state.velocity.x *= Math.exp(-16 * delta); state.velocity.z *= Math.exp(-16 * delta);
+    }
+  }
+  if (a.sling && !a.sling.anchors.every(visible)) a.sling = null;
+  if (input.slingshotReleased && a.sling && state.grounded) {
+    const sling = a.sling; a.sling = null;
+    if (sling.seconds >= ADVANCED_TUNING.slingMinimumCharge) {
+      state.velocity = slingshotVelocity(state.velocity, sling.direction, sling.seconds, config.maximumSpeed);
+      state.grounded = false; state.coyoteSeconds = 0; state.jumpBufferSeconds = 0; state.perchSeconds = 0;
+      state.groundJump = true; state.airJumps = 0; state.pointLaunchSeconds = .3; a.pulse = 1;
+      state.actionSequence = (state.actionSequence ?? 0) + 1;
+      events.push(event('slingshot-launch', state, { strength: length(state.velocity) }));
+      input = { ...input, jumpPressed: false };
+    }
+  } else if (!input.slingshotHeld && !input.slingshotReleased) a.sling = null;
+  if (a.corner && (!input.cornerHeld || !visible(a.corner.anchor) || state.swing || state.zip || state.mantle)) a.corner = null;
+  if (input.cornerHeld && !a.corner && !a.gliding && !state.grounded && !state.zip && !state.wallRunActive
+    && !state.wallCrawlActive && !state.mantle && state.elapsed >= a.cornerAfter && length(horizontal(state.velocity)) >= 16) {
+    const target = environment.cornerTarget;
+    if (target && target.anchor.id !== 'sky-fallback' && target.anchor.lineOfSight !== false
+      && distance(chest, target.anchor.point) <= 18 && visible(target.anchor.point)) {
+      a.corner = { anchor: copy(target.anchor.point), direction: normalize(horizontal(target.direction)), seconds: 0 };
+      state.swing = null; state.swingNeedsRelease = true; a.loop = null; a.cornerAfter = state.elapsed + .9; a.pulse = .55;
+      events.push(event('corner-tether', state, { anchorId: target.anchor.id }));
+    }
+  }
+  if (a.loop && (!input.loopHeld || !state.swing)) a.loop = null;
+  if (input.loopHeld && state.swing && !a.loop && a.diveSpeed >= ADVANCED_TUNING.loopMinimumDiveSpeed
+    && state.elapsed < a.diveUntil && state.elapsed >= a.loopAfter && state.swing.ropeLength > 8) {
+    const radial = normalize(subtract(state.position, state.swing.anchor));
+    const axis = cross(radial, state.velocity);
+    if (length(axis) > 1) {
+      a.loop = { axis: normalize(axis), previousRadial: radial, radians: 0, seconds: 0 };
+      a.diveSpeed = 0; a.loopAfter = state.elapsed + 1;
+    }
+  }
+  return input;
+}
+
+/** Call after the authoritative mesh sweep too when externalCollision is true.
+ * No position writes: an interrupted maneuver can never bypass a building. */
+export function commitAdvancedMotion(state: TraversalState, input: TraversalInput,
+  overrides: Partial<TraversalConfig> = {}, delta = 0, events: TraversalEvent[] = []): void {
+  const config = mergeConfig(overrides);
+  if (!config.advancedTraversal || !state.advanced) return;
+  const a = state.advanced;
+  if (state.grounded || state.wall?.feetTouching || state.wallRunActive || state.wallCrawlActive || state.mantle) {
+    a.gliding = false; a.corner = null; a.loop = null;
+  }
+  if (state.grounded) { a.flow = 0; a.diveSpeed = 0; }
+  if (!state.swing) { a.loop = null; a.phase = 'air'; return; }
+  const radial = normalize(subtract(state.position, state.swing.anchor));
+  a.phase = swingPhase(state.swing.attachedSeconds, state.velocity.y, radial);
+  if (a.loop) {
+    const loop = a.loop;
+    loop.seconds += delta;
+    const angle = loopAngle(loop.previousRadial, radial, loop.axis);
+    // Huge correction or backwards motion is not a successful acrobatic lap.
+    if (Math.abs(angle) > .6 || angle < -.1 || loop.seconds > 8) { a.loop = null; return; }
+    loop.radians = Math.max(0, loop.radians + angle); loop.previousRadial = radial;
+    if (loop.radians >= Math.PI * 2 - .04) {
+      state.velocity = add(state.velocity, scale(normalize(reject(state.velocity, radial)), 8));
+      clampVelocity(state, config.maximumSpeed);
+      a.loop = null; a.loopAfter = state.elapsed + .8; a.pulse = 1;
+      events.push(event('loop-completed', state, { strength: length(state.velocity) }));
+    }
+  }
 }
 
 export interface TraversalSelfTestResult {

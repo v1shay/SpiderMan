@@ -120,7 +120,14 @@ function simulate(world, route, name) {
     const support = hit.velocity.y <= .1 ? world.supportAt(hit.position, .015, .51) : null;
     const supportY = support ? capsuleSupportHeight(support) : null;
     state.grounded = supportY !== null && Math.abs(hit.position.y - supportY) < .045;
-    if (state.grounded) { hit.position.y = supportY; hit.velocity.y = Math.max(0, hit.velocity.y); state.airSeconds = 0; }
+    if (state.grounded) {
+      // Mirror SpiderGame: a nearby sloped support must not snap through another face.
+      const beforeSnap = hit.position.y;
+      hit.position.y = supportY;
+      if (world.isCapsuleClear(hit.position, .46, 2.05, false)) {
+        hit.velocity.y = Math.max(0, hit.velocity.y); state.airSeconds = 0;
+      } else { hit.position.y = beforeSnap; state.grounded = false; }
+    }
     if (!wasGrounded && state.grounded) state.landingSeconds = .16;
     setTraversalKinematics(state, hit.position, hit.velocity);
     const normal = hit.wallNormal ?? state.wall?.normal;

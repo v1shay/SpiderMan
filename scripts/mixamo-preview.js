@@ -31,7 +31,7 @@ function show(){
  cells.forEach(c=>{c.renderer.domElement.style.width='100%';c.renderer.domElement.style.height='100%';if(c.cell.clientWidth){c.renderer.setSize(c.cell.clientWidth,c.cell.clientHeight,false);c.camera.aspect=c.cell.clientWidth/c.cell.clientHeight;c.camera.position.set(back?-1.4:1.4,1.4,back?3.5:-3.5);c.camera.lookAt(0,1.05,0);c.camera.updateProjectionMatrix();}});
  document.querySelector('#page').textContent=`${page+1} / ${Math.ceil(clips.length/12)}`;
  cells.forEach((c,i)=>{c.mixer.stopAllAction();const clip=clips[focus<0?page*12+i:focus];c.root.visible=!!clip;c.label.textContent=clip?`${page*12+i+1}. ${clip.name.slice(7)} · ${clip.duration.toFixed(2)}s`:'';c.action=clip?c.mixer.clipAction(clip).reset().play():null;if(c.action){c.action.time=phase*clip.duration;c.mixer.update(0);}c.renderer.render(c.scene,c.camera);});
- document.querySelector('#report').textContent=`${clips.length} / 59 bound to original 2099 rig`;
+ document.querySelector('#report').textContent=`${clips.length} clips bound to original 2099 rig`;
 }
 document.querySelector('#next').onclick=()=>{page=(page+1)%Math.ceil(clips.length/12);show();};document.querySelector('#previous').onclick=()=>{page=(page+Math.ceil(clips.length/12)-1)%Math.ceil(clips.length/12);show();};
 document.querySelector('#phase').oninput=e=>{phase=Number(e.target.value)/100;show();};document.querySelector('#play').onclick=()=>{playing=!playing;document.querySelector('#play').textContent=playing?'Pause':'Play all';};

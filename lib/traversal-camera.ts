@@ -48,12 +48,12 @@ export class TraversalSpeedBlur {
   private previousSpeed = 0;
   constructor() { this.scene.add(this.quad); }
   get strength() { return this.material.uniforms.strength.value as number; }
-  update(delta: number, speed: number, burst: boolean, reducedMotion = false) {
+  update(delta: number, speed: number, burst: boolean, reducedMotion = false, gliding = false) {
     const acceleration = (speed - this.previousSpeed) / Math.max(delta, .001);
     this.previousSpeed = speed;
     if (burst || acceleration > 65) this.pulse = .24;
     this.pulse = Math.max(0, this.pulse - delta);
-    this.material.uniforms.strength.value = reducedMotion ? 0 : .018 * Math.sin(Math.PI * this.pulse / .24);
+    this.material.uniforms.strength.value = reducedMotion ? 0 : Math.max(.018 * Math.sin(Math.PI * this.pulse / .24), gliding ? THREE.MathUtils.clamp((speed - 15) / 85, 0, 1) * .008 : 0);
   }
   resize(width: number, height: number) { this.target.setSize(width, height); }
   render(renderer: THREE.WebGLRenderer, scene: THREE.Scene, camera: THREE.Camera) {

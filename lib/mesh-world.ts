@@ -538,6 +538,33 @@ export class WorldMeshQuery {
    * merely fitting two feet on that cornice is not a satisfactory rooftop spawn.
    * Boxes supply search priorities only; all heights/support come from triangles.
    */
+  findHighestRoofSpawn(radius = .46, height = 2.05): THREE.Vector3 | null {
+    const candidates: THREE.Vector3[] = [];
+    const a=new THREE.Vector3(),b=new THREE.Vector3(),c=new THREE.Vector3(),normal=new THREE.Vector3();
+    for(let i=0;i<this.positions.length;i+=9){
+      a.fromArray(this.positions,i);b.fromArray(this.positions,i+3);c.fromArray(this.positions,i+6);
+      const triangle=new THREE.Triangle(a,b,c);triangle.getNormal(normal);
+      if(Math.abs(normal.y)<.85||triangle.getArea()<.3)continue;
+      candidates.push(triangle.getMidpoint(new THREE.Vector3()));
+    }
+    candidates.sort((a,b)=>b.y-a.y);
+    const checked=new Set<string>();
+    for(const point of candidates){
+      const key=`${Math.round(point.x*2)}:${Math.round(point.y*2)}:${Math.round(point.z*2)}`;
+      if(checked.has(key))continue;checked.add(key);
+      let stable=true;
+      for(let i=0;i<8;i++){
+        const angle=i*Math.PI/4;
+        const foot=this.supportAt({x:point.x+Math.cos(angle)*.85,y:point.y,z:point.z+Math.sin(angle)*.85},{maxDrop:.15,maxRise:.15,minNormalY:.85});
+        if(!foot){stable=false;break;}
+      }
+      if(!stable)continue;
+      point.y+=SKIN;
+      if(this.hasSurface(point)&&this.isCapsuleClear(point,radius,height))return point;
+    }
+    return null;
+  }
+
   findRoofSpawn(candidateBoxes: readonly THREE.Box3[], radius = .46, height = 2.05): THREE.Vector3 | null {
     for (const footprint of [Math.max(2, radius * 3), Math.max(.75, radius * 1.5), radius]) {
       let best: THREE.Vector3 | null = null;

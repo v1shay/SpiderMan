@@ -2,7 +2,7 @@
 
 import { validRacePacket, type RacePacket } from './race-session';
 import type { RealtimeChannel, SupabaseClient } from '@supabase/supabase-js';
-import { SUITS as SUIT_CONFIGS, type DistrictId, type SuitId } from '@/lib/game-config';
+import { DISTRICTS as CITY_CONFIGS, SUITS as SUIT_CONFIGS, type DistrictId, type SuitId } from '@/lib/game-config';
 import { getSupabaseBrowserClient } from '@/lib/supabase-browser';
 
 export type MultiplayerStatus = 'disabled' | 'connecting' | 'online' | 'error';
@@ -27,7 +27,7 @@ type Handlers = {
 };
 
 const VALID_SUITS = new Set<SuitId>(SUIT_CONFIGS.map((suit) => suit.id));
-const DISTRICTS = new Set<DistrictId>(['new-york-city']);
+const DISTRICTS = new Set<DistrictId>(CITY_CONFIGS.map(city=>city.id));
 const finiteTuple = (value: unknown): value is [number, number, number] => Array.isArray(value)
   && value.length === 3
   && value.every((entry) => typeof entry === 'number' && Number.isFinite(entry));

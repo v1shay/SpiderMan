@@ -1,0 +1,42 @@
+[
+  {
+    "id": "miguel",
+    "modelFile": "miguel-2099.glb",
+    "danceFile": "X Bot@Step Hip Hop Dance.fbx",
+    "traversalClips": 62,
+    "dance": "lobby:dance:miguel",
+    "tracks": 65
+  },
+  {
+    "id": "amazing",
+    "modelFile": "amazing_spider_man_2_rigged.glb",
+    "danceFile": "X Bot@Hip Hop Dancing.fbx",
+    "traversalClips": 62,
+    "dance": "lobby:dance:amazing",
+    "tracks": 66
+  },
+  {
+    "id": "miles-new",
+    "modelFile": "miles_morales_spiderman_rigged (1).glb",
+    "danceFile": "X Bot@Belly Dance.fbx",
+    "traversalClips": 62,
+    "dance": "lobby:dance:miles-new",
+    "tracks": 66
+  },
+  {
+    "id": "no-way-home",
+    "modelFile": "spiderman_no_way_home_rigged (2).glb",
+    "danceFile": "X Bot@Booty Hip Hop Dance.fbx",
+    "traversalClips": 62,
+    "dance": "lobby:dance:no-way-home",
+    "tracks": 329
+  },
+  {
+    "id": "tobey",
+    "modelFile": "tobey_maguire_spider-_man_suit_rigged__animated (1).glb",
+    "danceFile": "X Bot@Wave Hip Hop Dance.fbx",
+    "traversalClips": 62,
+    "dance": "lobby:dance:tobey",
+    "tracks": 66
+  }
+]

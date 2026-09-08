@@ -122,6 +122,7 @@ export function prepareMaterials(root: THREE.Object3D, renderer: THREE.WebGLRend
         alphaTest: standard.alphaTest,
         side: standard.side,
       });
+      baked.name = standard.name;
       baked.toneMapped = true;
       return baked;
     });
@@ -227,7 +228,7 @@ export function retargetMixamoClips(source: readonly THREE.AnimationClip[], sour
   // The offline 2099 pack is already calibrated to this exact character.
   // Animation-only glTF has transform nodes but no skin, so GLTFLoader does
   // not mark them as Bones. Validate every binding before using it directly.
-  if (source.length && source.every(clip => clip.name.startsWith('mixamo:'))) {
+  if (source.length && source.every(clip => /^(?:mixamo:|lobby:dance:)/.test(clip.name))) {
     return source.filter(clip => clip.tracks.every(track => {
       const name = track.name.slice(0, track.name.lastIndexOf('.'));
       return targetRig.getObjectByName(name) instanceof THREE.Bone;
