@@ -42,6 +42,9 @@ try {
 
   const { error } = await a.from('site_visits').insert({
     session_id: crypto.randomUUID(),
+    device_id: crypto.randomUUID(),
+    device_fingerprint: '0'.repeat(64),
+    page_host: 'localhost:verification',
     path: '/verification',
     referrer_host: 'local-test',
   });

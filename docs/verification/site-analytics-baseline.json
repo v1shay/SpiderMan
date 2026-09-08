@@ -1,0 +1,39 @@
+{
+  "capturedAt": "2026-09-08T06:05:46.636165Z",
+  "historicalRecordsBeforeEnhancedTracking": {
+    "views": 460,
+    "legacySessions": 217,
+    "firstVisit": "2026-08-29T05:51:39.811815Z",
+    "lastVisit": "2026-09-08T05:53:50.596486Z",
+    "sessionClassification": [
+      {
+        "category": "localhost-referred",
+        "sessions": 33,
+        "viewsIncludingDirectReloadsInThoseSessions": 174
+      },
+      {
+        "category": "direct-or-unknown",
+        "sessions": 175,
+        "views": 277
+      },
+      {
+        "category": "GitHub-or-Vercel-referred",
+        "sessions": 3,
+        "views": 3
+      },
+      {
+        "category": "automated-verification",
+        "sessions": 6,
+        "views": 6
+      }
+    ]
+  },
+  "enhancedTrackingVerification": {
+    "views": 1,
+    "sessions": 1,
+    "browserInstallations": 1,
+    "approximateDevices": 1,
+    "pageHost": "localhost:verification"
+  },
+  "interpretation": "The legacy schema did not store the current page host or a persistent device identity. No historical localhost session can be identified as another person with confidence. The 33 localhost-referred sessions are most consistent with the owner and automated development browsers. Direct legacy traffic remains unattributable."
+}

@@ -202,6 +202,10 @@ export default function Home() {
             <Play aria-hidden="true" /> Start Game
           </button>
         </section>
+        <p className="home-disclaimer">
+          This website is a non-commercial fan site and is not affiliated with,
+          authorized, or endorsed by Marvel Entertainment or Disney.
+        </p>
       </main>
     );
   }

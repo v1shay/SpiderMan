@@ -154,29 +154,31 @@ const suitArchive: readonly SuitConfig[] = [
 ] as const;
 
 // All selectable suits use the shared 2099 contextual animation graph.
-export const SUITS: readonly SuitConfig[] = [
-  ...suitArchive.filter((suit) => suit.id === 'miguel'),
-  ...(
-    [
-      ['amazing', 'Amazing Spider-Man'],
-      ['miles-new', 'Miles Morales'],
-      ['no-way-home', 'No Way Home'],
-      ['tobey', 'Tobey Maguire'],
-      ['symbiote-tobey', 'Symbiote Tobey'],
-      ['miles-animated', 'Spider-Verse Miles'],
-      ['mocap-spider', 'Mocap Spider-Man'],
-      ['classic-spider', 'Classic Spider-Man'],
-    ] as const
-  ).map(([id, name]) => ({
-    id,
-    name,
-    universe: 'Spider-Verse',
-    model: `/assets/suits/${id}.glb`,
-    modelYaw: Math.PI,
-    animationSource: `/assets/animations/mixamo-${id}.glb`,
-    traversal: 'spider' as const,
-  })),
-];
+export const SUITS: readonly SuitConfig[] = (
+  [
+    ['miguel', '2099'],
+    ['miles-new', 'Across the Spider-Verse'],
+    ['miles-animated', 'Into the Spider-Verse'],
+    ['no-way-home', 'No Way Home'],
+    ['mocap-spider', 'Homecoming'],
+    ['classic-spider', 'Alt Homecoming'],
+    ['tobey', 'Spider-Man (2002)'],
+    ['symbiote-tobey', 'Spider-Man 3'],
+    ['amazing', 'The Amazing Spider-Man'],
+  ] as const
+).map(([id, name]) =>
+  id === 'miguel'
+    ? { ...suitArchive.find((suit) => suit.id === 'miguel')!, name }
+    : {
+        id,
+        name,
+        universe: 'Spider-Verse',
+        model: `/assets/suits/${id}.glb`,
+        modelYaw: Math.PI,
+        animationSource: `/assets/animations/mixamo-${id}.glb`,
+        traversal: 'spider' as const,
+      },
+);
 
 export type DistrictId =
   | 'procedural-city'
