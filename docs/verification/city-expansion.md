@@ -11,8 +11,9 @@ Verified automatically:
 - Rooftop elevations: Queens 161.5 m, Metro City 162.7 m, and Spider-Punk City 258.5 m.
 - Shared collision memory: 15.34, 31.94, and 62.10 MB respectively; geometry is not duplicated for distant collision tiles.
 - Horizon instances: all three assets decode; visible distant tiles, full-detail tile exclusion, finite transforms, instance capacity, and travel to +/-100,000 m.
-- Five selectable suits each pass 806 traversal pose samples and a 31-frame unique lobby-dance deformation check.
+- Nine selectable suits each pass 806 traversal pose samples and a 31-frame lobby-dance deformation check. The four new suits reuse existing dance sources under suit-specific clip names.
 - Wall poses pass for every suit across four facade orientations; Tobey's imported ankle reach is bounded to keep his body upright and his sole within 0.075 m of the facade.
+- The supplied high-detail `spiderman_miles_morales.glb` is excluded because it contains no skeleton, skin weights, or animation bindings. The rigged Miles GLB is included as Spider-Verse Miles.
 - The repeating Wall Run clip excludes its authored ledge climb. That ending is selected once only for a real mantle.
 - Existing traversal, animation, wall, repeating-world, integrated swinging, scene, explosive traversal, and refinement tests passed.
 - TypeScript, lint, and production build passed.

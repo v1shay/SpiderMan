@@ -30,6 +30,23 @@ const imported = [
     'tobey_maguire_spider-_man_suit_rigged__animated (1).glb',
     'X Bot@Wave Hip Hop Dance.fbx',
   ],
+  [
+    'symbiote-tobey',
+    'symbiote_spiderman_-_tobey_maguire.glb',
+    'X Bot@House Dancing.fbx',
+    'symbiote',
+  ],
+  [
+    'miles-animated',
+    'spiderman_-_miles_morales.glb',
+    'X Bot@Snake Hip Hop Dance.fbx',
+  ],
+  [
+    'mocap-spider',
+    'spiderman_motion_capture__perception_neuron.glb',
+    'X Bot@Step Hip Hop Dance.fbx',
+  ],
+  ['classic-spider', 'spiderman.glb', 'X Bot@Hip Hop Dancing.fbx'],
 ];
 const loader = new GLTFLoader();
 loader.register((parser) => {
@@ -48,12 +65,48 @@ const sourcePack = await parse(
   await fs.readFile('public/assets/animations/mixamo-2099.glb'),
 );
 
-function rewriteMixamoNames(bytes, stripRigid = false) {
+const symbioteNames = new Map([
+  ['GLTF_created_0_rootJoint_7', 'mixamorigHips'],
+  ['Left_leg', 'mixamorigLeftUpLeg'],
+  ['Left_knee', 'mixamorigLeftLeg'],
+  ['Left_ankle', 'mixamorigLeftFoot'],
+  ['Left_toe', 'mixamorigLeftToeBase'],
+  ['Right_leg', 'mixamorigRightUpLeg'],
+  ['Right_knee', 'mixamorigRightLeg'],
+  ['Right_ankle', 'mixamorigRightFoot'],
+  ['Right_toe', 'mixamorigRightToeBase'],
+  ['Spine', 'mixamorigSpine'],
+  ['Chest', 'mixamorigSpine1'],
+  ['Upper_Chest', 'mixamorigSpine2'],
+  ['Left_shoulder', 'mixamorigLeftShoulder'],
+  ['Left_arm', 'mixamorigLeftArm'],
+  ['Left_elbow', 'mixamorigLeftForeArm'],
+  ['Left_wrist', 'mixamorigLeftHand'],
+  ['Neck', 'mixamorigNeck'],
+  ['Head', 'mixamorigHead'],
+  ['Right_shoulder', 'mixamorigRightShoulder'],
+  ['Right_arm', 'mixamorigRightArm'],
+  ['Right_elbow', 'mixamorigRightForeArm'],
+  ['Right_wrist', 'mixamorigRightHand'],
+]);
+
+function canonicalNodeName(name, profile) {
+  if (!name) return name;
+  if (profile === 'symbiote') {
+    const base = name.replace(/_\d+_\d+$/, '').replace(/\s+/g, '_');
+    const mapped = symbioteNames.get(base);
+    if (mapped) return mapped;
+  }
+  if (/^mixamorig[:_]?/i.test(name))
+    return name.replace(/^mixamorig[:_]?/i, 'mixamorig').replace(/_\d+.*$/, '');
+  return name;
+}
+
+function rewriteMixamoNames(bytes, stripRigid = false, profile) {
   const jsonLength = bytes.readUInt32LE(12);
   const json = JSON.parse(bytes.subarray(20, 20 + jsonLength).toString());
   for (const node of json.nodes ?? [])
-    if ((node.name ?? '').startsWith('mixamorig:'))
-      node.name = node.name.replace(':', '').replace(/_\d+.*$/, '');
+    node.name = canonicalNodeName(node.name, profile);
   if (stripRigid)
     for (const node of json.nodes ?? [])
       if (node.mesh !== undefined && node.skin === undefined) delete node.mesh;
@@ -97,10 +150,11 @@ async function loadDance(file) {
 }
 
 const reports = [];
-for (const [id, modelFile, danceFile] of imported) {
+for (const [id, modelFile, danceFile, profile] of imported) {
   const repaired = rewriteMixamoNames(
     await fs.readFile(`/Users/vishayagarwal/Downloads/${modelFile}`),
     id === 'miles-new',
+    profile,
   );
   await fs.writeFile(`public/assets/suits/${id}.glb`, repaired);
   const target = (await parse(repaired)).scene;
@@ -126,9 +180,40 @@ for (const [id, modelFile, danceFile] of imported) {
         ),
       );
   });
+  const required = [
+    'hips',
+    'spine',
+    'spine1',
+    'spine2',
+    'head',
+    'leftarm',
+    'leftforearm',
+    'lefthand',
+    'rightarm',
+    'rightforearm',
+    'righthand',
+    'leftupleg',
+    'leftleg',
+    'leftfoot',
+    'rightupleg',
+    'rightleg',
+    'rightfoot',
+  ];
+  const mapped = new Set();
+  target.traverse((object) => {
+    if (!object.isBone) return;
+    mapped.add(
+      object.name
+        .toLowerCase()
+        .replace(/^mixamorig/, '')
+        .replace(/_\d+.*$/, '')
+        .replace(/[^a-z0-9]/g, ''),
+    );
+  });
   if (
-    traversal.some((clip) => clip.tracks.length < 60) ||
-    dance.tracks.length < 60
+    required.some((name) => !mapped.has(name)) ||
+    traversal.some((clip) => clip.tracks.length < required.length) ||
+    dance.tracks.length < required.length
   )
     throw new Error(`${id}: incomplete Mixamo mapping`);
   const meshes = [];
@@ -186,6 +271,12 @@ reports.unshift({
   traversalClips: prior.length,
   dance: dance.name,
   tracks: dance.tracks.length,
+});
+reports.push({
+  id: 'miles-static-hd',
+  modelFile: 'spiderman_miles_morales.glb',
+  rejected:
+    'No skeleton, skin weights, or animation bindings are present in the supplied GLB.',
 });
 await fs.writeFile(
   'docs/verification/character-rig-imports.json',

@@ -38,5 +38,42 @@
     "traversalClips": 62,
     "dance": "lobby:dance:tobey",
     "tracks": 66
+  },
+  {
+    "id": "symbiote-tobey",
+    "modelFile": "symbiote_spiderman_-_tobey_maguire.glb",
+    "danceFile": "X Bot@House Dancing.fbx",
+    "traversalClips": 62,
+    "dance": "lobby:dance:symbiote-tobey",
+    "tracks": 53
+  },
+  {
+    "id": "miles-animated",
+    "modelFile": "spiderman_-_miles_morales.glb",
+    "danceFile": "X Bot@Snake Hip Hop Dance.fbx",
+    "traversalClips": 62,
+    "dance": "lobby:dance:miles-animated",
+    "tracks": 169
+  },
+  {
+    "id": "mocap-spider",
+    "modelFile": "spiderman_motion_capture__perception_neuron.glb",
+    "danceFile": "X Bot@Step Hip Hop Dance.fbx",
+    "traversalClips": 62,
+    "dance": "lobby:dance:mocap-spider",
+    "tracks": 66
+  },
+  {
+    "id": "classic-spider",
+    "modelFile": "spiderman.glb",
+    "danceFile": "X Bot@Hip Hop Dancing.fbx",
+    "traversalClips": 62,
+    "dance": "lobby:dance:classic-spider",
+    "tracks": 66
+  },
+  {
+    "id": "miles-static-hd",
+    "modelFile": "spiderman_miles_morales.glb",
+    "rejected": "No skeleton, skin weights, or animation bindings are present in the supplied GLB."
   }
 ]
