@@ -10,9 +10,13 @@ export type AdvancedRuntime = {
   chargeJump: number;
   sling: { anchors: [AVec, AVec]; direction: AVec; seconds: number } | null;
   corner: { anchor: AVec; direction: AVec; seconds: number } | null;
-  loop: { axis: AVec; previousRadial: AVec; radians: number; seconds: number } | null;
+  loop: { automatic?: boolean; axis: AVec; previousRadial: AVec; radians: number; seconds: number } | null;
   pulse: number;
   flow: number;
+  wallSamplePosition?: AVec;
+  wallStallSeconds?: number;
+  wallRecoveryUntil?: number;
+  wallRecoverySide?: number;
   lastReleaseAt: number;
   diveSpeed: number;
   diveUntil: number;
@@ -28,19 +32,19 @@ export const ADVANCED_TRAVERSAL_CONFIG = Object.freeze({
   swingMaximumLength: 120,
   anchorMaximumDistance: 145,
   swingPumpAcceleration: 58,
-  swingSteerAcceleration: 32,
+  swingSteerAcceleration: SPIDER_TRAVERSAL_FEEL.swingSteerAcceleration,
   swingReelSpeed: 12,
   zipMaximumSpeed: 96,
   wallRunLift: 7,
   maximumFov: 94,
   cameraMotionScale: 1,
-  // Preserves the previously requested fallback. Set false for geometry-only webs.
-  allowSkyFallback: true,
+  // Empty-sky anchors are available only through an explicit accessibility mode.
+  allowSkyFallback: false,
 });
 export const ADVANCED_TUNING = Object.freeze({
   releaseFullCharge: 1.2,
-  shortReleaseUp: 22,
-  chargedReleaseUp: 49,
+  shortReleaseUp: 7,
+  chargedReleaseUp: 35,
   shortReleaseForward: 5,
   chargedReleaseForward: 19,
   timingUpBonus: 5,
@@ -59,7 +63,7 @@ export const ADVANCED_TUNING = Object.freeze({
   skimImpulseBudget: 12,
   skimUpAcceleration: 48,
   loopMinimumDiveSpeed: 32,
-  loopMotorAcceleration: 46,
+  loopMotorAcceleration: 0,
 });
 const eps = 1e-8;
 export const aClamp = (n: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, n));
@@ -81,6 +85,7 @@ export function createAdvancedRuntime(): AdvancedRuntime {
 }
 export function cloneAdvancedRuntime(a: AdvancedRuntime): AdvancedRuntime {
   return {...a,
+    wallSamplePosition:a.wallSamplePosition?{...a.wallSamplePosition}:undefined,
     sling:a.sling?{...a.sling,anchors:[{...a.sling.anchors[0]},{...a.sling.anchors[1]}],direction:{...a.sling.direction}}:null,
     corner:a.corner?{...a.corner,anchor:{...a.corner.anchor},direction:{...a.corner.direction}}:null,
     loop:a.loop?{...a.loop,axis:{...a.loop.axis},previousRadial:{...a.loop.previousRadial}}:null};
@@ -109,7 +114,11 @@ export function advancedReleaseVelocity(v: AVec, seconds: number, radial: AVec,
   const chain=aClamp(flow,0,ADVANCED_TUNING.chainMaximum)*.65;
   const targetUp=ADVANCED_TUNING.shortReleaseUp+(ADVANCED_TUNING.chargedReleaseUp-ADVANCED_TUNING.shortReleaseUp)*charge
     +timing*ADVANCED_TUNING.timingUpBonus+(jumpKick?3:0);
-  const y=input.y+Math.max(0,targetUp-input.y)*gate;
+  // A quick release while descending keeps the dive instead of turning every
+  // click into the same upward launch. Holding, trough timing and jump-kick
+  // still earn the large aerial release.
+  const liftGate=input.y < -2 && charge < .42 ? gate*charge*.35 : gate;
+  const y=input.y+Math.max(0,targetUp-input.y)*liftGate;
   const horizontalSpeed=Math.hypot(input.x,input.z);
   const boost=(ADVANCED_TUNING.shortReleaseForward+(ADVANCED_TUNING.chargedReleaseForward-ADVANCED_TUNING.shortReleaseForward)*charge
     +timing*ADVANCED_TUNING.timingForwardBonus+chain+(jumpKick?3:0))*gate;

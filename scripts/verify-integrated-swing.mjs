@@ -8,17 +8,20 @@ import { WorldMeshQuery, capsuleSupportHeight } from '../lib/mesh-world.ts';
 import { RepeatingMeshWorld } from '../lib/repeating-mesh-world.ts';
 import { probeWallFeet } from '../lib/wall-surface.ts';
 import { createSwingAssistanceState, stepSwingAssistance } from '../lib/swing-assistance.ts';
-import { createTraversalState, stepTraversalInPlace, setTraversalKinematics, refreshTraversalContext, acceptTraversalWallContact } from '../lib/traversal-physics.ts';
+import { createTraversalState, stepTraversalInPlace, setTraversalKinematics, refreshTraversalContext, acceptTraversalWallContact, resolveSwingContinuation, commitAdvancedMotion } from '../lib/traversal-physics.ts';
+
+import { ADVANCED_TRAVERSAL_CONFIG as config } from '../lib/traversal-advanced.ts';
 
 // Geometry/physics integration, not texture or browser FPS verification. This
 // intentionally mirrors SpiderGame's force -> swept mesh -> support -> rope
-// validation order, including the real elevated anchor fan and holding W/reel.
+// validation order, including real elevated anchors and independent swing input.
 const loader = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
 loader.register(parser => {
   parser.loadTextureImage = () => Promise.resolve(new THREE.Texture());
   return { name: 'integrated_swing_skip_images', loadTexture: () => Promise.resolve(new THREE.Texture()) };
 });
-const wanted = new Set(process.argv.slice(2).length ? process.argv.slice(2) : ['new-york-city', 'street-city']);
+const wanted = new Set(process.argv.slice(2).length ? process.argv.slice(2) : DISTRICTS.map(map=>map.id));
+for (const id of wanted) assert.ok(DISTRICTS.some(map=>map.id===id), `Unknown map ${id}`);
 const down = new THREE.Vector3(0, -1, 0), up = new THREE.Vector3(0, 1.3, 0);
 const round = value => +value.toFixed(3);
 const coordinates = point => [point.x, point.y, point.z].map(round);
@@ -68,29 +71,31 @@ function streetRoutes(world) {
 }
 
 function simulate(world, route, name) {
-  const frameCount = name === 'central-street' ? 960 : 360;
+  const frameCount = name === 'central-street' ? 1920 : 720;
   const state = createTraversalState(route.point), assistance = createSwingAssistanceState();
   state.grounded = true;
   const forward = route.forward, aim = forward.clone().add(new THREE.Vector3(0, .18, 0)).normalize();
   const times = [], events = {}, detaches = {}, sampleFailures = [], detachSamples = [];
   let airFrames = 0, swingFrames = 0, contacts = 0, wallFrames = 0, stalled = 0, penetrationFrames = 0;
   let distance = 0, maxHeight = state.position.y, maxSpeed = 0, assistanceFrames = 0, probes = 0;
-  let anchorCount = 0, searches = 0, attachedAt = null, longestAttachment = 0, immediateDetaches = 0;
-  let cachedAnchors = [], nextSearch = 0;
+  let anchorCount = 0, searches = 0, attachedAt = null, longestAttachment = 0, immediateDetaches = 0, groundedReleases = 0;
+  let cachedAnchors = [], nextSearch = 0, previousHeld = false, currentStall = 0, maximumStall = 0;
+  const stallSamples=[];
   const start = coordinates(state.position);
   for (let frame = 0; frame < frameCount; frame++) {
-    const tickStart = performance.now(), dt = 1 / 60;
-    const held = frameCount > 360 ? frame % 201 < 180 : frame >= 8 && frame < 168 || frame >= 206 && frame < 320;
+    const tickStart = performance.now(), dt = 1 / 120;
+    const held = frameCount > 720 ? frame % 402 < 360 : frame >= 16 && frame < 336 || frame >= 412 && frame < 640;
     const input = { move: forward, cameraForward: forward, aimDirection: aim, wallClimb: 1,
-      jumpPressed: frame === 0 || frame === 198, jumpHeld: held,
-      swingHeld: held, swingPressed: held, swingReleased: frameCount > 360 ? frame % 201 === 180 : frame === 168 || frame === 320,
-      diveHeld: false, reel: held ? -1 : 0 };
+      jumpPressed: !held && (frame === 0 || frame === 396), jumpHeld: false,
+      swingHeld: held, swingPressed: held && !previousHeld, swingReleased: !held && previousHeld,
+      diveHeld: false, reel: 0 };
+    previousHeld = held;
     let candidates = [];
     if (!state.swing && !state.zip && held) {
       if (frame >= nextSearch) {
         const speed = Math.hypot(state.velocity.x, state.velocity.z);
         const heading = speed > 8 ? new THREE.Vector3(state.velocity.x, 0, state.velocity.z).normalize() : forward;
-        cachedAnchors = anchorsAt(world, state.position, heading); nextSearch = frame + 5;
+        cachedAnchors = anchorsAt(world, state.position, heading); nextSearch = frame + 10;
         searches++; anchorCount += cachedAnchors.length;
       }
       candidates = cachedAnchors;
@@ -98,15 +103,15 @@ function simulate(world, route, name) {
     const assisted = stepSwingAssistance(assistance, { position: state.position, velocity: state.velocity, dt,
       swinging: Boolean(state.swing && held), diving: false, desiredDirection: forward },
     (origin, direction, maximum) => world.raycast(origin, direction, maximum));
-    Object.assign(state.velocity, assisted.velocity);
     probes += assisted.probeCount; assistanceFrames += +assisted.active;
     const before = new THREE.Vector3().copy(state.position), wasGrounded = state.grounded;
-    const incoming = { ...state.velocity };
+    let incoming = { ...state.velocity };
     const result = stepTraversalInPlace(state, input, {
-      groundY: -10000, colliders: [], anchorColliders: [], wallContact: state.wall,
+      groundY: -10000, colliders: [], anchorColliders: [], wallContact: state.wall, externalCollision: true,
+      predictiveAssistAcceleration: assisted.acceleration,
       sampleGround: (point, rise, drop) => world.supportAt(point, rise, drop ?? .1)?.point.y ?? null,
       anchorCandidates: candidates, zipTargets: candidates,
-    }, dt, { zipAcceleration: 126, zipDamping: 3.6, zipMaximumSpeed: 66 });
+    }, dt, config);
     for (const event of result.events) {
       events[event.type] = (events[event.type] ?? 0) + 1;
       if (event.type === 'web-attached') attachedAt = frame;
@@ -114,6 +119,7 @@ function simulate(world, route, name) {
         longestAttachment = Math.max(longestAttachment, frame - attachedAt); attachedAt = null;
       }
     }
+    incoming = { ...state.velocity };
     const hit = world.sweepCapsule(before, state.position, state.velocity);
     const preFinalSnapPosition = hit.position.clone();
     const blocked = Boolean(hit.wallNormal) || hit.blocked && !hit.grounded;
@@ -132,35 +138,49 @@ function simulate(world, route, name) {
     setTraversalKinematics(state, hit.position, hit.velocity);
     const normal = hit.wallNormal ?? state.wall?.normal;
     const contact = normal ? probeWallFeet(state.position, normal, (origin, direction, max) => world.raycast(origin, direction, max)) : null;
-    if (contact) { state.wall = { ...contact, contactSeconds: state.wall?.contactSeconds ?? 0, graceSeconds: .14 }; acceptTraversalWallContact(state, contact, incoming, input); }
-    else { state.wall = null; state.wallCrawlActive = false; state.wallRunActive = false; }
+    if (contact) { state.wall = { ...contact, contactSeconds: state.wall?.contactSeconds ?? 0, graceSeconds: .14 }; acceptTraversalWallContact(state, contact, incoming, input, config); }
+    else { if(state.wallRunActive && held)state.swingNeedsRelease=false; state.wall = null; state.wallCrawlActive = false; state.wallRunActive = false; }
     if (state.swing) {
-      const anchor = new THREE.Vector3().copy(state.swing.anchor);
+      const anchor = new THREE.Vector3().copy(state.swing.visualAnchor ?? state.swing.anchor);
+      const pivot = new THREE.Vector3().copy(state.swing.simulationPivot ?? state.swing.pivot ?? state.swing.anchor);
       const chest = hit.position.clone().add(up), line = anchor.clone().sub(chest);
       const obstruction = world.raycast(chest, line.clone().normalize(), Math.max(0, line.length() - .1));
-      const excess = hit.position.distanceTo(anchor) - state.swing.ropeLength;
+      const excess = hit.position.distanceTo(pivot) - state.swing.ropeLength;
       const conflict = blocked && excess > Math.max(.25, state.swing.ropeLength * .01);
-      const reason = obstruction ? 'blocked-web' : state.grounded ? 'landed' : conflict ? 'solid-rope-conflict' : null;
-      if (reason) {
-        detaches[reason] = (detaches[reason] ?? 0) + 1;
+      const previousRopeLength = state.swing.ropeLength;
+      const resolution = resolveSwingContinuation(state, {
+        obstruction: obstruction ? { point: obstruction.point, normal: obstruction.normal, id: `mesh:${obstruction.triangleIndex}` } : null,
+        constraintBlocked: conflict, contact, candidates: obstruction || conflict ? anchorsAt(world,state.position,forward) : cachedAnchors, dt,
+        hasLineOfSight: (origin,target) => {
+          const a = new THREE.Vector3().copy(origin).add(up), d = new THREE.Vector3().copy(target).sub(a);
+          return !world.raycast(a,d.clone().normalize(),Math.max(0,d.length()-.12));
+        },
+      }, input, config, result.events);
+      if (resolution === 'landed') { groundedReleases++; attachedAt=null; }
+      if (resolution === 'detach') {
+        detaches['no-valid-continuation'] = (detaches['no-valid-continuation'] ?? 0) + 1;
         if (attachedAt !== null) {
           longestAttachment = Math.max(longestAttachment, frame - attachedAt);
-          if (frame - attachedAt < 12) immediateDetaches++;
+          if (frame - attachedAt < 24) immediateDetaches++;
         }
-        if (detachSamples.length < 8) detachSamples.push({ frame, reason, age: attachedAt === null ? null : frame - attachedAt,
-          position: coordinates(hit.position), velocity: coordinates(hit.velocity), rope: round(state.swing.ropeLength), excess: round(excess),
+        if (detachSamples.length < 8) detachSamples.push({ frame, reason: resolution, age: attachedAt === null ? null : frame - attachedAt,
+          position: coordinates(hit.position), velocity: coordinates(hit.velocity), rope: round(previousRopeLength), excess: round(excess),
           obstructionDistance: obstruction ? round(obstruction.distance) : null });
-        state.swing = null; state.swingRetryAfter = state.elapsed + .2; attachedAt = null;
-      } else if (excess > 0 && excess <= .5 && state.swing.ropeLength + excess <= state.swing.maximumLength) state.swing.ropeLength += excess;
+        attachedAt = null;
+      }
     } else if (attachedAt !== null) {
       longestAttachment = Math.max(longestAttachment, frame - attachedAt); attachedAt = null;
     }
-    refreshTraversalContext(state, input);
+    commitAdvancedMotion(state,input,config,dt,result.events);
+    refreshTraversalContext(state, input, config);
     const speed = Math.hypot(state.velocity.x, state.velocity.y, state.velocity.z);
     maxSpeed = Math.max(maxSpeed, speed); maxHeight = Math.max(maxHeight, state.position.y);
     distance += before.distanceTo(hit.position); contacts += hit.contacts; wallFrames += +Boolean(hit.wallNormal);
     airFrames += +!state.grounded; swingFrames += +Boolean(state.swing);
-    if (frame > 30 && speed < 1 && held) stalled++;
+    if (frame > 30 && speed < 1 && held) {
+      stalled++; currentStall++; maximumStall=Math.max(maximumStall,currentStall);
+      if(stallSamples.length<8 || currentStall===42 || currentStall===120)stallSamples.push({frame,mode:state.mode,position:coordinates(state.position),velocity:coordinates(state.velocity),wall:state.wall,advanced:structuredClone(state.advanced),needsRelease:state.swingNeedsRelease,anchorCandidates:candidates.length});
+    } else currentStall=0;
     const clear = world.isCapsuleClear(state.position, .46, 2.05, false);
     if (!clear) {
       penetrationFrames++;
@@ -177,9 +197,14 @@ function simulate(world, route, name) {
   if (attachedAt !== null) longestAttachment = Math.max(longestAttachment, frameCount - attachedAt);
   times.sort((a, b) => a - b);
   failures += penetrationFrames;
+  assert.equal(immediateDetaches, 0, 'Geometry recovery must not kill a newly caught swing');
+  if(maximumStall>=42)console.log(JSON.stringify({trial:name,maximumStall,stallSamples},null,2));
+  assert.ok(maximumStall < 42, 'Held traversal must not stall against a facade for .35 continuous seconds');
+  if(Object.keys(detaches).length)console.log(JSON.stringify({trial:name,detaches,detachSamples},null,2));
+  assert.equal(Object.values(detaches).reduce((a,b)=>a+b,0), 0, 'Street/corner courses have valid continuations');
   return { trial: name, frames: frameCount, start, end: coordinates(state.position), distance: round(distance), maxHeight: round(maxHeight),
-    maxSpeed: round(maxSpeed), airtimeSeconds: round(airFrames / 60), swingSeconds: round(swingFrames / 60),
-    longestAttachmentSeconds: round(longestAttachment / 60), immediateDetaches, stalledHeldFrames: stalled,
+    maxSpeed: round(maxSpeed), groundedReleases, airtimeSeconds: round(airFrames / 120), swingSeconds: round(swingFrames / 120),
+    longestAttachmentSeconds: round(longestAttachment / 120), immediateDetaches, stalledHeldFrames: stalled, maximumConsecutiveStallFrames: maximumStall,
     contacts, wallFrames, penetrationFrames, assistanceFrames, probes, anchorSearches: searches,
     meanAnchorCandidates: round(anchorCount / Math.max(1, searches)), events, detaches, detachSamples, sampleFailures,
     cpuFrameMeanMs: round(times.reduce((sum, value) => sum + value, 0) / times.length), cpuFrameP95Ms: round(times[Math.floor(times.length * .95)]) };
@@ -225,8 +250,10 @@ for (const config of DISTRICTS.filter(map => wanted.has(map.id))) {
     console.log(JSON.stringify({ recordedBrowserPoint: coordinates(point), surfaceClear: world.isCapsuleClear(point, .46, 2.05, false), fullClear: world.isCapsuleClear(point), rays }, null, 2));
   }
   const routes = streetRoutes(world);
-  console.log(JSON.stringify({ map: config.id, triangles: query.triangleCount, textureDecoding: false,
-    trials: routes.map((route, index) => simulate(world, route, ['central-street', 'cross-street', 'unrendered-repeat-tile'][index])) }, null, 2));
+  const report = { map: config.id, triangles: query.triangleCount, textureDecoding: false, simulationHz:120,
+    trials: routes.map((route, index) => simulate(world, route, ['central-street', 'cross-street', 'unrendered-repeat-tile'][index])) };
+  fs.writeFileSync(new URL(`../docs/verification/traversal-continuity-${config.id}.json`,import.meta.url),JSON.stringify(report,null,2)+'\n');
+  console.log(JSON.stringify(report,null,2));
 }
 assert.equal(failures, 0, 'Every swept integrated frame must remain outside rendered mesh surfaces. Spawn interior validation is checked separately.');
 console.log('PASS: integrated map trials had no capsule penetrations; wall traversal requires physical contact. Airtime/detach/performance metrics above remain diagnostic, not a claim of visual polish.');

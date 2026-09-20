@@ -44,6 +44,19 @@ const segments = [
 ];
 const reports = [];
 for (const suit of SUITS) {
+  const preview = await fs.readFile(
+    `public/assets/previews/suits/${suit.id}.png`,
+  );
+  assert.equal(
+    preview.subarray(1, 4).toString(),
+    'PNG',
+    `${suit.id} preview is not a PNG`,
+  );
+  assert.deepEqual(
+    [preview.readUInt32BE(16), preview.readUInt32BE(20)],
+    [512, 512],
+    `${suit.id} preview must be 512x512`,
+  );
   const model = await load(suit.model),
     library = await load(suit.animationSource),
     clips = retargetMixamoClips(library.animations, library.scene, model.scene);
@@ -57,6 +70,7 @@ for (const suit of SUITS) {
     tm = new THREE.AnimationMixer(model.scene),
     tb = bones(model.scene);
   let worst = 1,
+    worstSegment = '',
     maximumSpan = 0,
     samples = 0;
   const restHeight = new THREE.Box3()
@@ -87,7 +101,11 @@ for (const suit of SUITS) {
             .getWorldPosition(new THREE.Vector3())
             .sub(map.get(a).getWorldPosition(new THREE.Vector3()))
             .normalize();
-        worst = Math.min(worst, dir(sb).dot(dir(tb)));
+        const alignment = dir(sb).dot(dir(tb));
+        if (alignment < worst) {
+          worst = alignment;
+          worstSegment = `${a}->${b}`;
+        }
       }
       const box = new THREE.Box3();
       model.scene.traverse((o) => {
@@ -152,6 +170,7 @@ for (const suit of SUITS) {
     clips: clips.length,
     samples,
     worstLimbDirection: worst,
+    worstSegment,
     maximumRelativeSkinSpan: maximumSpan,
     danceRelativeSkinSpan: danceSpan,
     passed: worst > 0.97 && maximumSpan < 3 && danceSpan < 3,

@@ -3,6 +3,7 @@ import * as THREE from 'three';
 /** Shared source geometry, repeated to the fog horizon; collision remains in RepeatingMeshWorld. */
 export class CityHorizon {
   readonly root = new THREE.Group();
+  detailScale = 1;
   private readonly texturedMeshes: THREE.InstancedMesh[] = [];
   private readonly silhouetteMeshes: THREE.InstancedMesh[] = [];
   private readonly bounds: THREE.Box3;
@@ -104,7 +105,7 @@ export class CityHorizon {
         this.matrix.makeTranslation(x * this.width, 0, z * this.depth);
         const distance = this.box.distanceToPoint(position);
         const textured =
-          distance < Math.min(950, Math.max(this.width, this.depth) * 2.6);
+          distance < Math.max(Math.max(this.width, this.depth) * 1.4, Math.min(950, Math.max(this.width, this.depth) * 2.6) * this.detailScale);
         const collection = textured
           ? this.texturedMeshes
           : this.silhouetteMeshes;

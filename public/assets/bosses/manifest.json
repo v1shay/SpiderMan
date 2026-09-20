@@ -1,0 +1,383 @@
+[
+  {
+    "id": "hulk",
+    "source": "hulk__marvel_rivals.glb",
+    "sourceBytes": 92057436,
+    "outputBytes": 21112200,
+    "originalClips": 173,
+    "clips": [
+      "Idle_C",
+      "Walk_Fwd_C",
+      "Walk_Bwd_C",
+      "Run_Fwd_C",
+      "Turn_R90_C",
+      "Turn_L90_C",
+      "Fight_Start",
+      "Giddiness",
+      "SmashLieDown",
+      "SmashRecover",
+      "Smashing",
+      "101211_Punch_01",
+      "101211_Punch_02",
+      "101211_Punch_03",
+      "101211_Punch_04",
+      "101211_Punch_Turn_R",
+      "101211_Punch_Turn_L",
+      "101291_Jump_Attack_Start",
+      "101291_Jump_Attack_Float",
+      "101291_Jump_Attack_Land",
+      "101291_Jump_Attack_Recovery",
+      "101199_Throw_Start",
+      "101199_Throw_Loop",
+      "101199_Throw_End",
+      "Repulse_Start",
+      "Repulse_Loop",
+      "Repulse_End",
+      "Dead_B"
+    ],
+    "sourceMetadata": {
+      "author": "King_45 (https://sketchfab.com/King_45)",
+      "license": "CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)",
+      "source": "https://sketchfab.com/3d-models/hulk-marvel-rivals-1379a9de81b7426ea4ee71ff4c126e80",
+      "title": "Hulk | Marvel Rivals",
+      "localBossExport": "Selected native gameplay clips; identical key values; textures limited to 1024px. Supplied local asset."
+    },
+    "images": [
+      {
+        "sourceWidth": 1024,
+        "sourceHeight": 1024,
+        "originalBytes": 6713,
+        "outputBytes": 11950
+      },
+      {
+        "sourceWidth": 1024,
+        "sourceHeight": 1024,
+        "originalBytes": 222,
+        "outputBytes": 12558
+      },
+      {
+        "sourceWidth": 1024,
+        "sourceHeight": 1024,
+        "originalBytes": 263340,
+        "outputBytes": 13577
+      },
+      {
+        "sourceWidth": 1024,
+        "sourceHeight": 1024,
+        "originalBytes": 309577,
+        "outputBytes": 47356
+      },
+      {
+        "sourceWidth": 1024,
+        "sourceHeight": 1024,
+        "originalBytes": 222,
+        "outputBytes": 12558
+      },
+      {
+        "sourceWidth": 1024,
+        "sourceHeight": 1024,
+        "originalBytes": 263340,
+        "outputBytes": 13577
+      },
+      {
+        "sourceWidth": 1024,
+        "sourceHeight": 1024,
+        "originalBytes": 577881,
+        "outputBytes": 120724
+      },
+      {
+        "sourceWidth": 1024,
+        "sourceHeight": 1024,
+        "originalBytes": 482705,
+        "outputBytes": 133921
+      },
+      {
+        "sourceWidth": 1024,
+        "sourceHeight": 1024,
+        "originalBytes": 933536,
+        "outputBytes": 171149
+      },
+      {
+        "sourceWidth": 1024,
+        "sourceHeight": 1024,
+        "originalBytes": 644575,
+        "outputBytes": 102232
+      },
+      {
+        "sourceWidth": 1024,
+        "sourceHeight": 1024,
+        "originalBytes": 239314,
+        "outputBytes": 76351
+      },
+      {
+        "sourceWidth": 1024,
+        "sourceHeight": 1024,
+        "originalBytes": 585299,
+        "outputBytes": 105558
+      },
+      {
+        "sourceWidth": 1024,
+        "sourceHeight": 1024,
+        "originalBytes": 530323,
+        "outputBytes": 102430
+      },
+      {
+        "sourceWidth": 1024,
+        "sourceHeight": 1024,
+        "originalBytes": 1309252,
+        "outputBytes": 297986
+      },
+      {
+        "sourceWidth": 1024,
+        "sourceHeight": 1024,
+        "originalBytes": 1382193,
+        "outputBytes": 295020
+      },
+      {
+        "sourceWidth": 1024,
+        "sourceHeight": 1024,
+        "originalBytes": 616661,
+        "outputBytes": 162087
+      },
+      {
+        "sourceWidth": 1024,
+        "sourceHeight": 1024,
+        "originalBytes": 742174,
+        "outputBytes": 283548
+      },
+      {
+        "sourceWidth": 1024,
+        "sourceHeight": 1024,
+        "originalBytes": 40921,
+        "outputBytes": 22733
+      },
+      {
+        "sourceWidth": 1024,
+        "sourceHeight": 1024,
+        "originalBytes": 742187,
+        "outputBytes": 212990
+      },
+      {
+        "sourceWidth": 1024,
+        "sourceHeight": 1024,
+        "originalBytes": 288667,
+        "outputBytes": 468012
+      },
+      {
+        "sourceWidth": 1024,
+        "sourceHeight": 1024,
+        "originalBytes": 165300,
+        "outputBytes": 94806
+      },
+      {
+        "sourceWidth": 1024,
+        "sourceHeight": 1024,
+        "originalBytes": 175501,
+        "outputBytes": 77531
+      },
+      {
+        "sourceWidth": 1024,
+        "sourceHeight": 1024,
+        "originalBytes": 116509,
+        "outputBytes": 131152
+      },
+      {
+        "sourceWidth": 1024,
+        "sourceHeight": 1024,
+        "originalBytes": 222,
+        "outputBytes": 12558
+      },
+      {
+        "sourceWidth": 1024,
+        "sourceHeight": 1024,
+        "originalBytes": 263340,
+        "outputBytes": 13577
+      }
+    ]
+  },
+  {
+    "id": "venom",
+    "source": "venom__marvel_rivals.glb",
+    "sourceBytes": 95416780,
+    "outputBytes": 22320612,
+    "originalClips": 190,
+    "clips": [
+      "Idle_C",
+      "Walk_Fwd_C",
+      "Walk_Bwd_C",
+      "Run_Fwd_C",
+      "Giddiness",
+      "SmashLieDown",
+      "SmashRecover",
+      "103581_Symbiote",
+      "103511_Attack01",
+      "103511_Attack02",
+      "103511_Attack03",
+      "103521_Tentacles_01",
+      "103521_Tentacles_02",
+      "103541_Shackle",
+      "103531_Descent_Start",
+      "103531_Descent_Loop",
+      "103531_Descent_End",
+      "103551_Ground_Flight_Start_C",
+      "103551_Ground_Flight_Loop_C",
+      "103551_Ground_Flight_End_C",
+      "103551_Dash_R",
+      "103551_Dash_R_End",
+      "103551_Dash_L",
+      "103551_Dash_L_End",
+      "103501_Wallrun_F",
+      "Onwall_To_Jump",
+      "Onwall_Idle",
+      "Dead_B"
+    ],
+    "sourceMetadata": {
+      "author": "King_45 (https://sketchfab.com/King_45)",
+      "license": "CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)",
+      "source": "https://sketchfab.com/3d-models/venom-marvel-rivals-b76ed38dafec4f84ac1f48d4a17243eb",
+      "title": "Venom | Marvel Rivals",
+      "localBossExport": "Selected native gameplay clips; identical key values; textures limited to 1024px. Supplied local asset."
+    },
+    "images": [
+      {
+        "sourceWidth": 1024,
+        "sourceHeight": 1024,
+        "originalBytes": 1015334,
+        "outputBytes": 191051
+      },
+      {
+        "sourceWidth": 1024,
+        "sourceHeight": 1024,
+        "originalBytes": 1074225,
+        "outputBytes": 238118
+      },
+      {
+        "sourceWidth": 1024,
+        "sourceHeight": 1024,
+        "originalBytes": 1185066,
+        "outputBytes": 242051
+      },
+      {
+        "sourceWidth": 1024,
+        "sourceHeight": 1024,
+        "originalBytes": 799477,
+        "outputBytes": 149731
+      },
+      {
+        "sourceWidth": 1024,
+        "sourceHeight": 1024,
+        "originalBytes": 771882,
+        "outputBytes": 161499
+      },
+      {
+        "sourceWidth": 1024,
+        "sourceHeight": 1024,
+        "originalBytes": 207,
+        "outputBytes": 12554
+      },
+      {
+        "sourceWidth": 1024,
+        "sourceHeight": 1024,
+        "originalBytes": 1107612,
+        "outputBytes": 228395
+      },
+      {
+        "sourceWidth": 1024,
+        "sourceHeight": 1024,
+        "originalBytes": 492735,
+        "outputBytes": 79582
+      },
+      {
+        "sourceWidth": 1024,
+        "sourceHeight": 1024,
+        "originalBytes": 794264,
+        "outputBytes": 138038
+      },
+      {
+        "sourceWidth": 1024,
+        "sourceHeight": 1024,
+        "originalBytes": 1010294,
+        "outputBytes": 189224
+      }
+    ]
+  },
+  {
+    "id": "ironman",
+    "source": "ironman-mua.glb",
+    "sourceBytes": 6340032,
+    "outputBytes": 3600372,
+    "originalClips": 36,
+    "clips": [
+      "idle",
+      "menu_action",
+      "menu_idle",
+      "fly_idle",
+      "fly_slow",
+      "fly_fast",
+      "pain_blocking",
+      "victim1",
+      "blocking",
+      "attack_heavy1",
+      "attack_knockback1",
+      "attack_knockback2",
+      "attack_light1",
+      "attack_light2",
+      "attack_light3",
+      "attack_stun2",
+      "attack_trip1",
+      "power_1",
+      "power_1_loop",
+      "power_1_end",
+      "power_2",
+      "power_3",
+      "power_4",
+      "power_5",
+      "power_6",
+      "power_7",
+      "power_8",
+      "power_9",
+      "power_12",
+      "power_13",
+      "power_14"
+    ],
+    "sourceMetadata": {
+      "author": "ak2yny (https://sketchfab.com/ak2yny)",
+      "license": "CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)",
+      "source": "https://sketchfab.com/3d-models/15-iron-man-mua-16e993fe01564aa389cffb533156e311",
+      "title": "15 Iron Man MUA",
+      "localBossExport": "Selected native gameplay clips; identical key values; textures limited to 1024px. Supplied local asset."
+    },
+    "images": [
+      {
+        "sourceWidth": 1024,
+        "sourceHeight": 1024,
+        "originalBytes": 1168537,
+        "outputBytes": 284982
+      },
+      {
+        "sourceWidth": 1024,
+        "sourceHeight": 1024,
+        "originalBytes": 145006,
+        "outputBytes": 35275
+      },
+      {
+        "sourceWidth": 256,
+        "sourceHeight": 256,
+        "originalBytes": 5538,
+        "outputBytes": 3134
+      },
+      {
+        "sourceWidth": 1024,
+        "sourceHeight": 1024,
+        "originalBytes": 1509059,
+        "outputBytes": 459437
+      },
+      {
+        "sourceWidth": 1024,
+        "sourceHeight": 1024,
+        "originalBytes": 570152,
+        "outputBytes": 515498
+      }
+    ]
+  }
+]

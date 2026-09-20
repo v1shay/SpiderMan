@@ -1,23 +1,35 @@
 {
   "passed": true,
   "checks": [
-    "Shared far course and alternating side",
+    "Shared far checkpoint course, deterministic generation and alternating side",
     "Invitation never teleports receivers",
     "Explicit acceptance and nonparticipant isolation",
     "Wrong host start rejected",
     "Same exact start, finish and countdown across clients",
     "Duplicate start does not teleport again",
     "Simultaneous racing start",
-    "Finish propagation and one-time completion",
+    "Legacy finish propagation and one-time completion",
     "Uninvited finish and nonfinite coordinates rejected",
-    "Solo fallback launches without accepted peers",
     "Cancelled host invitation resets accepted receiver",
     "Timer formats centiseconds",
-    "Ghost preserves complete skeleton and interpolates movement",
-    "Wind corridor lifts and glides only inside its volume"
+    "Finish cannot be claimed before checkpoints, including teleport-sized displacement",
+    "Swept checkpoint detection catches high-speed passage without endpoint overlap",
+    "Missing a gate preserves progression and gives return guidance",
+    "Skill gates require actual traversal state or recent events",
+    "Checkpoint bonuses cannot satisfy a trick-score requirement",
+    "Split routes accept either branch, rejoin and have equal checkpoint counts",
+    "Malformed checkpoint graphs, duplicate IDs and pathless finish packets rejected",
+    "Style and combined rankings reward score and medals use the selected mode",
+    "Personal restart clears splits and score without moving other players",
+    "Checkpoint PB splits compare matching branch IDs",
+    "Ghost preserves skeleton, interpolated movement, scores and checkpoint splits",
+    "Browser PB storage includes mode-aware scores and splits with legacy fallback",
+    "Wind is a bounded pure acceleration consumed by the physics solver",
+    "Geometry sampled courses use real floors, rooftops and facades across unseen tiles",
+    "Gate visuals, route progression and quality changes retain all gameplay markers"
   ],
   "sharedCourse": {
-    "id": "nyc2099-v4:0.0,30.0,0.0:-700.0,30.0,0.0",
+    "id": "skyline-v5:city:50:2:speed:0,30,0",
     "start": [
       0,
       30,
@@ -25,20 +37,391 @@
     ],
     "finish": [
       -700,
-      30,
+      36,
       0
     ],
-    "side": 2
+    "side": 2,
+    "seed": 50,
+    "gates": [
+      {
+        "id": "gate-0",
+        "position": [
+          -70,
+          38,
+          22.0098965219222
+        ],
+        "radius": 12,
+        "type": "free",
+        "next": [
+          "gate-1"
+        ],
+        "bonus": 25,
+        "required": false
+      },
+      {
+        "id": "gate-1",
+        "position": [
+          -140,
+          18,
+          -28.237965004518628
+        ],
+        "radius": 12,
+        "type": "free",
+        "next": [
+          "gate-2"
+        ],
+        "bonus": 25,
+        "required": false
+      },
+      {
+        "id": "gate-2",
+        "position": [
+          -210,
+          6,
+          40.05473607452586
+        ],
+        "radius": 12,
+        "type": "free",
+        "next": [
+          "gate-3"
+        ],
+        "bonus": 25,
+        "required": false
+      },
+      {
+        "id": "gate-3",
+        "position": [
+          -280,
+          18,
+          -1.6816673940047622
+        ],
+        "radius": 12,
+        "type": "split-route",
+        "next": [
+          "gate-4",
+          "gate-4-alt"
+        ],
+        "bonus": 150,
+        "required": false
+      },
+      {
+        "id": "gate-4",
+        "position": [
+          -350,
+          30,
+          -18.665123332757503
+        ],
+        "radius": 8,
+        "type": "free",
+        "next": [
+          "gate-5"
+        ],
+        "bonus": 25,
+        "required": false
+      },
+      {
+        "id": "gate-4-alt",
+        "position": [
+          -350,
+          30,
+          -58.6651233327575
+        ],
+        "radius": 8,
+        "type": "free",
+        "next": [
+          "gate-5"
+        ],
+        "bonus": 25,
+        "required": false
+      },
+      {
+        "id": "gate-5",
+        "position": [
+          -420,
+          42,
+          44.338424261659384
+        ],
+        "radius": 12,
+        "type": "free",
+        "next": [
+          "gate-6"
+        ],
+        "bonus": 25,
+        "required": false
+      },
+      {
+        "id": "gate-6",
+        "position": [
+          -489.99999999999994,
+          38,
+          -35.6019789702259
+        ],
+        "radius": 12,
+        "type": "free",
+        "next": [
+          "gate-7"
+        ],
+        "bonus": 25,
+        "required": false
+      },
+      {
+        "id": "gate-7",
+        "position": [
+          -560,
+          48,
+          4.708467177115381
+        ],
+        "radius": 12,
+        "type": "wind",
+        "next": [
+          "gate-8"
+        ],
+        "bonus": 150,
+        "required": false
+      },
+      {
+        "id": "gate-8",
+        "position": [
+          -630,
+          42,
+          -39.91812957683578
+        ],
+        "radius": 12,
+        "type": "free",
+        "next": [
+          "gate-9"
+        ],
+        "bonus": 25,
+        "required": false
+      },
+      {
+        "id": "gate-9",
+        "position": [
+          -700,
+          36,
+          0
+        ],
+        "radius": 7,
+        "type": "precision",
+        "next": [],
+        "bonus": 100,
+        "required": false
+      }
+    ],
+    "mode": "speed",
+    "parTimes": {
+      "gold": 38959,
+      "silver": 50647,
+      "bronze": 66230
+    },
+    "scoreTargets": {
+      "gold": 3500,
+      "silver": 2200,
+      "bronze": 1200
+    }
+  },
+  "geometryCourse": {
+    "id": "skyline-v5:fixture-city:17:1:combined:45,40,45",
+    "start": [
+      45,
+      40,
+      45
+    ],
+    "finish": [
+      45,
+      50,
+      685
+    ],
+    "side": 1,
+    "seed": 17,
+    "gates": [
+      {
+        "id": "gate-0",
+        "position": [
+          66.4109905064106,
+          48,
+          109
+        ],
+        "radius": 12,
+        "type": "free",
+        "next": [
+          "gate-1"
+        ],
+        "bonus": 25,
+        "required": false
+      },
+      {
+        "id": "gate-1",
+        "position": [
+          18.33182776123285,
+          10.000000001490093,
+          173
+        ],
+        "radius": 12,
+        "type": "low-swing",
+        "next": [
+          "gate-2"
+        ],
+        "bonus": 150,
+        "required": true
+      },
+      {
+        "id": "gate-2",
+        "position": [
+          48.363410773873326,
+          18.000000001490093,
+          237
+        ],
+        "radius": 12,
+        "type": "dive",
+        "next": [
+          "gate-3"
+        ],
+        "bonus": 150,
+        "required": true
+      },
+      {
+        "id": "gate-3",
+        "position": [
+          61.877526162564756,
+          28,
+          301
+        ],
+        "radius": 12,
+        "type": "split-route",
+        "next": [
+          "gate-4",
+          "gate-4-alt"
+        ],
+        "bonus": 150,
+        "required": false
+      },
+      {
+        "id": "gate-4",
+        "position": [
+          27.85,
+          14.000000001490093,
+          365
+        ],
+        "radius": 8,
+        "type": "wall-run",
+        "next": [
+          "gate-5"
+        ],
+        "bonus": 150,
+        "required": true
+      },
+      {
+        "id": "gate-4-alt",
+        "position": [
+          -27.85,
+          14.000000001490093,
+          365
+        ],
+        "radius": 8,
+        "type": "wall-run",
+        "next": [
+          "gate-5"
+        ],
+        "bonus": 150,
+        "required": true
+      },
+      {
+        "id": "gate-5",
+        "position": [
+          58.90336665660143,
+          40.6,
+          429
+        ],
+        "radius": 9,
+        "type": "rooftop-vault",
+        "next": [
+          "gate-6"
+        ],
+        "bonus": 150,
+        "required": true
+      },
+      {
+        "id": "gate-6",
+        "position": [
+          30.74322415292263,
+          4.000000001490093,
+          493
+        ],
+        "radius": 9,
+        "type": "point-launch",
+        "next": [
+          "gate-7"
+        ],
+        "bonus": 150,
+        "required": true
+      },
+      {
+        "id": "gate-7",
+        "position": [
+          68.74228820055723,
+          58,
+          557
+        ],
+        "radius": 12,
+        "type": "wind",
+        "next": [
+          "gate-8"
+        ],
+        "bonus": 150,
+        "required": false
+      },
+      {
+        "id": "gate-8",
+        "position": [
+          73.62617718577386,
+          52,
+          621
+        ],
+        "radius": 12,
+        "type": "free",
+        "next": [
+          "gate-9"
+        ],
+        "bonus": 25,
+        "required": false
+      },
+      {
+        "id": "gate-9",
+        "position": [
+          45,
+          50,
+          685
+        ],
+        "radius": 7,
+        "type": "precision",
+        "next": [],
+        "bonus": 100,
+        "required": false
+      }
+    ],
+    "mode": "combined",
+    "mapId": "fixture-city",
+    "parTimes": {
+      "gold": 34746,
+      "silver": 45170,
+      "bronze": 59068
+    },
+    "scoreTargets": {
+      "gold": 3500,
+      "silver": 2200,
+      "bronze": 1200
+    }
   },
   "finishes": [
     {
       "id": "player-b-2099",
-      "course": "nyc2099-v4:0.0,30.0,0.0:-700.0,30.0,0.0",
+      "course": "legacy-course",
       "time": 22000
     },
     {
       "id": "player-a-2099",
-      "course": "nyc2099-v4:0.0,30.0,0.0:-700.0,30.0,0.0",
+      "course": "legacy-course",
       "time": 23000
     }
   ]

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type CSSProperties } from 'react';
 import Image from 'next/image';
 import { Map as MapIcon, Volume2, X } from 'lucide-react';
 import type {
@@ -28,9 +28,12 @@ export const worldToMap = (
 type Props = {
   players?: TrackerPlayer[];
   finish?: [number, number, number] | null;
+  route?: [number, number, number][];
   open: boolean;
   current: DistrictId;
   loaded: ReadonlySet<DistrictId>;
+  loadingDistrict?: DistrictId | null;
+  loadingProgress?: number;
   onClose: () => void;
   onOpen: () => void;
   onTravel: (id: DistrictId) => void;
@@ -146,20 +149,186 @@ function createTrackerStyle(
   return style;
 }
 
+function MiniTrackerMap({
+  players,
+  finish,
+  route,
+}: {
+  players: TrackerPlayer[];
+  finish: [number, number, number] | null;
+  route: [number, number, number][];
+}) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const markersRef = useRef(new Map<string, Marker>());
+  const liveRef = useRef({ players, finish, route });
+  const updateRef = useRef<() => void>(() => undefined);
+
+  useEffect(() => {
+    liveRef.current = { players, finish, route };
+    updateRef.current();
+  }, [players, finish, route]);
+
+  useEffect(() => {
+    if (!containerRef.current) return;
+    const markerStore = markersRef.current;
+    let disposed = false;
+    let map: MapLibreMap | null = null;
+
+    const mount = async () => {
+      try {
+        const [{ default: maplibregl }, response] = await Promise.all([
+          import('maplibre-gl'),
+          fetch(OPEN_FREE_MAP_STYLE),
+        ]);
+        if (!response.ok)
+          throw new Error(`Map style request failed: ${response.status}`);
+        const sourceStyle = (await response.json()) as StyleSpecification;
+        if (disposed || !containerRef.current) return;
+        map = new maplibregl.Map({
+          container: containerRef.current,
+          style: createTrackerStyle(sourceStyle),
+          center: worldToMap(
+            liveRef.current.players.find((player) => player.self)?.position ?? [
+              0, 0, 0,
+            ],
+          ),
+          zoom: 15.7,
+          bearing: -18,
+          pitch: 42,
+          interactive: false,
+          attributionControl: false,
+          fadeDuration: 0,
+          renderWorldCopies: false,
+        });
+        const update = () => {
+          if (!map?.isStyleLoaded()) return;
+          const current = liveRef.current;
+          const entries = [
+            ...current.players.map((player) => ({
+              id: player.id,
+              point: player.position,
+              type: player.self ? 'self' : 'peer',
+            })),
+            ...(current.finish
+              ? [{ id: 'race-finish', point: current.finish, type: 'finish' }]
+              : []),
+          ];
+          const ids = new Set(entries.map((entry) => entry.id));
+          for (const [id, marker] of markerStore)
+            if (!ids.has(id)) {
+              marker.remove();
+              markerStore.delete(id);
+            }
+          for (const entry of entries) {
+            let marker = markerStore.get(entry.id);
+            if (!marker) {
+              const element = document.createElement('i');
+              element.className = `mini-map-marker mini-map-marker-${entry.type}`;
+              marker = new maplibregl.Marker({ element })
+                .setLngLat(worldToMap(entry.point))
+                .addTo(map);
+              markerStore.set(entry.id, marker);
+            }
+            marker.setLngLat(worldToMap(entry.point));
+          }
+          const self = current.players.find((player) => player.self);
+          if (self)
+            map.jumpTo({
+              center: worldToMap(self.position),
+              zoom: 15.7,
+              bearing: -18,
+              pitch: 42,
+            });
+          const route: GeoJSON.FeatureCollection = {
+            type: 'FeatureCollection',
+            features:
+              self && current.finish
+                ? [
+                    {
+                      type: 'Feature',
+                      properties: {},
+                      geometry: {
+                        type: 'LineString',
+                        coordinates: [
+                          worldToMap(self.position),
+                          ...(current.route.length ? current.route.map(worldToMap) : [worldToMap(current.finish)]),
+                        ],
+                      },
+                    },
+                  ]
+                : [],
+          };
+          (
+            map.getSource('mini-wayfinder') as GeoJSONSource | undefined
+          )?.setData(route);
+        };
+        updateRef.current = update;
+        void map.once('load', () => {
+          if (disposed || !map) return;
+          map.addSource('mini-wayfinder', {
+            type: 'geojson',
+            data: { type: 'FeatureCollection', features: [] },
+          });
+          map.addLayer({
+            id: 'mini-wayfinder-glow',
+            type: 'line',
+            source: 'mini-wayfinder',
+            paint: {
+              'line-color': '#7cf1ff',
+              'line-width': 5,
+              'line-opacity': 0.28,
+            },
+          });
+          map.addLayer({
+            id: 'mini-wayfinder-line',
+            type: 'line',
+            source: 'mini-wayfinder',
+            paint: {
+              'line-color': '#d7fcff',
+              'line-width': 1.5,
+              'line-dasharray': [2, 1],
+            },
+          });
+          update();
+          map.resize();
+        });
+      } catch (error) {
+        if (!disposed) console.error('[spidey-minimap] basemap failed', error);
+      }
+    };
+
+    void mount();
+    return () => {
+      disposed = true;
+      updateRef.current = () => undefined;
+      for (const marker of markerStore.values()) marker.remove();
+      markerStore.clear();
+      map?.remove();
+    };
+  }, []);
+
+  return (
+    <div ref={containerRef} className={styles.triggerMap} aria-hidden="true" />
+  );
+}
+
 export function SpideyTracker({
   open,
   current,
   loaded,
+  loadingDistrict = null,
+  loadingProgress = 0,
   onClose,
   onOpen,
   onTravel,
   players = [],
   finish = null,
+  route = [],
 }: Props) {
-  const liveRef = useRef({ players, finish });
+  const liveRef = useRef({ players, finish, route });
   useEffect(() => {
-    liveRef.current = { players, finish };
-  }, [players, finish]);
+    liveRef.current = { players, finish, route };
+  }, [players, finish, route]);
   const updateLiveRef = useRef<() => void>(() => undefined);
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MapLibreMap | null>(null);
@@ -285,7 +454,7 @@ export function SpideyTracker({
                         type: 'LineString',
                         coordinates: [
                           worldToMap(self.position),
-                          worldToMap(goal),
+                          ...(liveRef.current.route.length ? liveRef.current.route.map(worldToMap) : [worldToMap(goal)]),
                         ],
                       },
                     },
@@ -393,7 +562,10 @@ export function SpideyTracker({
 
   useEffect(() => {
     if (open) updateLiveRef.current();
-  }, [players, finish, open]);
+  }, [players, finish, route, open]);
+
+  const currentDistrict =
+    DISTRICTS.find((district) => district.id === current) ?? DISTRICTS[0];
 
   if (!open) {
     return (
@@ -403,15 +575,16 @@ export function SpideyTracker({
         onClick={onOpen}
         aria-label="Open Maps"
       >
-        <MapIcon aria-hidden="true" />
-        <span>Maps</span>
+        <MiniTrackerMap players={players} finish={finish} route={route} />
+        <span className={styles.triggerScanlines} aria-hidden="true" />
+        <span className={styles.triggerTitle}>
+          <MapIcon aria-hidden="true" />
+          {currentDistrict.name}
+        </span>
         <small>M</small>
       </button>
     );
   }
-
-  const currentDistrict =
-    DISTRICTS.find((district) => district.id === current) ?? DISTRICTS[0];
 
   return (
     <section className={styles.panel} aria-label="Spidey Tracker">
@@ -471,6 +644,9 @@ export function SpideyTracker({
               type="button"
               data-current={district.id === current}
               data-loaded={loaded.has(district.id)}
+              data-loading={loadingDistrict === district.id}
+              disabled={Boolean(loadingDistrict)}
+              style={{ '--district-load': `${loadingDistrict === district.id ? loadingProgress : 0}%` } as CSSProperties}
               onClick={() => onTravel(district.id)}
             >
               <Image
@@ -481,7 +657,7 @@ export function SpideyTracker({
                 unoptimized
               />
               <span>{district.name}</span>
-              <small>{loaded.has(district.id) ? 'Ready' : 'Stream'}</small>
+              <small>{loadingDistrict === district.id ? `${Math.max(1, Math.round(loadingProgress))}%` : loaded.has(district.id) ? 'Ready' : 'Stream'}</small>
             </button>
           ))}
         </nav>

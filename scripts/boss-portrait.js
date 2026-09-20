@@ -1,0 +1,33 @@
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.js';
+import { BOSS_DEFINITIONS } from '/lib/boss-definitions.ts';
+
+const id = new URLSearchParams(location.search).get('id') ?? 'hulk';
+const definition = BOSS_DEFINITIONS[id];
+const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true, alpha: true });
+renderer.setSize(512, 512); renderer.setPixelRatio(1); renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.3;
+document.body.append(renderer.domElement);
+const scene = new THREE.Scene();
+scene.background = new THREE.Color('#030a11');
+scene.fog = new THREE.FogExp2('#030a11', .07);
+scene.add(new THREE.HemisphereLight('#d9f7ff', '#180511', 2.5));
+const key = new THREE.DirectionalLight(definition.accent, 5); key.position.set(-4, 7, -6); scene.add(key);
+const rim = new THREE.DirectionalLight('#ffffff', 4); rim.position.set(4, 4, 3); scene.add(rim);
+const gltf = await new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).loadAsync(definition.asset);
+const root = gltf.scene; root.rotation.y = definition.modelYaw;
+const idle = gltf.animations.find(clip => clip.name === definition.clips.idle) ?? gltf.animations[0];
+if (idle) { const mixer = new THREE.AnimationMixer(root); mixer.clipAction(idle).play(); mixer.setTime(idle.duration * .18); }
+scene.add(root); root.updateMatrixWorld(true);
+const bounds = new THREE.Box3().setFromObject(root, true), size = bounds.getSize(new THREE.Vector3()), center = bounds.getCenter(new THREE.Vector3());
+const scale = definition.height / Math.max(.001, size.y); root.scale.setScalar(scale); root.position.set(-center.x * scale, -bounds.min.y * scale, -center.z * scale);
+root.updateMatrixWorld(true);
+const framed = new THREE.Box3().setFromObject(root, true), framedSize = framed.getSize(new THREE.Vector3()), framedCenter = framed.getCenter(new THREE.Vector3());
+const target = new THREE.Vector3(framedCenter.x, framed.min.y + framedSize.y * .57, framedCenter.z);
+const camera = new THREE.PerspectiveCamera(31, 1, .01, 100);
+camera.position.set(target.x, target.y + framedSize.y * .03, target.z - framedSize.y * 1.62);
+camera.lookAt(target);
+const halo = new THREE.Mesh(new THREE.RingGeometry(framedSize.y * .28, framedSize.y * .285, 64), new THREE.MeshBasicMaterial({ color: definition.accent, transparent: true, opacity: .5, side: THREE.DoubleSide }));
+halo.position.set(target.x, framed.min.y + framedSize.y * .45, target.z + .25); scene.add(halo);
+renderer.render(scene, camera); window.thumbnailReady = true;

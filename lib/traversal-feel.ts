@@ -16,7 +16,7 @@ export const SPIDER_TRAVERSAL_FEEL = Object.freeze({
   swingMaximumLength: 105,
   anchorMaximumDistance: 130,
   swingPumpAcceleration: 40,
-  swingSteerAcceleration: 22,
+  swingSteerAcceleration: 72,
   wallRunSpeed: 18,
   wallRunLift: 6,
   wallContactGrace: 0.08,
@@ -24,8 +24,8 @@ export const SPIDER_TRAVERSAL_FEEL = Object.freeze({
 
 export const SWING_RELEASE = Object.freeze({
   fullChargeSeconds: 1.2,
-  minimumUpSpeed: 20,
-  maximumUpSpeed: 44,
+  minimumUpSpeed: 7,
+  maximumUpSpeed: 35,
   minimumForwardBoost: 4,
   maximumForwardBoost: 16,
   noBoostBeforeSeconds: 0.06,
@@ -82,11 +82,15 @@ export function chargedSwingRelease(
   const gate = smooth((seconds - SWING_RELEASE.noBoostBeforeSeconds) / SWING_RELEASE.catchRampSeconds);
   if (gate === 0) return velocity;
   const charge = clamp(seconds / SWING_RELEASE.fullChargeSeconds, 0, 1);
+  // Releasing on a downswing is a legitimate choice: preserve the descent for
+  // another low catch. Charge only raises the launch floor progressively.
+  const descendingRelease = velocity.y < -2 && charge < .42;
   const desiredUp = SWING_RELEASE.minimumUpSpeed
     + (SWING_RELEASE.maximumUpSpeed - SWING_RELEASE.minimumUpSpeed) * charge;
   // Blend out downward velocity during the catch ramp, rather than flipping a
   // 60 ms click directly into a fully charged ascent.
-  const y = velocity.y + Math.max(0, desiredUp - velocity.y) * gate;
+  const liftGate = descendingRelease ? gate * charge * .35 : gate;
+  const y = velocity.y + Math.max(0, desiredUp - velocity.y) * liftGate;
   const speed = norm(velocity);
   const inheritedHorizontal = Math.hypot(velocity.x, velocity.z);
   const boost = (SWING_RELEASE.minimumForwardBoost
@@ -126,6 +130,19 @@ export function steerSwingTangent(
     y: tangent.y * cos + side.y * sin + radial.y * radialSpeed,
     z: tangent.z * cos + side.z * sin + radial.z * radialSpeed,
   };
+}
+
+/** Camera yaw controls assisted travel; the rope still owns vertical swing motion. */
+export function steerSwingHeading(incoming: FeelVector, desired: FeelVector, dt: number, acceleration: number): FeelVector {
+  finite(incoming);
+  const speed = Math.hypot(incoming.x, incoming.z);
+  if (speed < EPS || Math.hypot(desired.x, desired.z) < EPS) return { ...incoming };
+  const from = horizontalDirection(incoming, desired), to = horizontalDirection(desired, from);
+  const angle = Math.atan2(from.x * to.z - from.z * to.x, dot(from, to));
+  const limit = Math.min(2.3, Math.max(0, acceleration) / Math.max(4, speed)) * clamp(dt, 0, .05);
+  const turn = clamp(angle, -limit, limit), cos = Math.cos(turn), sin = Math.sin(turn);
+  return { x: (from.x * cos - from.z * sin) * speed, y: incoming.y,
+    z: (from.x * sin + from.z * cos) * speed };
 }
 
 export function hasWallRunSupport(wall: FeelWall | null | undefined): boolean {

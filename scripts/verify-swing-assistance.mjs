@@ -13,9 +13,9 @@ for (let frame = 0; frame < 60; frame++) {
   assert.deepEqual(result.velocity, input.velocity, 'open air leaves momentum untouched');
   assert.equal(result.groundLift, 0, 'ground assist belongs to traversal solver only');
   assert.equal(result.active, false);
-  assert.ok(result.probeCount <= 9);
+  assert.ok(result.probeCount <= 37);
 }
-assert.ok(rays <= 55, `cache should limit one stationary second to <=55 probes, got ${rays}`);
+assert.ok(rays <= 77, `cache should limit one stationary second to <=77 probes, got ${rays}`);
 
 const material = new THREE.MeshBasicMaterial();
 const building = new THREE.Mesh(new THREE.BoxGeometry(2, 24, 6), material);
@@ -29,7 +29,7 @@ assert.ok(result.active && result.velocity.z > 0, 'predictive fan respects inten
 assert.deepEqual(input.position, immutablePosition, 'assistance never mutates/teleports position');
 assert.equal(result.velocity.y, input.velocity.y, 'assistance must not add ascent or fight gravity');
 assert.ok(Math.hypot(result.velocity.x, result.velocity.z) <= 32 + 1e-9);
-assert.ok(Math.abs(result.steering) <= 1.25, 'steering rate is bounded');
+assert.ok(Math.abs(result.steering) <= 2.6, 'steering rate is bounded');
 
 // Integrate assistance then apply real mesh collision, exactly the authority
 // order expected by SpiderGame. A narrow tower should route into the clear lane.
@@ -61,7 +61,7 @@ const shoulderState = createSwingAssistanceState();
 result = stepSwingAssistance(shoulderState, input, (origin, direction) =>
   Math.abs(direction.z) < .001 && origin.z > .3 ? { distance: 8, normal: { x: -1, y: 0, z: 0 } } : null);
 assert.ok(result.active, 'shoulder envelope detects a corner missed by the center line');
-assert.equal(result.probeCount, 9);
+assert.equal(result.probeCount, 37);
 const floorState = createSwingAssistanceState();
 result = stepSwingAssistance(floorState, input, () => ({ distance: 1, normal: { x: 0, y: 1, z: 0 } }));
 assert.equal(result.active, false, 'ground triangles must not trigger horizontal building avoidance');
@@ -71,10 +71,10 @@ const closed = createSwingAssistanceState();
 const imminent = { ...input, velocity: { x: 60, y: -11, z: 0 } };
 result = stepSwingAssistance(closed, imminent, () => ({ distance: 1, normal: { x: -1, y: 0, z: 0 } }));
 assert.ok(result.velocity.x > 0, 'bounded braking never reflects/bounces the velocity');
-assert.ok(60 - Math.hypot(result.velocity.x, result.velocity.z) <= 18 / 60 + 1e-6);
+assert.ok(60 - Math.hypot(result.velocity.x, result.velocity.z) <= 54 / 60 + 1e-6);
 assert.equal(result.velocity.y, -11);
 const budget = createSwingAssistanceState();
 stepSwingAssistance(budget, input, probe);
 assert.equal(stepSwingAssistance(budget, input, probe).probeCount, 0, 'reuse the unchanged fan');
 assert.ok(stepSwingAssistance(budget, { ...input, position: { x: 8, y: 10, z: 0 } }, probe).probeCount > 0, 'large movement invalidates stale cached lanes');
-console.log(JSON.stringify({ passed: true, openAirProbeCountPerSecond: rays, routedPosition: position.toArray(), routeContacts, maximumRaysPerRefresh: 9 }));
+console.log(JSON.stringify({ passed: true, openAirProbeCountPerSecond: rays, routedPosition: position.toArray(), routeContacts, maximumRaysPerRefresh: 37 }));

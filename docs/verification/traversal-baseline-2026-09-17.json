@@ -1,0 +1,443 @@
+{
+  "recordedAt": "2026-09-18T03:23:25.947Z",
+  "phase": "before implementation",
+  "scope": "Renderer-independent deterministic solver and old real-mesh integration harness. CPU time excludes rendering and textures; not browser FPS.",
+  "warnings": [
+    "Old integrated harness explicitly reels=-1 and contains detach-first policy mirroring old renderer. Compare revised harness separately.",
+    "Input delay and countdown loss are source-level findings, not browser-measured latency."
+  ],
+  "sourceInputFindings": {
+    "decisionDelayMs": 180,
+    "countdownClearsPhysicalState": true
+  },
+  "deepHold": {
+    "seconds": 5,
+    "speed": 35,
+    "loop": false,
+    "initialRopeLength": 30,
+    "finalRopeLength": 24.598072086025685,
+    "minRopeLength": 24.598072086025685,
+    "maxRopeLength": 30,
+    "ropeShorteningPercent": 18.006426379914384,
+    "detachFrames": 0,
+    "loopCompletionSeconds": null,
+    "events": {},
+    "startMechanicalEnergy": 2062.5,
+    "maximumMechanicalEnergy": 3341.2809529542046,
+    "position": {
+      "x": -19.12088867814223,
+      "y": 79.64551365712205,
+      "z": -15.470329858801373
+    },
+    "velocity": {
+      "x": 1.9388908320690073,
+      "y": 45.25014308519447,
+      "z": -3.4332734971270633
+    },
+    "cpuMs": {
+      "p50": 0.005916999999996619,
+      "p95": 0.028249999999999886,
+      "p99": 0.10929199999999639
+    }
+  },
+  "naturalLoop": {
+    "seconds": 5,
+    "speed": 70,
+    "loop": false,
+    "initialRopeLength": 30,
+    "finalRopeLength": 24.598072086025685,
+    "minRopeLength": 24.598072086025685,
+    "maxRopeLength": 30,
+    "ropeShorteningPercent": 18.006426379914384,
+    "detachFrames": 0,
+    "loopCompletionSeconds": null,
+    "events": {},
+    "startMechanicalEnergy": 3900,
+    "maximumMechanicalEnergy": 5301.346866080676,
+    "position": {
+      "x": 0.9859476991982483,
+      "y": 69.02595833788367,
+      "z": -21.9923501945994
+    },
+    "velocity": {
+      "x": -6.521869566882295,
+      "y": 72.33655345287885,
+      "z": -36.38786061965551
+    },
+    "cpuMs": {
+      "p50": 0.0040420000000125356,
+      "p95": 0.012416999999999234,
+      "p99": 0.05275000000000318
+    }
+  },
+  "assistedLoop": {
+    "seconds": 5,
+    "speed": 70,
+    "loop": true,
+    "initialRopeLength": 30,
+    "finalRopeLength": 24.598072086025685,
+    "minRopeLength": 24.598072086025685,
+    "maxRopeLength": 30,
+    "ropeShorteningPercent": 18.006426379914384,
+    "detachFrames": 0,
+    "loopCompletionSeconds": 2.2666666666666613,
+    "events": {
+      "loop-completed": 1
+    },
+    "startMechanicalEnergy": 3900,
+    "maximumMechanicalEnergy": 5999.791996148222,
+    "position": {
+      "x": -0.5862223277245145,
+      "y": 104.46640145992998,
+      "z": -2.4731949646821567
+    },
+    "velocity": {
+      "x": 1.5078236737630726,
+      "y": 7.560527304098194,
+      "z": 74.43609541339013
+    },
+    "cpuMs": {
+      "p50": 0.005167000000000144,
+      "p95": 0.014791000000002441,
+      "p99": 0.04941699999999116
+    }
+  },
+  "integrated": [
+    {
+      "map": "new-york-city",
+      "triangles": 310129,
+      "textureDecoding": false,
+      "trials": [
+        {
+          "trial": "central-street",
+          "frames": 960,
+          "start": [
+            16,
+            0.169,
+            16
+          ],
+          "end": [
+            -63.463,
+            21.319,
+            108.163
+          ],
+          "distance": 187.267,
+          "maxHeight": 21.319,
+          "maxSpeed": 50.937,
+          "airtimeSeconds": 15.35,
+          "swingSeconds": 4.383,
+          "longestAttachmentSeconds": 1.95,
+          "immediateDetaches": 0,
+          "stalledHeldFrames": 0,
+          "contacts": 638,
+          "wallFrames": 497,
+          "penetrationFrames": 0,
+          "assistanceFrames": 50,
+          "probes": 214,
+          "anchorSearches": 128,
+          "meanAnchorCandidates": 4.773,
+          "events": {
+            "jump": 2,
+            "web-attached": 8,
+            "land": 3
+          },
+          "detaches": {
+            "blocked-web": 3
+          },
+          "detachSamples": [
+            {
+              "frame": 217,
+              "reason": "blocked-web",
+              "age": 16,
+              "position": [
+                -51.377,
+                8.25,
+                69.856
+              ],
+              "velocity": [
+                -18.735,
+                29.045,
+                8.489
+              ],
+              "rope": 11.282,
+              "excess": -2.36,
+              "obstructionDistance": 4.206
+            },
+            {
+              "frame": 250,
+              "reason": "blocked-web",
+              "age": 20,
+              "position": [
+                -49.87,
+                12.487,
+                71.625
+              ],
+              "velocity": [
+                3.014,
+                3.948,
+                2.317
+              ],
+              "rope": 6.033,
+              "excess": 1.604,
+              "obstructionDistance": 2.416
+            },
+            {
+              "frame": 315,
+              "reason": "blocked-web",
+              "age": 53,
+              "position": [
+                -50.112,
+                9.99,
+                79.279
+              ],
+              "velocity": [
+                -9.816,
+                -3.155,
+                0.902
+              ],
+              "rope": 32.046,
+              "excess": 0.197,
+              "obstructionDistance": 6.53
+            }
+          ],
+          "sampleFailures": [],
+          "cpuFrameMeanMs": 0.206,
+          "cpuFrameP95Ms": 0.519
+        },
+        {
+          "trial": "cross-street",
+          "frames": 360,
+          "start": [
+            16,
+            0.169,
+            -16
+          ],
+          "end": [
+            67.214,
+            6.47,
+            -66.05
+          ],
+          "distance": 98.319,
+          "maxHeight": 10.495,
+          "maxSpeed": 49.637,
+          "airtimeSeconds": 5.6,
+          "swingSeconds": 3.117,
+          "longestAttachmentSeconds": 1.35,
+          "immediateDetaches": 5,
+          "stalledHeldFrames": 1,
+          "contacts": 156,
+          "wallFrames": 59,
+          "penetrationFrames": 0,
+          "assistanceFrames": 33,
+          "probes": 143,
+          "anchorSearches": 21,
+          "meanAnchorCandidates": 5.333,
+          "events": {
+            "jump": 2,
+            "web-attached": 8,
+            "web-released": 2,
+            "double-jump": 1,
+            "land": 1
+          },
+          "detaches": {
+            "landed": 1,
+            "blocked-web": 5
+          },
+          "detachSamples": [
+            {
+              "frame": 74,
+              "reason": "landed",
+              "age": 66,
+              "position": [
+                24.349,
+                0.169,
+                -25.367
+              ],
+              "velocity": [
+                14.634,
+                0,
+                -16.169
+              ],
+              "rope": 50.433,
+              "excess": 0.222,
+              "obstructionDistance": null
+            },
+            {
+              "frame": 206,
+              "reason": "blocked-web",
+              "age": 0,
+              "position": [
+                62.363,
+                3.369,
+                -57.719
+              ],
+              "velocity": [
+                2.054,
+                10.479,
+                -8.987
+              ],
+              "rope": 51.816,
+              "excess": -0.01,
+              "obstructionDistance": 9.491
+            },
+            {
+              "frame": 223,
+              "reason": "blocked-web",
+              "age": 4,
+              "position": [
+                63.356,
+                6.404,
+                -60.33
+              ],
+              "velocity": [
+                6.712,
+                8.048,
+                2.313
+              ],
+              "rope": 11.134,
+              "excess": 0.033,
+              "obstructionDistance": 0.911
+            },
+            {
+              "frame": 241,
+              "reason": "blocked-web",
+              "age": 5,
+              "position": [
+                65.768,
+                8.95,
+                -60.049
+              ],
+              "velocity": [
+                12.084,
+                10.115,
+                0.655
+              ],
+              "rope": 10.023,
+              "excess": 0.155,
+              "obstructionDistance": 3.504
+            },
+            {
+              "frame": 253,
+              "reason": "blocked-web",
+              "age": 0,
+              "position": [
+                68.047,
+                10.408,
+                -60.56
+              ],
+              "velocity": [
+                9.547,
+                4.725,
+                -7.113
+              ],
+              "rope": 16.47,
+              "excess": -0.017,
+              "obstructionDistance": 1.604
+            },
+            {
+              "frame": 286,
+              "reason": "blocked-web",
+              "age": 9,
+              "position": [
+                68.323,
+                9.092,
+                -61.479
+              ],
+              "velocity": [
+                -2.008,
+                3.324,
+                -0.653
+              ],
+              "rope": 6.603,
+              "excess": 0.106,
+              "obstructionDistance": 0.958
+            }
+          ],
+          "sampleFailures": [],
+          "cpuFrameMeanMs": 0.172,
+          "cpuFrameP95Ms": 0.504
+        },
+        {
+          "trial": "unrendered-repeat-tile",
+          "frames": 360,
+          "start": [
+            2592,
+            0.169,
+            -1450.035
+          ],
+          "end": [
+            2549.143,
+            8.519,
+            -1403.167
+          ],
+          "distance": 102.792,
+          "maxHeight": 14.5,
+          "maxSpeed": 34.817,
+          "airtimeSeconds": 5.783,
+          "swingSeconds": 1.417,
+          "longestAttachmentSeconds": 1.1,
+          "immediateDetaches": 1,
+          "stalledHeldFrames": 0,
+          "contacts": 149,
+          "wallFrames": 107,
+          "penetrationFrames": 0,
+          "assistanceFrames": 10,
+          "probes": 68,
+          "anchorSearches": 41,
+          "meanAnchorCandidates": 5.854,
+          "events": {
+            "jump": 2,
+            "web-attached": 3,
+            "double-jump": 1,
+            "wall-contact": 1
+          },
+          "detaches": {
+            "landed": 1,
+            "blocked-web": 1
+          },
+          "detachSamples": [
+            {
+              "frame": 74,
+              "reason": "landed",
+              "age": 66,
+              "position": [
+                2582.769,
+                0.169,
+                -1441.795
+              ],
+              "velocity": [
+                -16.114,
+                0,
+                13.855
+              ],
+              "rope": 49.69,
+              "excess": 0.146,
+              "obstructionDistance": null
+            },
+            {
+              "frame": 96,
+              "reason": "blocked-web",
+              "age": 9,
+              "position": [
+                2577.9,
+                3.825,
+                -1437.395
+              ],
+              "velocity": [
+                -13.084,
+                21.595,
+                12.066
+              ],
+              "rope": 57.303,
+              "excess": -0.448,
+              "obstructionDistance": 12.276
+            }
+          ],
+          "sampleFailures": [],
+          "cpuFrameMeanMs": 0.129,
+          "cpuFrameP95Ms": 0.385
+        }
+      ]
+    }
+  ]
+}

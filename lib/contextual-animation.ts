@@ -63,6 +63,10 @@ export class ContextualAnimationGraph {
     section('Jumping To Hanging', 0.6, 0.85, 'mantle-reach');
     section('Falling To Landing', 0.12, 0.85, 'soft-land');
     section('Running Jump', 0.2, 0.68, 'running-takeoff');
+    // Traversal reuses the same authored sources as combat: Shooting supplies
+    // the braced web-pull and Flip Kick supplies the explosive release.
+    section('Shooting', 0.08, 0.8, 'slingshot-web-pull');
+    section('Flip Kick', 0.12, 0.52, 'slingshot-launch');
     for (const name of ['Jumping', 'Jumping (1)', 'Jumping (2)', 'Jumping (3)'])
       section(name, 0.22, 0.66, `${name}-air`);
     for (const name of [
@@ -124,6 +128,8 @@ export class ContextualAnimationGraph {
       ['swing', 'zip', 'webZip'].includes(this.previous) &&
       !motion.grounded &&
       ['jump', 'fall', 'pointLaunch'].includes(mode);
+    const slingshotReleased =
+      this.previous === 'slingshot' && mode === 'pointLaunch';
     const takeoff = this.grounded && !motion.grounded;
     const newAction =
       motion.actionSequence !== undefined &&
@@ -154,17 +160,22 @@ export class ContextualAnimationGraph {
     if (mode === 'slingshot') {
       this.active = undefined;
       const selection = this.selection(
-        'Web Slingshot Charge',
+        'slingshot-web-pull',
         0,
         THREE.LoopOnce,
-        true,
       );
       if (selection)
         selection.time =
           selection.clip.duration *
-          THREE.MathUtils.clamp(motion.charge ?? 0, 0, 1);
+          THREE.MathUtils.lerp(
+            0.08,
+            0.92,
+            THREE.MathUtils.clamp(motion.charge ?? 0, 0, 1),
+          );
       return selection;
     }
+    if (slingshotReleased)
+      return this.commit(['slingshot-launch'], 0.42, true);
     if (mode === 'chargeJump') {
       this.active = undefined;
       return this.selection('Male Crouch Pose', 0, THREE.LoopRepeat);

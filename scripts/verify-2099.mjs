@@ -45,19 +45,21 @@ assert.equal(
   1,
 );
 assert.deepEqual(
-  SUITS.map((suit) => suit.id),
+  SUITS.slice(0, 9).map((suit) => suit.id),
   [
     'miguel',
     'miles-new',
     'miles-animated',
     'no-way-home',
-    'mocap-spider',
+    'homecoming-tech',
     'classic-spider',
     'tobey',
-    'symbiote-tobey',
+    'symbiote-ps5',
     'amazing',
   ],
 );
+assert.equal(new Set(SUITS.map((entry) => entry.id)).size, SUITS.length);
+assert.ok(SUITS.length > 9, 'downloaded compatible suits extend the original lineup');
 assert.equal(DISTRICTS.length, 3);
 const root = clone(model.scene);
 normalizeSuit(root, suit, 2.05);

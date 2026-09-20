@@ -1,0 +1,88 @@
+{
+  "scope": "Deterministic combat simulation + native rig/clip binding; browser visual timing reviewed separately.",
+  "trials": [
+    {
+      "id": "hulk",
+      "events": {
+        "dodge": 27,
+        "boss-hit": 17,
+        "restrained": 3,
+        "attack": 5,
+        "phase": 2,
+        "player-hit": 1,
+        "victory": 1
+      },
+      "escapeHeight": 18,
+      "finalHealth": 76,
+      "start": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "animation": {
+        "clips": 9,
+        "tracks": 6232,
+        "poseSamples": 72,
+        "outputBytes": 12816304,
+        "maxHorizontalCenter": 0.9761476049184508,
+        "maxExtent": 5.877328521457178,
+        "minFeetBeforeSupportCalibration": -0.24931612602499387
+      }
+    },
+    {
+      "id": "venom",
+      "events": {
+        "dodge": 20,
+        "boss-hit": 13,
+        "restrained": 3,
+        "attack": 1,
+        "phase": 2,
+        "victory": 1
+      },
+      "escapeHeight": 18,
+      "finalHealth": 100,
+      "start": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "animation": {
+        "clips": 9,
+        "tracks": 6371,
+        "poseSamples": 72,
+        "outputBytes": 12060048,
+        "maxHorizontalCenter": 0.7592121572088883,
+        "maxExtent": 6.666795320436687,
+        "minFeetBeforeSupportCalibration": -0.18262327661503655
+      }
+    },
+    {
+      "id": "ironman",
+      "events": {
+        "dodge": 23,
+        "boss-hit": 15,
+        "restrained": 3,
+        "attack": 3,
+        "player-hit": 1,
+        "phase": 2,
+        "victory": 1
+      },
+      "escapeHeight": 17,
+      "finalHealth": 85,
+      "start": {
+        "x": 0,
+        "y": 8,
+        "z": 0
+      },
+      "animation": {
+        "clips": 6,
+        "tracks": 476,
+        "poseSamples": 48,
+        "outputBytes": 2148952,
+        "maxHorizontalCenter": 0.35809601415045544,
+        "maxExtent": 2.811811742791495,
+        "minFeetBeforeSupportCalibration": -0.5503426610707319
+      }
+    }
+  ]
+}

@@ -31,12 +31,6 @@ const imported = [
     'X Bot@Wave Hip Hop Dance.fbx',
   ],
   [
-    'symbiote-tobey',
-    'symbiote_spiderman_-_tobey_maguire.glb',
-    'X Bot@House Dancing.fbx',
-    'symbiote',
-  ],
-  [
     'miles-animated',
     'spiderman_-_miles_morales.glb',
     'X Bot@Snake Hip Hop Dance.fbx',

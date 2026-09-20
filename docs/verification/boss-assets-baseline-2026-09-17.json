@@ -1,0 +1,3496 @@
+[
+  {
+    "file": "/Users/vishayagarwal/Downloads/15_iron_man_mua.glb",
+    "sizeMB": 6.34,
+    "vertices": 4253,
+    "triangles": 5538,
+    "meshes": 1,
+    "skinnedMeshes": 1,
+    "boneCount": 45,
+    "boneNames": [
+      "_rootJoint",
+      "ActorRoot_01",
+      "Bip01_02",
+      "Bip01_Pelvis_00",
+      "Bip01_Spine_03",
+      "Bip01_Spine1_04",
+      "Bip01_Spine2_05",
+      "Bip01_Neck_06",
+      "Bip01_Head_07",
+      "Bip01_HeadNub_08",
+      "Bip01_Ponytail1_09",
+      "Bip01_Ponytail11_010",
+      "Bip01_Ponytail1Nub_011",
+      "Bip01_L_Clavicle_012",
+      "Bip01_L_UpperArm_013",
+      "Bip01_L_Forearm_014",
+      "Bip01_L_Hand_015",
+      "Bip01_L_Finger0_016",
+      "Bip01_L_Finger01_017",
+      "Bip01_L_Finger0Nub_018",
+      "Bip01_L_Finger1_019",
+      "Bip01_L_Finger11_020",
+      "Bip01_L_Finger1Nub_021",
+      "Bip01_R_Clavicle_022",
+      "Bip01_R_UpperArm_023",
+      "Bip01_R_Forearm_024",
+      "Bip01_R_Hand_025",
+      "Bip01_R_Finger0_026",
+      "Bip01_R_Finger01_027",
+      "Bip01_R_Finger0Nub_028",
+      "Bip01_R_Finger1_029",
+      "Bip01_R_Finger11_030",
+      "Bip01_R_Finger1Nub_031",
+      "fx01_032",
+      "Bip01_L_Thigh_033",
+      "Bip01_L_Calf_034",
+      "Bip01_L_Foot_035",
+      "Bip01_L_Toe0_036",
+      "Bip01_L_Toe0Nub_037",
+      "Bip01_R_Thigh_038",
+      "Bip01_R_Calf_039",
+      "Bip01_R_Foot_040",
+      "Bip01_R_Toe0_041",
+      "Bip01_R_Toe0Nub_042",
+      "Motion_043"
+    ],
+    "dimensions": [
+      2.835901844122691,
+      2.9939890645439267,
+      0.5437710183677762
+    ],
+    "animationCount": 36,
+    "animations": [
+      {
+        "name": "idle",
+        "duration": 1.5,
+        "tracks": 63
+      },
+      {
+        "name": "jump_loop",
+        "duration": 0.03333332762122154,
+        "tracks": 61
+      },
+      {
+        "name": "jump_start",
+        "duration": 1.100000023841858,
+        "tracks": 62
+      },
+      {
+        "name": "menu_action",
+        "duration": 1.5,
+        "tracks": 62
+      },
+      {
+        "name": "menu_goodbye",
+        "duration": 2.5,
+        "tracks": 63
+      },
+      {
+        "name": "menu_idle",
+        "duration": 4.0333333015441895,
+        "tracks": 63
+      },
+      {
+        "name": "attack_heavy1",
+        "duration": 0.3333333134651184,
+        "tracks": 79
+      },
+      {
+        "name": "attack_knockback1",
+        "duration": 0.5333333015441895,
+        "tracks": 78
+      },
+      {
+        "name": "attack_knockback2",
+        "duration": 0.6666666865348816,
+        "tracks": 80
+      },
+      {
+        "name": "attack_light1",
+        "duration": 0.7333332896232605,
+        "tracks": 79
+      },
+      {
+        "name": "attack_light2",
+        "duration": 0.8666666746139526,
+        "tracks": 80
+      },
+      {
+        "name": "attack_light3",
+        "duration": 0.9333333373069763,
+        "tracks": 80
+      },
+      {
+        "name": "attack_stun2",
+        "duration": 0.9333333373069763,
+        "tracks": 79
+      },
+      {
+        "name": "attack_trip1",
+        "duration": 0.8333333134651184,
+        "tracks": 81
+      },
+      {
+        "name": "blocking",
+        "duration": 0.7333332896232605,
+        "tracks": 78
+      },
+      {
+        "name": "fly_fast",
+        "duration": 1.2333333492279053,
+        "tracks": 79
+      },
+      {
+        "name": "fly_idle",
+        "duration": 1.5,
+        "tracks": 78
+      },
+      {
+        "name": "fly_slow",
+        "duration": 1.2333333492279053,
+        "tracks": 79
+      },
+      {
+        "name": "pain_blocking",
+        "duration": 0.23333331942558289,
+        "tracks": 78
+      },
+      {
+        "name": "power_1",
+        "duration": 0.23333331942558289,
+        "tracks": 78
+      },
+      {
+        "name": "power_12",
+        "duration": 0.4333333373069763,
+        "tracks": 79
+      },
+      {
+        "name": "power_13",
+        "duration": 1.0333333015441895,
+        "tracks": 80
+      },
+      {
+        "name": "power_14",
+        "duration": 0.6666666865348816,
+        "tracks": 79
+      },
+      {
+        "name": "power_1_end",
+        "duration": 0.6666666865348816,
+        "tracks": 79
+      },
+      {
+        "name": "power_1_loop",
+        "duration": 0.5,
+        "tracks": 79
+      },
+      {
+        "name": "power_2",
+        "duration": 0.5333333015441895,
+        "tracks": 79
+      },
+      {
+        "name": "power_3",
+        "duration": 0.23333331942558289,
+        "tracks": 79
+      },
+      {
+        "name": "power_4",
+        "duration": 2.5333333015441895,
+        "tracks": 79
+      },
+      {
+        "name": "power_5",
+        "duration": 1.3666666746139526,
+        "tracks": 79
+      },
+      {
+        "name": "power_6",
+        "duration": 1.2666666507720947,
+        "tracks": 79
+      },
+      {
+        "name": "power_7",
+        "duration": 1.600000023841858,
+        "tracks": 79
+      },
+      {
+        "name": "power_8",
+        "duration": 2.7666666507720947,
+        "tracks": 80
+      },
+      {
+        "name": "power_9",
+        "duration": 1.9333332777023315,
+        "tracks": 80
+      },
+      {
+        "name": "victim1",
+        "duration": 1.9333332777023315,
+        "tracks": 82
+      },
+      {
+        "name": "zone_stark1.zone10",
+        "duration": 3.7333333492279053,
+        "tracks": 63
+      },
+      {
+        "name": "zone_stark2.zone5",
+        "duration": 7,
+        "tracks": 77
+      }
+    ],
+    "assetMetadata": {
+      "extras": {
+        "author": "ak2yny (https://sketchfab.com/ak2yny)",
+        "license": "CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)",
+        "source": "https://sketchfab.com/3d-models/15-iron-man-mua-16e993fe01564aa389cffb533156e311",
+        "title": "15 Iron Man MUA"
+      },
+      "generator": "Sketchfab-15.25.0",
+      "version": "2.0"
+    },
+    "extras": null,
+    "mixamoNamedBones": 0
+  },
+  {
+    "file": "/Users/vishayagarwal/Downloads/hulk__marvel_rivals.glb",
+    "sizeMB": 92.06,
+    "vertices": 58102,
+    "triangles": 88081,
+    "meshes": 9,
+    "skinnedMeshes": 9,
+    "boneCount": 279,
+    "boneNames": [
+      "GLTF_created_0_rootJoint",
+      "root_277",
+      "pelvis_267",
+      "spine_01_206",
+      "spine_02_205",
+      "spine_03_204",
+      "spine_04_203",
+      "spine_05_202",
+      "clavicle_l_49",
+      "upperarm_l_48",
+      "lowerarm_l_36",
+      "hand_l_28",
+      "index_metacarpal_l_3",
+      "index_01_l_2",
+      "index_02_l_1",
+      "index_03_l_0",
+      "middle_metacarpal_l_7",
+      "middle_01_l_6",
+      "middle_02_l_5",
+      "middle_03_l_4",
+      "pinky_metacarpal_l_11",
+      "pinky_01_l_10",
+      "pinky_02_l_9",
+      "pinky_03_l_8",
+      "ring_metacarpal_l_15",
+      "ring_01_l_14",
+      "ring_02_l_13",
+      "ring_03_l_12",
+      "thumb_01_l_18",
+      "thumb_02_l_17",
+      "thumb_03_l_16",
+      "hand_l_vol_dn_bind_20",
+      "hand_l_vol_dn_end_bind_19",
+      "hand_l_vol_bk_bind_22",
+      "hand_l_vol_bk_end_bind_21",
+      "hand_l_vol_up_bind_24",
+      "hand_l_vol_up_end_bind_23",
+      "hand_l_vol_ft_bind_26",
+      "hand_l_vol_ft_end_bind_25",
+      "weapon_l_27",
+      "lowerarm_twist_01_l_29",
+      "lowerarm_twist_02_l_30",
+      "lowerarm_twist_03_l_31",
+      "lowerarm_l_vol_bk_bind_33",
+      "lowerarm_l_vol_bk_end_bind_32",
+      "lowerarm_l_vol_ft_bind_35",
+      "lowerarm_l_vol_ft_end_bind_34",
+      "upperarm_twist_01_l_37",
+      "upperarm_twist_02_l_38",
+      "upperarm_twist_03_l_39",
+      "upperarm_l_vol_dn_bind_41",
+      "upperarm_l_vol_dn_end_bind_40",
+      "upperarm_l_vol_bk_bind_43",
+      "upperarm_l_vol_bk_end_bind_42",
+      "upperarm_l_vol_ft_bind_45",
+      "upperarm_l_vol_ft_end_bind_44",
+      "upperarm_l_vol_up_bind_47",
+      "upperarm_l_vol_up_end_bind_46",
+      "clavicle_r_99",
+      "upperarm_r_98",
+      "lowerarm_r_86",
+      "hand_r_78",
+      "index_metacarpal_r_53",
+      "index_01_r_52",
+      "index_02_r_51",
+      "index_03_r_50",
+      "middle_metacarpal_r_57",
+      "middle_01_r_56",
+      "middle_02_r_55",
+      "middle_03_r_54",
+      "pinky_metacarpal_r_61",
+      "pinky_01_r_60",
+      "pinky_02_r_59",
+      "pinky_03_r_58",
+      "ring_metacarpal_r_65",
+      "ring_01_r_64",
+      "ring_02_r_63",
+      "ring_03_r_62",
+      "thumb_01_r_68",
+      "thumb_02_r_67",
+      "thumb_03_r_66",
+      "hand_r_vol_ft_bind_70",
+      "hand_r_vol_ft_end_bind_69",
+      "hand_r_vol_dn_bind_72",
+      "hand_r_vol_dn_end_bind_71",
+      "hand_r_vol_up_bind_74",
+      "hand_r_vol_up_end_bind_73",
+      "hand_r_vol_bk_bind_76",
+      "hand_r_vol_bk_end_bind_75",
+      "weapon_r_77",
+      "lowerarm_twist_01_r_79",
+      "lowerarm_twist_02_r_80",
+      "lowerarm_twist_03_r_81",
+      "lowerarm_r_vol_ft_bind_83",
+      "lowerarm_r_vol_ft_end_bind_82",
+      "lowerarm_r_vol_bk_bind_85",
+      "lowerarm_r_vol_bk_end_bind_84",
+      "upperarm_twist_01_r_87",
+      "upperarm_twist_02_r_88",
+      "upperarm_twist_03_r_89",
+      "upperarm_r_vol_up_bind_91",
+      "upperarm_r_vol_up_end_bind_90",
+      "upperarm_r_vol_ft_bind_93",
+      "upperarm_r_vol_ft_end_bind_92",
+      "upperarm_r_vol_bk_bind_95",
+      "upperarm_r_vol_bk_end_bind_94",
+      "upperarm_r_vol_dn_bind_97",
+      "upperarm_r_vol_dn_end_bind_96",
+      "neck_01_201",
+      "neck_02_200",
+      "head_199",
+      "facial_master_175",
+      "jaw_100",
+      "l_brow_02_101",
+      "l_brow_03_102",
+      "l_brow_103",
+      "l_cheek_104",
+      "l_eye_back_105",
+      "l_eye_back_lower_106",
+      "l_eye_back_upper_107",
+      "l_eye_ball_108",
+      "l_eye_blink_109",
+      "l_eye_double_110",
+      "l_eye_lacrimal_111",
+      "l_eye_lacrimal_lower_112",
+      "l_eye_lacrimal_upper_113",
+      "l_eye_lower_114",
+      "l_inner_orbicularis_cheek_115",
+      "l_lip_corner_116",
+      "l_lip_lower_corner_117",
+      "l_lip_lower_outer_118",
+      "l_lip_lower_side_02_119",
+      "l_lip_lower_side_120",
+      "l_lip_upper_outer_121",
+      "l_lip_upper_side_02_122",
+      "l_lip_upper_side_123",
+      "l_lower_cheek_124",
+      "l_lower_liplid_125",
+      "l_nasalis_transverse_nose_126",
+      "l_nasolabial_fold_nose_127",
+      "l_nose_128",
+      "l_outer_orbicularis_cheek_129",
+      "l_procerus_nose_130",
+      "l_upper_cheek_131",
+      "lower_lip_132",
+      "lower_lip_outer_133",
+      "lower_teeth_134",
+      "r_brow_02_135",
+      "r_brow_03_136",
+      "r_brow_137",
+      "r_cheek_138",
+      "r_eye_back_139",
+      "r_eye_back_lower_140",
+      "r_eye_back_upper_141",
+      "r_eye_ball_142",
+      "r_eye_blink_143",
+      "r_eye_double_144",
+      "r_eye_lacrimal_145",
+      "r_eye_lacrimal_lower_146",
+      "r_eye_lacrimal_upper_147",
+      "r_eye_lower_148",
+      "r_inner_orbicularis_cheek_149",
+      "r_lip_corner_150",
+      "r_lip_lower_corner_151",
+      "r_lip_lower_outer_152",
+      "r_lip_lower_side_02_153",
+      "r_lip_lower_side_154",
+      "r_lip_upper_outer_155",
+      "r_lip_upper_side_02_156",
+      "r_lip_upper_side_157",
+      "r_lower_cheek_158",
+      "r_lower_liplid_159",
+      "r_nasalis_transverse_nose_160",
+      "r_nasolabial_fold_nose_161",
+      "r_nose_162",
+      "r_outer_orbicularis_cheek_163",
+      "r_procerus_nose_164",
+      "r_upper_cheek_165",
+      "tongue_02_166",
+      "tongue_03_167",
+      "tongue_168",
+      "upper_teeth_169",
+      "center_brow_170",
+      "depressor_septi_nose_171",
+      "lower_nose_172",
+      "nose_173",
+      "upper_lip_174",
+      "Hair_001_root_198",
+      "Hair_001_A1_179",
+      "Hair_001_A2_178",
+      "Hair_001_A3_177",
+      "Hair_001_A4_176",
+      "Hair_001_B1_183",
+      "Hair_001_B2_182",
+      "Hair_001_B3_181",
+      "Hair_001_B4_180",
+      "Hair_001_C1_187",
+      "Hair_001_C2_186",
+      "Hair_001_C3_185",
+      "Hair_001_C4_184",
+      "Hair_001_D1_191",
+      "Hair_001_D2_190",
+      "Hair_001_D3_189",
+      "Hair_001_D4_188",
+      "Hair_001_E1_194",
+      "Hair_001_E2_193",
+      "Hair_001_E3_192",
+      "Hair_001_F1_197",
+      "Hair_001_F2_196",
+      "Hair_001_F3_195",
+      "thigh_l_236",
+      "calf_l_226",
+      "calf_twist_01_l_207",
+      "calf_twist_02_l_208",
+      "calf_twist_03_l_209",
+      "foot_l_221",
+      "ball_l_220",
+      "bigtoe_proximal_phalange_l_211",
+      "bigtoe_distal_phalange_l_210",
+      "index_proximal_phalange_l_213",
+      "index_middle_phalange_l_212",
+      "middle_proximal_phalange_l_215",
+      "middle_middle_phalange_l_214",
+      "pinky_proximal_phalange_l_217",
+      "pinky_middle_phalange_l_216",
+      "ring_proximal_phalange_l_219",
+      "ring_middle_phalange_l_218",
+      "calf_l_vol_ft_bind_223",
+      "calf_l_vol_ft_end_bind_222",
+      "calf_l_vol_bk_bind_225",
+      "calf_l_vol_bk_end_bind_224",
+      "thigh_twist_01_l_227",
+      "thigh_twist_02_l_228",
+      "thigh_twist_03_l_229",
+      "thigh_l_vol_up_bind_231",
+      "thigh_l_vol_up_end_bind_230",
+      "thigh_l_vol_bk_bind_233",
+      "thigh_l_vol_bk_end_bind_232",
+      "thigh_l_vol_ft_bind_235",
+      "thigh_l_vol_ft_end_bind_234",
+      "thigh_r_266",
+      "calf_r_256",
+      "calf_twist_01_r_237",
+      "calf_twist_02_r_238",
+      "calf_twist_03_r_239",
+      "foot_r_251",
+      "ball_r_250",
+      "bigtoe_proximal_phalange_r_241",
+      "bigtoe_distal_phalange_r_240",
+      "index_proximal_phalange_r_243",
+      "index_middle_phalange_r_242",
+      "middle_proximal_phalange_r_245",
+      "middle_middle_phalange_r_244",
+      "pinky_proximal_phalange_r_247",
+      "pinky_middle_phalange_r_246",
+      "ring_proximal_phalange_r_249",
+      "ring_middle_phalange_r_248",
+      "calf_r_vol_bk_bind_253",
+      "calf_r_vol_bk_end_bind_252",
+      "calf_r_vol_ft_bind_255",
+      "calf_r_vol_ft_end_bind_254",
+      "thigh_twist_01_r_257",
+      "thigh_twist_02_r_258",
+      "thigh_twist_03_r_259",
+      "thigh_r_vol_up_bind_261",
+      "thigh_r_vol_up_end_bind_260",
+      "thigh_r_vol_bk_bind_263",
+      "thigh_r_vol_bk_end_bind_262",
+      "thigh_r_vol_ft_bind_265",
+      "thigh_r_vol_ft_end_bind_264",
+      "ik_foot_root_270",
+      "ik_foot_l_268",
+      "ik_foot_r_269",
+      "ik_hand_root_276",
+      "ik_hand_gun_l_271",
+      "ik_hand_gun_r_275",
+      "ik_hand_l_272",
+      "ik_hand_r_273",
+      "ik_spine_274"
+    ],
+    "dimensions": [
+      1.7746888377331114,
+      2.4054592563990105,
+      0.8519974073509382
+    ],
+    "animationCount": 173,
+    "animations": [
+      {
+        "name": "Like_Idle",
+        "duration": 11.708333015441895,
+        "tracks": 770
+      },
+      {
+        "name": "Emote_10115012021",
+        "duration": 4.666666507720947,
+        "tracks": 780
+      },
+      {
+        "name": "Emote_10110012011",
+        "duration": 4.166666507720947,
+        "tracks": 759
+      },
+      {
+        "name": "101197_Idle",
+        "duration": 2.0416667461395264,
+        "tracks": 739
+      },
+      {
+        "name": "Idle_C",
+        "duration": 2.0416667461395264,
+        "tracks": 771
+      },
+      {
+        "name": "Walk_RF_C",
+        "duration": 1.7083333730697632,
+        "tracks": 723
+      },
+      {
+        "name": "Walk_RB_C",
+        "duration": 1.7083333730697632,
+        "tracks": 749
+      },
+      {
+        "name": "Walk_LF_C",
+        "duration": 1.7083333730697632,
+        "tracks": 768
+      },
+      {
+        "name": "Walk_LB_C",
+        "duration": 1.7083333730697632,
+        "tracks": 730
+      },
+      {
+        "name": "Walk_Fwd_C",
+        "duration": 1.7083333730697632,
+        "tracks": 727
+      },
+      {
+        "name": "Walk_Bwd_C",
+        "duration": 1.7083333730697632,
+        "tracks": 720
+      },
+      {
+        "name": "Turn_R90_C",
+        "duration": 0.9583333134651184,
+        "tracks": 731
+      },
+      {
+        "name": "Turn_L90_C",
+        "duration": 0.9166666865348816,
+        "tracks": 721
+      },
+      {
+        "name": "Stop_RF_C",
+        "duration": 0.75,
+        "tracks": 772
+      },
+      {
+        "name": "Stop_RB_C",
+        "duration": 0.75,
+        "tracks": 781
+      },
+      {
+        "name": "Stop_LF_C",
+        "duration": 0.75,
+        "tracks": 776
+      },
+      {
+        "name": "Stop_LB_C",
+        "duration": 0.75,
+        "tracks": 778
+      },
+      {
+        "name": "Stop_Fwd_C",
+        "duration": 0.75,
+        "tracks": 776
+      },
+      {
+        "name": "Stop_Bwd_C",
+        "duration": 0.75,
+        "tracks": 777
+      },
+      {
+        "name": "SmashRecover",
+        "duration": 1.0416666269302368,
+        "tracks": 787
+      },
+      {
+        "name": "SmashLieDown",
+        "duration": 1.0416666269302368,
+        "tracks": 138
+      },
+      {
+        "name": "Smashing",
+        "duration": 4.875,
+        "tracks": 776
+      },
+      {
+        "name": "Sleep",
+        "duration": 3.4166667461395264,
+        "tracks": 780
+      },
+      {
+        "name": "Run_RF_C",
+        "duration": 0.9583333134651184,
+        "tracks": 751
+      },
+      {
+        "name": "Run_RB_C",
+        "duration": 0.9583333134651184,
+        "tracks": 757
+      },
+      {
+        "name": "Run_LF_C",
+        "duration": 0.9583333134651184,
+        "tracks": 760
+      },
+      {
+        "name": "Run_LB_C",
+        "duration": 0.9583333134651184,
+        "tracks": 742
+      },
+      {
+        "name": "Run_Fwd_C",
+        "duration": 0.9583333134651184,
+        "tracks": 737
+      },
+      {
+        "name": "Run_Bwd_C",
+        "duration": 0.9583333134651184,
+        "tracks": 739
+      },
+      {
+        "name": "Repulse_Start",
+        "duration": 0.375,
+        "tracks": 747
+      },
+      {
+        "name": "Repulse_Loop",
+        "duration": 1.0416666269302368,
+        "tracks": 138
+      },
+      {
+        "name": "Repulse_End",
+        "duration": 0.7083333134651184,
+        "tracks": 755
+      },
+      {
+        "name": "Like_Personality",
+        "duration": 5.5,
+        "tracks": 766
+      },
+      {
+        "name": "LieDownStart",
+        "duration": 1.2083333730697632,
+        "tracks": 794
+      },
+      {
+        "name": "KnockOut_R",
+        "duration": 0.0416666679084301,
+        "tracks": 528
+      },
+      {
+        "name": "KnockOut_L",
+        "duration": 0.0416666679084301,
+        "tracks": 528
+      },
+      {
+        "name": "KnockOut_Float",
+        "duration": 0.7083333134651184,
+        "tracks": 47
+      },
+      {
+        "name": "KnockOut_F",
+        "duration": 0.0416666679084301,
+        "tracks": 528
+      },
+      {
+        "name": "KnockOut_B",
+        "duration": 0.0416666679084301,
+        "tracks": 528
+      },
+      {
+        "name": "Knockout",
+        "duration": 0.7083333134651184,
+        "tracks": 133
+      },
+      {
+        "name": "Jump_Start_RF_C",
+        "duration": 0.7083333134651184,
+        "tracks": 789
+      },
+      {
+        "name": "Jump_Start_RB_C",
+        "duration": 0.7083333134651184,
+        "tracks": 779
+      },
+      {
+        "name": "Jump_Start_LF_C",
+        "duration": 0.7083333134651184,
+        "tracks": 776
+      },
+      {
+        "name": "Jump_Start_LB_C",
+        "duration": 0.7083333134651184,
+        "tracks": 752
+      },
+      {
+        "name": "Jump_Start_F_C",
+        "duration": 0.7083333134651184,
+        "tracks": 781
+      },
+      {
+        "name": "Jump_Start_C",
+        "duration": 0.7083333134651184,
+        "tracks": 738
+      },
+      {
+        "name": "Jump_Start_B_C",
+        "duration": 0.7083333134651184,
+        "tracks": 743
+      },
+      {
+        "name": "Jump_Land_RF_C",
+        "duration": 0.2916666567325592,
+        "tracks": 765
+      },
+      {
+        "name": "Jump_Land_RB_C",
+        "duration": 0.2916666567325592,
+        "tracks": 759
+      },
+      {
+        "name": "Jump_Land_LF_C",
+        "duration": 0.2916666567325592,
+        "tracks": 763
+      },
+      {
+        "name": "Jump_Land_LB_C",
+        "duration": 0.2916666567325592,
+        "tracks": 748
+      },
+      {
+        "name": "Jump_Land_F_C",
+        "duration": 0.2916666567325592,
+        "tracks": 759
+      },
+      {
+        "name": "Jump_Land_C",
+        "duration": 1.0416666269302368,
+        "tracks": 707
+      },
+      {
+        "name": "Jump_Land_B_C",
+        "duration": 0.2916666567325592,
+        "tracks": 742
+      },
+      {
+        "name": "Jump_Falling_RF_C",
+        "duration": 1.7083333730697632,
+        "tracks": 735
+      },
+      {
+        "name": "Jump_Falling_RB_C",
+        "duration": 1.7083333730697632,
+        "tracks": 717
+      },
+      {
+        "name": "Jump_Falling_LF_C",
+        "duration": 1.7083333730697632,
+        "tracks": 734
+      },
+      {
+        "name": "Jump_Falling_LB_C",
+        "duration": 1.7083333730697632,
+        "tracks": 724
+      },
+      {
+        "name": "Jump_Falling_F_C",
+        "duration": 1.7083333730697632,
+        "tracks": 732
+      },
+      {
+        "name": "Jump_Falling_C",
+        "duration": 1.7083333730697632,
+        "tracks": 734
+      },
+      {
+        "name": "Jump_Falling_B_C",
+        "duration": 1.7083333730697632,
+        "tracks": 674
+      },
+      {
+        "name": "Giddiness",
+        "duration": 3.375,
+        "tracks": 789
+      },
+      {
+        "name": "GammaCage_ParticleStatus",
+        "duration": 0.5,
+        "tracks": 768
+      },
+      {
+        "name": "Fight_Start.001",
+        "duration": 0.5416666865348816,
+        "tracks": 749
+      },
+      {
+        "name": "Fight_Start",
+        "duration": 0.5416666865348816,
+        "tracks": 749
+      },
+      {
+        "name": "Fight_Liedown.001",
+        "duration": 0.0416666679084301,
+        "tracks": 74
+      },
+      {
+        "name": "Fight_Liedown",
+        "duration": 0.0416666679084301,
+        "tracks": 74
+      },
+      {
+        "name": "EyeOfAgamotto_Start",
+        "duration": 0.4166666567325592,
+        "tracks": 741
+      },
+      {
+        "name": "EyeOfAgamotto_Loop",
+        "duration": 2.0416667461395264,
+        "tracks": 780
+      },
+      {
+        "name": "EyeOfAgamotto_End",
+        "duration": 0.875,
+        "tracks": 787
+      },
+      {
+        "name": "Dead_R",
+        "duration": 1.0416666269302368,
+        "tracks": 782
+      },
+      {
+        "name": "Dead_L",
+        "duration": 1.0416666269302368,
+        "tracks": 787
+      },
+      {
+        "name": "Dead_F",
+        "duration": 1.0416666269302368,
+        "tracks": 785
+      },
+      {
+        "name": "Dead_B",
+        "duration": 1.0416666269302368,
+        "tracks": 780
+      },
+      {
+        "name": "Cobweb_Pose",
+        "duration": 0.0416666679084301,
+        "tracks": 137
+      },
+      {
+        "name": "101291_Jump_Attack_Start",
+        "duration": 1,
+        "tracks": 759
+      },
+      {
+        "name": "101291_Jump_Attack_Recovery_Run_R",
+        "duration": 0.4583333432674408,
+        "tracks": 777
+      },
+      {
+        "name": "101291_Jump_Attack_Recovery_Run_L",
+        "duration": 0.4583333432674408,
+        "tracks": 747
+      },
+      {
+        "name": "101291_Jump_Attack_Recovery_Run_F",
+        "duration": 0.4583333432674408,
+        "tracks": 749
+      },
+      {
+        "name": "101291_Jump_Attack_Recovery_Run_B",
+        "duration": 0.4583333432674408,
+        "tracks": 732
+      },
+      {
+        "name": "101291_Jump_Attack_Recovery",
+        "duration": 0.625,
+        "tracks": 762
+      },
+      {
+        "name": "101291_Jump_Attack_R_Start",
+        "duration": 1,
+        "tracks": 792
+      },
+      {
+        "name": "101291_Jump_Attack_R_Land",
+        "duration": 0.875,
+        "tracks": 772
+      },
+      {
+        "name": "101291_Jump_Attack_Land",
+        "duration": 0.875,
+        "tracks": 760
+      },
+      {
+        "name": "101291_Jump_Attack_L_Start",
+        "duration": 1,
+        "tracks": 749
+      },
+      {
+        "name": "101291_Jump_Attack_L_Land",
+        "duration": 0.875,
+        "tracks": 738
+      },
+      {
+        "name": "101291_Jump_Attack_Float_R",
+        "duration": 1.375,
+        "tracks": 765
+      },
+      {
+        "name": "101291_Jump_Attack_Float_L",
+        "duration": 1.375,
+        "tracks": 745
+      },
+      {
+        "name": "101291_Jump_Attack_Float",
+        "duration": 1.375,
+        "tracks": 742
+      },
+      {
+        "name": "101283_Shield_Defend",
+        "duration": 2.125,
+        "tracks": 755
+      },
+      {
+        "name": "101282_Throw_Shield",
+        "duration": 1.7083333730697632,
+        "tracks": 763
+      },
+      {
+        "name": "101282_Throw_Large",
+        "duration": 1.9166666269302368,
+        "tracks": 769
+      },
+      {
+        "name": "101281_Pickup_Shield",
+        "duration": 1.2083333730697632,
+        "tracks": 735
+      },
+      {
+        "name": "101281_Pickup_Large",
+        "duration": 1.7083333730697632,
+        "tracks": 752
+      },
+      {
+        "name": "101281_Idle_Small",
+        "duration": 2.125,
+        "tracks": 753
+      },
+      {
+        "name": "101281_Idle_Shield",
+        "duration": 2.375,
+        "tracks": 761
+      },
+      {
+        "name": "101281_Idle_Large",
+        "duration": 2.2083332538604736,
+        "tracks": 744
+      },
+      {
+        "name": "101281_Dowm_Shield",
+        "duration": 0.9583333134651184,
+        "tracks": 769
+      },
+      {
+        "name": "101281_Dowm_Large",
+        "duration": 1.0833333730697632,
+        "tracks": 773
+      },
+      {
+        "name": "101274_Shield_Idle02",
+        "duration": 2.125,
+        "tracks": 755
+      },
+      {
+        "name": "101271_Jump_To_Climb",
+        "duration": 0.9166666865348816,
+        "tracks": 742
+      },
+      {
+        "name": "101271_ClimbToStand",
+        "duration": 1.375,
+        "tracks": 719
+      },
+      {
+        "name": "101271_Climb_R_To_L1",
+        "duration": 0.4166666567325592,
+        "tracks": 786
+      },
+      {
+        "name": "101271_Climb_R_To_L",
+        "duration": 0.4166666567325592,
+        "tracks": 764
+      },
+      {
+        "name": "101271_Climb_R_To_C",
+        "duration": 0.7083333134651184,
+        "tracks": 758
+      },
+      {
+        "name": "101271_Climb_R_Attack_FR",
+        "duration": 0.9583333134651184,
+        "tracks": 781
+      },
+      {
+        "name": "101271_Climb_R_Attack_F",
+        "duration": 0.9583333134651184,
+        "tracks": 754
+      },
+      {
+        "name": "101271_Climb_L_To_R",
+        "duration": 0.7916666865348816,
+        "tracks": 777
+      },
+      {
+        "name": "101271_Climb_L_To_C",
+        "duration": 0.7083333134651184,
+        "tracks": 755
+      },
+      {
+        "name": "101271_Climb_L_Attack_FL",
+        "duration": 0.9583333134651184,
+        "tracks": 737
+      },
+      {
+        "name": "101271_Climb_L_Attack_F",
+        "duration": 1.0416666269302368,
+        "tracks": 745
+      },
+      {
+        "name": "101271_Climb_Idle_R",
+        "duration": 1.375,
+        "tracks": 785
+      },
+      {
+        "name": "101271_Climb_Idle_L",
+        "duration": 1.375,
+        "tracks": 770
+      },
+      {
+        "name": "101271_Climb_C_To_R",
+        "duration": 0.7083333134651184,
+        "tracks": 777
+      },
+      {
+        "name": "101271_Climb_C_To_L",
+        "duration": 0.7083333134651184,
+        "tracks": 707
+      },
+      {
+        "name": "101241_GammaCage_Release",
+        "duration": 1.375,
+        "tracks": 771
+      },
+      {
+        "name": "101231_GammaShield_T",
+        "duration": 1.5416666269302368,
+        "tracks": 748
+      },
+      {
+        "name": "101221_Lean_LR",
+        "duration": 0.0416666679084301,
+        "tracks": 14
+      },
+      {
+        "name": "101221_Lean_F",
+        "duration": 0.0416666679084301,
+        "tracks": 14
+      },
+      {
+        "name": "101221_Lean_B",
+        "duration": 0.0416666679084301,
+        "tracks": 14
+      },
+      {
+        "name": "101221_GammaLightning",
+        "duration": 1.2083333730697632,
+        "tracks": 743
+      },
+      {
+        "name": "101211_Punch_Turn_R",
+        "duration": 0.75,
+        "tracks": 751
+      },
+      {
+        "name": "101211_Punch_Turn_L",
+        "duration": 0.75,
+        "tracks": 761
+      },
+      {
+        "name": "101211_Punch_04",
+        "duration": 0.9583333134651184,
+        "tracks": 757
+      },
+      {
+        "name": "101211_Punch_03",
+        "duration": 0.9583333134651184,
+        "tracks": 755
+      },
+      {
+        "name": "101211_Punch_02",
+        "duration": 0.9583333134651184,
+        "tracks": 728
+      },
+      {
+        "name": "101211_Punch_01",
+        "duration": 0.9166666865348816,
+        "tracks": 774
+      },
+      {
+        "name": "101211_Lean_A",
+        "duration": 0.0416666679084301,
+        "tracks": 26
+      },
+      {
+        "name": "101199_Throw_Start",
+        "duration": 0.125,
+        "tracks": 803
+      },
+      {
+        "name": "101199_Throw_Loop_Walk",
+        "duration": 1.7083333730697632,
+        "tracks": 768
+      },
+      {
+        "name": "101199_Throw_Loop_Run",
+        "duration": 0.9583333134651184,
+        "tracks": 766
+      },
+      {
+        "name": "101199_Throw_Loop",
+        "duration": 2.0416667461395264,
+        "tracks": 778
+      },
+      {
+        "name": "101199_Throw_End",
+        "duration": 1.2083333730697632,
+        "tracks": 776
+      },
+      {
+        "name": "101199_Jump_Start_F_C",
+        "duration": 0.7083333134651184,
+        "tracks": 769
+      },
+      {
+        "name": "101199_Jump_Start_C",
+        "duration": 0.7083333134651184,
+        "tracks": 782
+      },
+      {
+        "name": "101199_Jump_Start_B_C",
+        "duration": 0.7083333134651184,
+        "tracks": 778
+      },
+      {
+        "name": "101199_Jump_Land_F_C",
+        "duration": 0.2916666567325592,
+        "tracks": 750
+      },
+      {
+        "name": "101199_Jump_Land_C",
+        "duration": 1.0416666269302368,
+        "tracks": 768
+      },
+      {
+        "name": "101199_Jump_Land_B_C",
+        "duration": 0.375,
+        "tracks": 756
+      },
+      {
+        "name": "101199_Jump_Falling_F_C",
+        "duration": 1.375,
+        "tracks": 774
+      },
+      {
+        "name": "101199_Jump_Falling_C",
+        "duration": 1.375,
+        "tracks": 777
+      },
+      {
+        "name": "101199_Jump_Falling_B_C",
+        "duration": 1.375,
+        "tracks": 777
+      },
+      {
+        "name": "101199_Jump_Attack_Start",
+        "duration": 1,
+        "tracks": 739
+      },
+      {
+        "name": "101199_Jump_Attack_Recovery_RunF",
+        "duration": 0.4583333432674408,
+        "tracks": 789
+      },
+      {
+        "name": "101199_Jump_Attack_Recovery",
+        "duration": 0.625,
+        "tracks": 775
+      },
+      {
+        "name": "101199_Jump_Attack_Land",
+        "duration": 0.875,
+        "tracks": 755
+      },
+      {
+        "name": "101199_Jump_Attack_Float",
+        "duration": 1.375,
+        "tracks": 774
+      },
+      {
+        "name": "101197_Walk_Fwd",
+        "duration": 1.7083333730697632,
+        "tracks": 760
+      },
+      {
+        "name": "101197_Walk_Bwd",
+        "duration": 1.7083333730697632,
+        "tracks": 728
+      },
+      {
+        "name": "101197_Run_Bwd",
+        "duration": 0.9583333134651184,
+        "tracks": 705
+      },
+      {
+        "name": "101197_Run",
+        "duration": 0.9583333134651184,
+        "tracks": 750
+      },
+      {
+        "name": "101197_PutDowm",
+        "duration": 0.5416666865348816,
+        "tracks": 748
+      },
+      {
+        "name": "101197_PickUp_Loop",
+        "duration": 2.0416667461395264,
+        "tracks": 777
+      },
+      {
+        "name": "101197_PickUp_End",
+        "duration": 0.4166666567325592,
+        "tracks": 782
+      },
+      {
+        "name": "101197_PickUp",
+        "duration": 0.125,
+        "tracks": 767
+      },
+      {
+        "name": "101197_Jump_Start_F_C",
+        "duration": 0.7083333134651184,
+        "tracks": 707
+      },
+      {
+        "name": "101197_Jump_Start_C",
+        "duration": 0.7083333134651184,
+        "tracks": 773
+      },
+      {
+        "name": "101197_Jump_Start_B_C",
+        "duration": 0.7083333134651184,
+        "tracks": 765
+      },
+      {
+        "name": "101197_Jump_Land_F_C",
+        "duration": 0.375,
+        "tracks": 753
+      },
+      {
+        "name": "101197_Jump_Land_C",
+        "duration": 1.1666666269302368,
+        "tracks": 764
+      },
+      {
+        "name": "101197_Jump_Land_B_C",
+        "duration": 0.375,
+        "tracks": 746
+      },
+      {
+        "name": "101197_Jump_Falling_F_C",
+        "duration": 1.375,
+        "tracks": 755
+      },
+      {
+        "name": "101197_Jump_Falling_C",
+        "duration": 1.375,
+        "tracks": 783
+      },
+      {
+        "name": "101197_Jump_Falling_B_C",
+        "duration": 1.375,
+        "tracks": 737
+      },
+      {
+        "name": "101197_Jump_Attack_Start",
+        "duration": 1,
+        "tracks": 782
+      },
+      {
+        "name": "101197_Jump_Attack_Recovery_RunF",
+        "duration": 0.4583333432674408,
+        "tracks": 731
+      },
+      {
+        "name": "101197_Jump_Attack_Recovery",
+        "duration": 0.625,
+        "tracks": 772
+      },
+      {
+        "name": "101197_Jump_Attack_Land",
+        "duration": 0.875,
+        "tracks": 741
+      },
+      {
+        "name": "101197_Jump_Attack_Float",
+        "duration": 1.375,
+        "tracks": 756
+      },
+      {
+        "name": "101196_GammaPerfuse",
+        "duration": 1.5416666269302368,
+        "tracks": 777
+      },
+      {
+        "name": "101131_10112Hulk",
+        "duration": 0.5416666865348816,
+        "tracks": 766
+      },
+      {
+        "name": "101102_Monsterk2Hulk",
+        "duration": 0.4166666567325592,
+        "tracks": 760
+      },
+      {
+        "name": "101101_Hulk21011",
+        "duration": 2,
+        "tracks": 783
+      }
+    ],
+    "assetMetadata": {
+      "extras": {
+        "author": "King_45 (https://sketchfab.com/King_45)",
+        "license": "CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)",
+        "source": "https://sketchfab.com/3d-models/hulk-marvel-rivals-1379a9de81b7426ea4ee71ff4c126e80",
+        "title": "Hulk | Marvel Rivals"
+      },
+      "generator": "Sketchfab-16.63.0",
+      "version": "2.0"
+    },
+    "extras": null,
+    "mixamoNamedBones": 0
+  },
+  {
+    "file": "/Users/vishayagarwal/Downloads/iron-man_mark_85__rigged (1).glb",
+    "sizeMB": 48.12,
+    "vertices": 409149,
+    "triangles": 639859,
+    "meshes": 10,
+    "skinnedMeshes": 10,
+    "boneCount": 66,
+    "boneNames": [
+      "_rootJoint",
+      "mixamorigHips_01",
+      "mixamorigSpine_02",
+      "mixamorigSpine1_03",
+      "mixamorigSpine2_04",
+      "mixamorigNeck_05",
+      "mixamorigHead_06",
+      "mixamorigHeadTop_End_07",
+      "mixamorigLeftShoulder_08",
+      "mixamorigLeftArm_09",
+      "mixamorigLeftForeArm_010",
+      "mixamorigLeftHand_011",
+      "mixamorigLeftHandThumb1_012",
+      "mixamorigLeftHandThumb2_013",
+      "mixamorigLeftHandThumb3_014",
+      "mixamorigLeftHandThumb4_015",
+      "mixamorigLeftHandIndex1_016",
+      "mixamorigLeftHandIndex2_017",
+      "mixamorigLeftHandIndex3_018",
+      "mixamorigLeftHandIndex4_019",
+      "mixamorigLeftHandMiddle1_020",
+      "mixamorigLeftHandMiddle2_021",
+      "mixamorigLeftHandMiddle3_022",
+      "mixamorigLeftHandMiddle4_023",
+      "mixamorigLeftHandRing1_024",
+      "mixamorigLeftHandRing2_025",
+      "mixamorigLeftHandRing3_026",
+      "mixamorigLeftHandRing4_027",
+      "mixamorigLeftHandPinky1_028",
+      "mixamorigLeftHandPinky2_029",
+      "mixamorigLeftHandPinky3_030",
+      "mixamorigLeftHandPinky4_031",
+      "mixamorigRightShoulder_032",
+      "mixamorigRightArm_033",
+      "mixamorigRightForeArm_034",
+      "mixamorigRightHand_035",
+      "mixamorigRightHandThumb1_036",
+      "mixamorigRightHandThumb2_037",
+      "mixamorigRightHandThumb3_038",
+      "mixamorigRightHandThumb4_039",
+      "mixamorigRightHandIndex1_040",
+      "mixamorigRightHandIndex2_041",
+      "mixamorigRightHandIndex3_042",
+      "mixamorigRightHandIndex4_043",
+      "mixamorigRightHandMiddle1_044",
+      "mixamorigRightHandMiddle2_045",
+      "mixamorigRightHandMiddle3_046",
+      "mixamorigRightHandMiddle4_047",
+      "mixamorigRightHandRing1_048",
+      "mixamorigRightHandRing2_049",
+      "mixamorigRightHandRing3_050",
+      "mixamorigRightHandRing4_051",
+      "mixamorigRightHandPinky1_052",
+      "mixamorigRightHandPinky2_053",
+      "mixamorigRightHandPinky3_054",
+      "mixamorigRightHandPinky4_055",
+      "mixamorigLeftUpLeg_00",
+      "mixamorigLeftLeg_056",
+      "mixamorigLeftFoot_057",
+      "mixamorigLeftToeBase_058",
+      "mixamorigLeftToe_End_059",
+      "mixamorigRightUpLeg_060",
+      "mixamorigRightLeg_061",
+      "mixamorigRightFoot_062",
+      "mixamorigRightToeBase_063",
+      "mixamorigRightToe_End_064"
+    ],
+    "dimensions": [
+      0.03934770553709588,
+      0.06657241258822034,
+      0.013393142324417703
+    ],
+    "animationCount": 0,
+    "animations": [],
+    "assetMetadata": {
+      "extras": {
+        "author": "9A Films / Nihar Arora (https://sketchfab.com/Nihar-9Afilms)",
+        "license": "CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)",
+        "source": "https://sketchfab.com/3d-models/iron-man-mark-85-rigged-dde1085c464d4f8da259fe6669ae4dd2",
+        "title": "Iron-Man Mark 85 | Rigged"
+      },
+      "generator": "Sketchfab-15.1.0",
+      "version": "2.0"
+    },
+    "extras": null,
+    "mixamoNamedBones": 65
+  },
+  {
+    "file": "/Users/vishayagarwal/Downloads/iron-man_mark_85__rigged.glb",
+    "sizeMB": 48.12,
+    "vertices": 409149,
+    "triangles": 639859,
+    "meshes": 10,
+    "skinnedMeshes": 10,
+    "boneCount": 66,
+    "boneNames": [
+      "_rootJoint",
+      "mixamorigHips_01",
+      "mixamorigSpine_02",
+      "mixamorigSpine1_03",
+      "mixamorigSpine2_04",
+      "mixamorigNeck_05",
+      "mixamorigHead_06",
+      "mixamorigHeadTop_End_07",
+      "mixamorigLeftShoulder_08",
+      "mixamorigLeftArm_09",
+      "mixamorigLeftForeArm_010",
+      "mixamorigLeftHand_011",
+      "mixamorigLeftHandThumb1_012",
+      "mixamorigLeftHandThumb2_013",
+      "mixamorigLeftHandThumb3_014",
+      "mixamorigLeftHandThumb4_015",
+      "mixamorigLeftHandIndex1_016",
+      "mixamorigLeftHandIndex2_017",
+      "mixamorigLeftHandIndex3_018",
+      "mixamorigLeftHandIndex4_019",
+      "mixamorigLeftHandMiddle1_020",
+      "mixamorigLeftHandMiddle2_021",
+      "mixamorigLeftHandMiddle3_022",
+      "mixamorigLeftHandMiddle4_023",
+      "mixamorigLeftHandRing1_024",
+      "mixamorigLeftHandRing2_025",
+      "mixamorigLeftHandRing3_026",
+      "mixamorigLeftHandRing4_027",
+      "mixamorigLeftHandPinky1_028",
+      "mixamorigLeftHandPinky2_029",
+      "mixamorigLeftHandPinky3_030",
+      "mixamorigLeftHandPinky4_031",
+      "mixamorigRightShoulder_032",
+      "mixamorigRightArm_033",
+      "mixamorigRightForeArm_034",
+      "mixamorigRightHand_035",
+      "mixamorigRightHandThumb1_036",
+      "mixamorigRightHandThumb2_037",
+      "mixamorigRightHandThumb3_038",
+      "mixamorigRightHandThumb4_039",
+      "mixamorigRightHandIndex1_040",
+      "mixamorigRightHandIndex2_041",
+      "mixamorigRightHandIndex3_042",
+      "mixamorigRightHandIndex4_043",
+      "mixamorigRightHandMiddle1_044",
+      "mixamorigRightHandMiddle2_045",
+      "mixamorigRightHandMiddle3_046",
+      "mixamorigRightHandMiddle4_047",
+      "mixamorigRightHandRing1_048",
+      "mixamorigRightHandRing2_049",
+      "mixamorigRightHandRing3_050",
+      "mixamorigRightHandRing4_051",
+      "mixamorigRightHandPinky1_052",
+      "mixamorigRightHandPinky2_053",
+      "mixamorigRightHandPinky3_054",
+      "mixamorigRightHandPinky4_055",
+      "mixamorigLeftUpLeg_00",
+      "mixamorigLeftLeg_056",
+      "mixamorigLeftFoot_057",
+      "mixamorigLeftToeBase_058",
+      "mixamorigLeftToe_End_059",
+      "mixamorigRightUpLeg_060",
+      "mixamorigRightLeg_061",
+      "mixamorigRightFoot_062",
+      "mixamorigRightToeBase_063",
+      "mixamorigRightToe_End_064"
+    ],
+    "dimensions": [
+      0.03934770553709588,
+      0.06657241258822034,
+      0.013393142324417703
+    ],
+    "animationCount": 0,
+    "animations": [],
+    "assetMetadata": {
+      "extras": {
+        "author": "9A Films / Nihar Arora (https://sketchfab.com/Nihar-9Afilms)",
+        "license": "CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)",
+        "source": "https://sketchfab.com/3d-models/iron-man-mark-85-rigged-dde1085c464d4f8da259fe6669ae4dd2",
+        "title": "Iron-Man Mark 85 | Rigged"
+      },
+      "generator": "Sketchfab-15.1.0",
+      "version": "2.0"
+    },
+    "extras": null,
+    "mixamoNamedBones": 65
+  },
+  {
+    "file": "/Users/vishayagarwal/Downloads/spiderman_venom_playstion_ps5.glb",
+    "sizeMB": 2.62,
+    "vertices": 19512,
+    "triangles": 30038,
+    "meshes": 3,
+    "skinnedMeshes": 3,
+    "boneCount": 66,
+    "boneNames": [
+      "GLTF_created_0_rootJoint",
+      "mixamorigHips_64",
+      "mixamorigSpine_53",
+      "mixamorigSpine1_52",
+      "mixamorigSpine2_51",
+      "mixamorigNeck_2",
+      "mixamorigHead_1",
+      "mixamorigHeadTop_End_0",
+      "mixamorigLeftShoulder_26",
+      "mixamorigLeftArm_25",
+      "mixamorigLeftForeArm_24",
+      "mixamorigLeftHand_23",
+      "mixamorigLeftHandThumb1_6",
+      "mixamorigLeftHandThumb2_5",
+      "mixamorigLeftHandThumb3_4",
+      "mixamorigLeftHandThumb4_3",
+      "mixamorigLeftHandIndex1_10",
+      "mixamorigLeftHandIndex2_9",
+      "mixamorigLeftHandIndex3_8",
+      "mixamorigLeftHandIndex4_7",
+      "mixamorigLeftHandMiddle1_14",
+      "mixamorigLeftHandMiddle2_13",
+      "mixamorigLeftHandMiddle3_12",
+      "mixamorigLeftHandMiddle4_11",
+      "mixamorigLeftHandRing1_18",
+      "mixamorigLeftHandRing2_17",
+      "mixamorigLeftHandRing3_16",
+      "mixamorigLeftHandRing4_15",
+      "mixamorigLeftHandPinky1_22",
+      "mixamorigLeftHandPinky2_21",
+      "mixamorigLeftHandPinky3_20",
+      "mixamorigLeftHandPinky4_19",
+      "mixamorigRightShoulder_50",
+      "mixamorigRightArm_49",
+      "mixamorigRightForeArm_48",
+      "mixamorigRightHand_47",
+      "mixamorigRightHandThumb1_30",
+      "mixamorigRightHandThumb2_29",
+      "mixamorigRightHandThumb3_28",
+      "mixamorigRightHandThumb4_27",
+      "mixamorigRightHandIndex1_34",
+      "mixamorigRightHandIndex2_33",
+      "mixamorigRightHandIndex3_32",
+      "mixamorigRightHandIndex4_31",
+      "mixamorigRightHandMiddle1_38",
+      "mixamorigRightHandMiddle2_37",
+      "mixamorigRightHandMiddle3_36",
+      "mixamorigRightHandMiddle4_35",
+      "mixamorigRightHandRing1_42",
+      "mixamorigRightHandRing2_41",
+      "mixamorigRightHandRing3_40",
+      "mixamorigRightHandRing4_39",
+      "mixamorigRightHandPinky1_46",
+      "mixamorigRightHandPinky2_45",
+      "mixamorigRightHandPinky3_44",
+      "mixamorigRightHandPinky4_43",
+      "mixamorigLeftUpLeg_58",
+      "mixamorigLeftLeg_57",
+      "mixamorigLeftFoot_56",
+      "mixamorigLeftToeBase_55",
+      "mixamorigLeftToe_End_54",
+      "mixamorigRightUpLeg_63",
+      "mixamorigRightLeg_62",
+      "mixamorigRightFoot_61",
+      "mixamorigRightToeBase_60",
+      "mixamorigRightToe_End_59"
+    ],
+    "dimensions": [
+      1.377569928203989,
+      1.449852331467789,
+      1.9195811803591818
+    ],
+    "animationCount": 3,
+    "animations": [
+      {
+        "name": "Swing",
+        "duration": 1.899999976158142,
+        "tracks": 195
+      },
+      {
+        "name": "Crawl",
+        "duration": 2.366666555404663,
+        "tracks": 195
+      },
+      {
+        "name": "Scream",
+        "duration": 2.866666555404663,
+        "tracks": 195
+      }
+    ],
+    "assetMetadata": {
+      "extras": {
+        "author": "As7 3d models (https://sketchfab.com/As7312008)",
+        "license": "CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)",
+        "source": "https://sketchfab.com/3d-models/spiderman-venom-playstion-ps5-25c9448a97b24294a9138fb5e58536f6",
+        "title": "Spiderman Venom Playstion (PS5)"
+      },
+      "generator": "Sketchfab-15.70.0",
+      "version": "2.0"
+    },
+    "extras": null,
+    "mixamoNamedBones": 65
+  },
+  {
+    "file": "/Users/vishayagarwal/Downloads/the_venom_spiderman_2_playstation.glb",
+    "sizeMB": 2.53,
+    "vertices": 4043,
+    "triangles": 6672,
+    "meshes": 3,
+    "skinnedMeshes": 3,
+    "boneCount": 26,
+    "boneNames": [
+      "GLTF_created_0_rootJoint",
+      "mixamorigHips_25",
+      "mixamorigSpine_14",
+      "mixamorigSpine1_13",
+      "mixamorigSpine2_12",
+      "mixamorigNeck_3",
+      "mixamorigHead_2",
+      "mixamorigHeadTop_End_1",
+      "mixamorigLeftShoulder_7",
+      "mixamorigLeftArm_6",
+      "mixamorigLeftForeArm_5",
+      "mixamorigLeftHand_4",
+      "mixamorigRightShoulder_11",
+      "mixamorigRightArm_10",
+      "mixamorigRightForeArm_9",
+      "mixamorigRightHand_8",
+      "mixamorigLeftUpLeg_19",
+      "mixamorigLeftLeg_18",
+      "mixamorigLeftFoot_17",
+      "mixamorigLeftToeBase_16",
+      "mixamorigLeftToe_End_15",
+      "mixamorigRightUpLeg_24",
+      "mixamorigRightLeg_23",
+      "mixamorigRightFoot_22",
+      "mixamorigRightToeBase_21",
+      "mixamorigRightToe_End_20"
+    ],
+    "dimensions": [
+      3.8945089751525703,
+      3.8833615915715667,
+      3.02640272767908
+    ],
+    "animationCount": 2,
+    "animations": [
+      {
+        "name": "Scream",
+        "duration": 5.433333396911621,
+        "tracks": 75
+      },
+      {
+        "name": "Jump",
+        "duration": 3.7333333492279053,
+        "tracks": 75
+      }
+    ],
+    "assetMetadata": {
+      "extras": {
+        "author": "As7 3d models (https://sketchfab.com/As7312008)",
+        "license": "CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)",
+        "source": "https://sketchfab.com/3d-models/the-venom-spiderman-2-playstation-fb18529d58324061a28d3e6d033328a7",
+        "title": "The Venom (Spiderman 2 Playstation)"
+      },
+      "generator": "Sketchfab-15.70.0",
+      "version": "2.0"
+    },
+    "extras": null,
+    "mixamoNamedBones": 25
+  },
+  {
+    "file": "/Users/vishayagarwal/Downloads/venom_-_the_symbiote.glb",
+    "sizeMB": 2.3,
+    "vertices": 12610,
+    "triangles": 21361,
+    "meshes": 2,
+    "skinnedMeshes": 0,
+    "boneCount": 0,
+    "boneNames": [],
+    "dimensions": [
+      1.4453204547169696,
+      1.7077327960300868,
+      0.439018428665337
+    ],
+    "animationCount": 0,
+    "animations": [],
+    "assetMetadata": {
+      "extras": {
+        "author": "DEV STUDIOS 3D (https://sketchfab.com/devraj.nunnu)",
+        "license": "CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)",
+        "source": "https://sketchfab.com/3d-models/venom-the-symbiote-2a37b5302bff42488a63d59713bdfe40",
+        "title": "Venom - The Symbiote"
+      },
+      "generator": "Sketchfab-16.29.0",
+      "version": "2.0"
+    },
+    "extras": null,
+    "mixamoNamedBones": 0
+  },
+  {
+    "file": "/Users/vishayagarwal/Downloads/venom__marvel_rivals.glb",
+    "sizeMB": 95.42,
+    "vertices": 49171,
+    "triangles": 89528,
+    "meshes": 3,
+    "skinnedMeshes": 3,
+    "boneCount": 263,
+    "boneNames": [
+      "GLTF_created_0_rootJoint",
+      "root_261",
+      "pelvis_251",
+      "spine_01_170",
+      "spine_02_169",
+      "spine_03_166",
+      "spine_04_159",
+      "spine_05_153",
+      "clavicle_l_49",
+      "upperarm_l_43",
+      "lowerarm_l_33",
+      "hand_l_24",
+      "index_metacarpal_l_3",
+      "index_01_l_2",
+      "index_02_l_1",
+      "index_03_l_0",
+      "middle_metacarpal_l_7",
+      "middle_01_l_6",
+      "middle_02_l_5",
+      "middle_03_l_4",
+      "pinky_metacarpal_l_11",
+      "pinky_01_l_10",
+      "pinky_02_l_9",
+      "pinky_03_l_8",
+      "ring_metacarpal_l_15",
+      "ring_01_l_14",
+      "ring_02_l_13",
+      "ring_03_l_12",
+      "thumb_01_l_18",
+      "thumb_02_l_17",
+      "thumb_03_l_16",
+      "weapon_l_19",
+      "L_Wrist_Fix_8_Jnt_20",
+      "L_Wrist_Fix_6_Jnt_21",
+      "L_Wrist_Fix_4_Jnt_22",
+      "L_Wrist_Fix_2_Jnt_23",
+      "lowerarm_twist_01_l_29",
+      "L_Wrist_Fix_7_Jnt_25",
+      "L_Wrist_Fix_5_Jnt_26",
+      "L_Wrist_Fix_3_Jnt_27",
+      "L_Wrist_Fix_1_Jnt_28",
+      "lowerarm_twist_02_l_30",
+      "lowerarm_twist_03_l_31",
+      "L_Elbow_Fix_2_Jnt_32",
+      "upperarm_twist_01_l_34",
+      "upperarm_twist_02_l_35",
+      "upperarm_twist_03_l_38",
+      "L_Elbow_Fix_3_Jnt_36",
+      "L_Elbow_Fix_1_Jnt_37",
+      "L_Shoulder_Fix_8_Jnt_39",
+      "L_Shoulder_Fix_6_Jnt_40",
+      "L_Shoulder_Fix_4_Jnt_41",
+      "L_Shoulder_Fix_2_Jnt_42",
+      "L_Trapezius_44",
+      "L_Shoulder_Fix_7_Jnt_45",
+      "L_Shoulder_Fix_5_Jnt_46",
+      "L_Shoulder_Fix_3_Jnt_47",
+      "L_Shoulder_Fix_1_Jnt_48",
+      "clavicle_r_99",
+      "upperarm_r_93",
+      "lowerarm_r_83",
+      "hand_r_74",
+      "index_metacarpal_r_53",
+      "index_01_r_52",
+      "index_02_r_51",
+      "index_03_r_50",
+      "middle_metacarpal_r_57",
+      "middle_01_r_56",
+      "middle_02_r_55",
+      "middle_03_r_54",
+      "pinky_metacarpal_r_61",
+      "pinky_01_r_60",
+      "pinky_02_r_59",
+      "pinky_03_r_58",
+      "ring_metacarpal_r_65",
+      "ring_01_r_64",
+      "ring_02_r_63",
+      "ring_03_r_62",
+      "thumb_01_r_68",
+      "thumb_02_r_67",
+      "thumb_03_r_66",
+      "weapon_r_69",
+      "R_Wrist_Fix_8_Jnt_70",
+      "R_Wrist_Fix_6_Jnt_71",
+      "R_Wrist_Fix_4_Jnt_72",
+      "R_Wrist_Fix_2_Jnt_73",
+      "lowerarm_twist_01_r_79",
+      "R_Wrist_Fix_7_Jnt_75",
+      "R_Wrist_Fix_5_Jnt_76",
+      "R_Wrist_Fix_3_Jnt_77",
+      "R_Wrist_Fix_1_Jnt_78",
+      "lowerarm_twist_02_r_80",
+      "lowerarm_twist_03_r_81",
+      "R_Elbow_Fix_2_Jnt_82",
+      "upperarm_twist_01_r_84",
+      "upperarm_twist_02_r_85",
+      "upperarm_twist_03_r_88",
+      "R_Elbow_Fix_3_Jnt_86",
+      "R_Elbow_Fix_1_Jnt_87",
+      "R_Shoulder_Fix_8_Jnt_89",
+      "R_Shoulder_Fix_6_Jnt_90",
+      "R_Shoulder_Fix_4_Jnt_91",
+      "R_Shoulder_Fix_2_Jnt_92",
+      "R_Trapezius_94",
+      "R_Shoulder_Fix_7_Jnt_95",
+      "R_Shoulder_Fix_5_Jnt_96",
+      "R_Shoulder_Fix_3_Jnt_97",
+      "R_Shoulder_Fix_1_Jnt_98",
+      "neck_01_137",
+      "neck_02_133",
+      "head_127",
+      "Jaw_Jnt_124",
+      "Tongue_Skin_Jnt_0_122",
+      "Tongue_Skin_Jnt_1_121",
+      "Tongue_Skin_Jnt_2_120",
+      "Tongue_Skin_Jnt_3_119",
+      "Tongue_Skin_Jnt_4_118",
+      "Tongue_Skin_Jnt_5_117",
+      "Tongue_Skin_Jnt_6_116",
+      "Tongue_Skin_Jnt_7_115",
+      "Tongue_Skin_Jnt_8_114",
+      "Tongue_Skin_Jnt_9_113",
+      "Tongue_Skin_Jnt_10_112",
+      "Tongue_Skin_Jnt_11_111",
+      "Tongue_Skin_Jnt_12_110",
+      "Tongue_Skin_Jnt_13_109",
+      "Tongue_Skin_Jnt_14_108",
+      "Tongue_Skin_Jnt_15_107",
+      "Tongue_Skin_Jnt_16_106",
+      "Tongue_Skin_Jnt_17_105",
+      "Tongue_Skin_Jnt_18_104",
+      "Tongue_Skin_Jnt_19_103",
+      "Tongue_Skin_Jnt_20_102",
+      "Tongue_Skin_Jnt_21_101",
+      "Tongue_Skin_Jnt_22_100",
+      "Neck_C_Scale_01_Jnt_123",
+      "Patale_Jnt_125",
+      "head_Scale_126",
+      "neck_02_Scale_132",
+      "Neck_B_Scale_01_Jnt_128",
+      "Neck_B_Scale_02_Jnt_129",
+      "L_Neck_B_Scale_01_Jnt_130",
+      "R_Neck_B_Scale_01_Jnt_131",
+      "neck_01_Scale_136",
+      "Neck_A_Scale_01_Jnt_134",
+      "Neck_A_Scale_02_Jnt_135",
+      "R_Clavicle_01_Jnt_138",
+      "L_Clavicle_01_Jnt_139",
+      "R_Sca_Muscle_01_Jnt_140",
+      "L_Sca_Muscle_01_Jnt_141",
+      "R_Latissimus_04_Jnt_142",
+      "L_Latissimus_04_Jnt_143",
+      "R_Chest_Muscle_01_Jnt_144",
+      "L_Chest_Muscle_01_Jnt_145",
+      "Chest_Scale_01_Jnt_146",
+      "Chest_Scale_02_Jnt_147",
+      "Chest_Scale_04_Jnt_148",
+      "Chest_Scale_05_Jnt_149",
+      "Chest_Scale_06_Jnt_150",
+      "R_upThorn_151",
+      "L_upThorn_152",
+      "R_Latissimus_03_Jnt_154",
+      "R_Latissimus_06_Jnt_155",
+      "L_Latissimus_03_Jnt_156",
+      "L_Latissimus_06_Jnt_157",
+      "Chest_Scale_03_Jnt_158",
+      "R_Latissimus_02_Jnt_160",
+      "R_Latissimus_05_Jnt_161",
+      "L_Latissimus_02_Jnt_162",
+      "L_Latissimus_05_Jnt_163",
+      "L_dnThorn_164",
+      "R_dnThorn_165",
+      "R_Latissimus_01_Jnt_167",
+      "L_Latissimus_01_Jnt_168",
+      "thigh_l_205",
+      "calf_l_195",
+      "calf_twist_01_l_175",
+      "L_Ankle_Fix_7_Jnt_171",
+      "L_Ankle_Fix_5_Jnt_172",
+      "L_Ankle_Fix_3_Jnt_173",
+      "L_Ankle_Fix_1_Jnt_174",
+      "calf_twist_02_l_176",
+      "calf_twist_03_l_177",
+      "foot_l_193",
+      "ball_l_188",
+      "bigtoe_proximal_phalange_l_179",
+      "bigtoe_distal_phalange_l_178",
+      "index_proximal_phalange_l_181",
+      "index_middle_phalange_l_180",
+      "middle_proximal_phalange_l_183",
+      "middle_middle_phalange_l_182",
+      "pinky_proximal_phalange_l_185",
+      "pinky_middle_phalange_l_184",
+      "ring_proximal_phalange_l_187",
+      "ring_middle_phalange_l_186",
+      "L_Ankle_Fix_8_Jnt_189",
+      "L_Ankle_Fix_6_Jnt_190",
+      "L_Ankle_Fix_4_Jnt_191",
+      "L_Ankle_Fix_2_Jnt_192",
+      "L_Knee_Fix_2_Jnt_194",
+      "thigh_twist_01_l_196",
+      "thigh_twist_02_l_197",
+      "thigh_twist_03_l_200",
+      "L_Knee_Fix_3_Jnt_198",
+      "L_Knee_Fix_1_Jnt_199",
+      "L_Hip_Fix_8_Jnt_201",
+      "L_Hip_Fix_6_Jnt_202",
+      "L_Hip_Fix_4_Jnt_203",
+      "L_Hip_Fix_2_Jnt_204",
+      "thigh_r_240",
+      "calf_r_230",
+      "calf_twist_01_r_210",
+      "R_Ankle_Fix_7_Jnt_206",
+      "R_Ankle_Fix_5_Jnt_207",
+      "R_Ankle_Fix_3_Jnt_208",
+      "R_Ankle_Fix_1_Jnt_209",
+      "calf_twist_02_r_211",
+      "calf_twist_03_r_212",
+      "foot_r_228",
+      "ball_r_223",
+      "bigtoe_proximal_phalange_r_214",
+      "bigtoe_distal_phalange_r_213",
+      "index_proximal_phalange_r_216",
+      "index_middle_phalange_r_215",
+      "middle_proximal_phalange_r_218",
+      "middle_middle_phalange_r_217",
+      "pinky_proximal_phalange_r_220",
+      "pinky_middle_phalange_r_219",
+      "ring_proximal_phalange_r_222",
+      "ring_middle_phalange_r_221",
+      "R_Ankle_Fix_8_Jnt_224",
+      "R_Ankle_Fix_6_Jnt_225",
+      "R_Ankle_Fix_4_Jnt_226",
+      "R_Ankle_Fix_2_Jnt_227",
+      "R_Knee_Fix_2_Jnt_229",
+      "thigh_twist_01_r_231",
+      "thigh_twist_02_r_232",
+      "thigh_twist_03_r_235",
+      "R_Knee_Fix_3_Jnt_233",
+      "R_Knee_Fix_1_Jnt_234",
+      "R_Hip_Fix_8_Jnt_236",
+      "R_Hip_Fix_6_Jnt_237",
+      "R_Hip_Fix_4_Jnt_238",
+      "R_Hip_Fix_2_Jnt_239",
+      "R_Hip_Fix_9_Jnt_241",
+      "R_Hip_Fix_7_Jnt_242",
+      "R_Hip_Fix_5_Jnt_243",
+      "R_Hip_Fix_3_Jnt_244",
+      "R_Hip_Fix_1_Jnt_245",
+      "L_Hip_Fix_9_Jnt_246",
+      "L_Hip_Fix_7_Jnt_247",
+      "L_Hip_Fix_5_Jnt_248",
+      "L_Hip_Fix_3_Jnt_249",
+      "L_Hip_Fix_1_Jnt_250",
+      "ik_foot_root_254",
+      "ik_foot_l_252",
+      "ik_foot_r_253",
+      "ik_hand_root_260",
+      "ik_hand_gun_l_255",
+      "ik_hand_gun_r_259",
+      "ik_hand_l_256",
+      "ik_hand_r_257",
+      "ik_spine_258"
+    ],
+    "dimensions": [
+      2.20641912615812,
+      2.8269633440544277,
+      1.2793808153482933
+    ],
+    "animationCount": 190,
+    "animations": [
+      {
+        "name": "Idle_C",
+        "duration": 5.375,
+        "tracks": 753
+      },
+      {
+        "name": "Emote_10350012010",
+        "duration": 3.9583332538604736,
+        "tracks": 759
+      },
+      {
+        "name": "Emote_10355012020",
+        "duration": 6.708333492279053,
+        "tracks": 757
+      },
+      {
+        "name": "Emote_10350012010_Lobby",
+        "duration": 3.9583332538604736,
+        "tracks": 748
+      },
+      {
+        "name": "Emote_10353002040",
+        "duration": 6.375,
+        "tracks": 757
+      },
+      {
+        "name": "Walk_RF_C",
+        "duration": 1.7083333730697632,
+        "tracks": 746
+      },
+      {
+        "name": "Walk_RB_C",
+        "duration": 1.7083333730697632,
+        "tracks": 722
+      },
+      {
+        "name": "Walk_LF_C",
+        "duration": 1.7083333730697632,
+        "tracks": 740
+      },
+      {
+        "name": "Walk_LB_C",
+        "duration": 1.7083333730697632,
+        "tracks": 732
+      },
+      {
+        "name": "Walk_Fwd_C",
+        "duration": 1.7083333730697632,
+        "tracks": 739
+      },
+      {
+        "name": "Walk_Bwd_C",
+        "duration": 1.7083333730697632,
+        "tracks": 744
+      },
+      {
+        "name": "Turn_R90_C",
+        "duration": 0.9583333134651184,
+        "tracks": 766
+      },
+      {
+        "name": "Turn_L90_C",
+        "duration": 0.9583333134651184,
+        "tracks": 754
+      },
+      {
+        "name": "SwingingStart_To_LowCrawl",
+        "duration": 0.75,
+        "tracks": 758
+      },
+      {
+        "name": "Swingingloop_To_LowCrawl",
+        "duration": 0.9166666865348816,
+        "tracks": 755
+      },
+      {
+        "name": "Stop_RF_C",
+        "duration": 1,
+        "tracks": 754
+      },
+      {
+        "name": "Stop_RB_C",
+        "duration": 1,
+        "tracks": 757
+      },
+      {
+        "name": "Stop_LF_C",
+        "duration": 1,
+        "tracks": 765
+      },
+      {
+        "name": "Stop_LB_C",
+        "duration": 1,
+        "tracks": 764
+      },
+      {
+        "name": "Stop_Fwd_C",
+        "duration": 1,
+        "tracks": 761
+      },
+      {
+        "name": "Stop_Bwd_C",
+        "duration": 1,
+        "tracks": 760
+      },
+      {
+        "name": "SmashRecover",
+        "duration": 1.7083333730697632,
+        "tracks": 760
+      },
+      {
+        "name": "SmashLieDown",
+        "duration": 1.0416666269302368,
+        "tracks": 316
+      },
+      {
+        "name": "Smashing",
+        "duration": 5,
+        "tracks": 762
+      },
+      {
+        "name": "Sleep",
+        "duration": 2.0416667461395264,
+        "tracks": 748
+      },
+      {
+        "name": "Run_RF_C",
+        "duration": 0.8333333134651184,
+        "tracks": 747
+      },
+      {
+        "name": "Run_RB_C",
+        "duration": 0.8333333134651184,
+        "tracks": 760
+      },
+      {
+        "name": "Run_LF_C",
+        "duration": 0.8333333134651184,
+        "tracks": 754
+      },
+      {
+        "name": "Run_LB_C",
+        "duration": 0.8333333134651184,
+        "tracks": 758
+      },
+      {
+        "name": "Run_Fwd_C",
+        "duration": 0.8333333134651184,
+        "tracks": 760
+      },
+      {
+        "name": "Run_Bwd_C",
+        "duration": 0.8333333134651184,
+        "tracks": 757
+      },
+      {
+        "name": "Repulse_Start",
+        "duration": 0.125,
+        "tracks": 756
+      },
+      {
+        "name": "Repulse_Loop",
+        "duration": 0.7083333134651184,
+        "tracks": 611
+      },
+      {
+        "name": "Repulse_End",
+        "duration": 0.5416666865348816,
+        "tracks": 750
+      },
+      {
+        "name": "Onwall_To_Spawn_Web_Loop",
+        "duration": 2.0416667461395264,
+        "tracks": 752
+      },
+      {
+        "name": "Onwall_To_Spawn_Web_False",
+        "duration": 0.7083333134651184,
+        "tracks": 764
+      },
+      {
+        "name": "Onwall_To_Spawn_Web",
+        "duration": 0.5,
+        "tracks": 756
+      },
+      {
+        "name": "Onwall_To_LowCrawl",
+        "duration": 0.7083333134651184,
+        "tracks": 762
+      },
+      {
+        "name": "Onwall_To_Jump",
+        "duration": 0.7083333134651184,
+        "tracks": 754
+      },
+      {
+        "name": "Onwall_Idle",
+        "duration": 5.375,
+        "tracks": 748
+      },
+      {
+        "name": "Move_To_LowCrawl_F",
+        "duration": 0.4166666567325592,
+        "tracks": 763
+      },
+      {
+        "name": "LowCrawl_To_Onwall_01",
+        "duration": 1.375,
+        "tracks": 763
+      },
+      {
+        "name": "LowCrawl_To_Onwall",
+        "duration": 1.0416666269302368,
+        "tracks": 760
+      },
+      {
+        "name": "LowCrawl_To_Jump_01",
+        "duration": 0.7083333134651184,
+        "tracks": 761
+      },
+      {
+        "name": "LowCrawl_To_Jump",
+        "duration": 0.5416666865348816,
+        "tracks": 762
+      },
+      {
+        "name": "LowCrawl_To_Idle_Up",
+        "duration": 0.5833333134651184,
+        "tracks": 751
+      },
+      {
+        "name": "LowCrawl_To_Idle_Down_01",
+        "duration": 1.4166666269302368,
+        "tracks": 758
+      },
+      {
+        "name": "LowCrawl_To_Idle_Down",
+        "duration": 1.2916666269302368,
+        "tracks": 766
+      },
+      {
+        "name": "LieDownStart",
+        "duration": 1.7083333730697632,
+        "tracks": 764
+      },
+      {
+        "name": "KnockOut_R",
+        "duration": 0.0416666679084301,
+        "tracks": 507
+      },
+      {
+        "name": "KnockOut_L",
+        "duration": 0.0416666679084301,
+        "tracks": 507
+      },
+      {
+        "name": "KnockOut_Float",
+        "duration": 0.7083333134651184,
+        "tracks": 185
+      },
+      {
+        "name": "KnockOut_F",
+        "duration": 0.0416666679084301,
+        "tracks": 507
+      },
+      {
+        "name": "KnockOut_B",
+        "duration": 0.0416666679084301,
+        "tracks": 507
+      },
+      {
+        "name": "Knockout",
+        "duration": 0.7083333134651184,
+        "tracks": 346
+      },
+      {
+        "name": "Jump_To_LowCrawl_F",
+        "duration": 0.4166666567325592,
+        "tracks": 759
+      },
+      {
+        "name": "Jump_Start_RF_C",
+        "duration": 0.7083333134651184,
+        "tracks": 752
+      },
+      {
+        "name": "Jump_Start_RB_C",
+        "duration": 0.7083333134651184,
+        "tracks": 758
+      },
+      {
+        "name": "Jump_Start_LF_C",
+        "duration": 0.7083333134651184,
+        "tracks": 757
+      },
+      {
+        "name": "Jump_Start_LB_C",
+        "duration": 0.7083333134651184,
+        "tracks": 758
+      },
+      {
+        "name": "Jump_Start_F_C",
+        "duration": 0.7083333134651184,
+        "tracks": 759
+      },
+      {
+        "name": "Jump_Start_C",
+        "duration": 0.7083333134651184,
+        "tracks": 752
+      },
+      {
+        "name": "Jump_Start_B_C",
+        "duration": 0.7083333134651184,
+        "tracks": 762
+      },
+      {
+        "name": "Jump_Land_RF_C",
+        "duration": 0.2916666567325592,
+        "tracks": 757
+      },
+      {
+        "name": "Jump_Land_RB_C",
+        "duration": 0.2916666567325592,
+        "tracks": 758
+      },
+      {
+        "name": "Jump_Land_LF_C",
+        "duration": 0.2916666567325592,
+        "tracks": 761
+      },
+      {
+        "name": "Jump_Land_LB_C",
+        "duration": 0.2916666567325592,
+        "tracks": 759
+      },
+      {
+        "name": "Jump_Land_F_C",
+        "duration": 0.2916666567325592,
+        "tracks": 761
+      },
+      {
+        "name": "Jump_Land_C",
+        "duration": 1.3333333730697632,
+        "tracks": 772
+      },
+      {
+        "name": "Jump_Land_B_C",
+        "duration": 0.2916666567325592,
+        "tracks": 756
+      },
+      {
+        "name": "Jump_Falling_RF_C",
+        "duration": 1.7083333730697632,
+        "tracks": 761
+      },
+      {
+        "name": "Jump_Falling_RB_C",
+        "duration": 1.7083333730697632,
+        "tracks": 751
+      },
+      {
+        "name": "Jump_Falling_LF_C",
+        "duration": 1.7083333730697632,
+        "tracks": 733
+      },
+      {
+        "name": "Jump_Falling_LB_C",
+        "duration": 1.7083333730697632,
+        "tracks": 750
+      },
+      {
+        "name": "Jump_Falling_F_C",
+        "duration": 1.7083333730697632,
+        "tracks": 741
+      },
+      {
+        "name": "Jump_Falling_C",
+        "duration": 1.7083333730697632,
+        "tracks": 744
+      },
+      {
+        "name": "Jump_Falling_B_C",
+        "duration": 1.7083333730697632,
+        "tracks": 746
+      },
+      {
+        "name": "Giddiness",
+        "duration": 1.8333333730697632,
+        "tracks": 751
+      },
+      {
+        "name": "GammaCage_ParticleStatus",
+        "duration": 0.5,
+        "tracks": 758
+      },
+      {
+        "name": "Fight_Start",
+        "duration": 0.5416666865348816,
+        "tracks": 725
+      },
+      {
+        "name": "Fight_Liedown",
+        "duration": 0.0416666679084301,
+        "tracks": 78
+      },
+      {
+        "name": "EyeOfAgamotto_Start",
+        "duration": 0.4166666567325592,
+        "tracks": 759
+      },
+      {
+        "name": "EyeOfAgamotto_Loop",
+        "duration": 2.0416667461395264,
+        "tracks": 760
+      },
+      {
+        "name": "EyeOfAgamotto_End",
+        "duration": 0.875,
+        "tracks": 759
+      },
+      {
+        "name": "DeathPose_R_Medium",
+        "duration": 0.0416666679084301,
+        "tracks": 340
+      },
+      {
+        "name": "DeathPose_R_Heavy",
+        "duration": 0.0416666679084301,
+        "tracks": 341
+      },
+      {
+        "name": "DeathPose_L_Medium",
+        "duration": 0.0416666679084301,
+        "tracks": 340
+      },
+      {
+        "name": "DeathPose_L_Heavy",
+        "duration": 0.0416666679084301,
+        "tracks": 340
+      },
+      {
+        "name": "DeathPose_F_Medium",
+        "duration": 0.0416666679084301,
+        "tracks": 344
+      },
+      {
+        "name": "DeathPose_F_Heavy",
+        "duration": 0.0416666679084301,
+        "tracks": 342
+      },
+      {
+        "name": "DeathPose_B_Medium",
+        "duration": 0.0416666679084301,
+        "tracks": 343
+      },
+      {
+        "name": "DeathPose_B_Heavy",
+        "duration": 0.0416666679084301,
+        "tracks": 342
+      },
+      {
+        "name": "Dead_R",
+        "duration": 1.0416666269302368,
+        "tracks": 719
+      },
+      {
+        "name": "Dead_L",
+        "duration": 1.0416666269302368,
+        "tracks": 716
+      },
+      {
+        "name": "Dead_F",
+        "duration": 1.0416666269302368,
+        "tracks": 725
+      },
+      {
+        "name": "Dead_B",
+        "duration": 1.0416666269302368,
+        "tracks": 726
+      },
+      {
+        "name": "Cobweb_Pose",
+        "duration": 0.0416666679084301,
+        "tracks": 342
+      },
+      {
+        "name": "ChainSawed",
+        "duration": 2.5416667461395264,
+        "tracks": 721
+      },
+      {
+        "name": "A5_9_L",
+        "duration": 0.0416666679084301,
+        "tracks": 341
+      },
+      {
+        "name": "A5_8_L",
+        "duration": 0.0416666679084301,
+        "tracks": 352
+      },
+      {
+        "name": "A5_7_L",
+        "duration": 0.0416666679084301,
+        "tracks": 351
+      },
+      {
+        "name": "A5_6_L",
+        "duration": 0.0416666679084301,
+        "tracks": 350
+      },
+      {
+        "name": "A5_5_L",
+        "duration": 0.0416666679084301,
+        "tracks": 347
+      },
+      {
+        "name": "A5_4_L",
+        "duration": 0.0416666679084301,
+        "tracks": 333
+      },
+      {
+        "name": "A5_3_L",
+        "duration": 0.0416666679084301,
+        "tracks": 336
+      },
+      {
+        "name": "A5_2_L",
+        "duration": 0.0416666679084301,
+        "tracks": 359
+      },
+      {
+        "name": "A5_1_L",
+        "duration": 0.0416666679084301,
+        "tracks": 355
+      },
+      {
+        "name": "A5_13_L",
+        "duration": 0.0416666679084301,
+        "tracks": 350
+      },
+      {
+        "name": "A5_12_L",
+        "duration": 0.0416666679084301,
+        "tracks": 350
+      },
+      {
+        "name": "A5_11_L",
+        "duration": 0.0416666679084301,
+        "tracks": 350
+      },
+      {
+        "name": "A5_10_L",
+        "duration": 0.0416666679084301,
+        "tracks": 353
+      },
+      {
+        "name": "A4_9_R",
+        "duration": 0.0416666679084301,
+        "tracks": 342
+      },
+      {
+        "name": "A4_8_R",
+        "duration": 0.0416666679084301,
+        "tracks": 352
+      },
+      {
+        "name": "A4_7_R",
+        "duration": 0.0416666679084301,
+        "tracks": 351
+      },
+      {
+        "name": "A4_6_R",
+        "duration": 0.0416666679084301,
+        "tracks": 350
+      },
+      {
+        "name": "A4_5_R",
+        "duration": 0.0416666679084301,
+        "tracks": 347
+      },
+      {
+        "name": "A4_4_R",
+        "duration": 0.0416666679084301,
+        "tracks": 333
+      },
+      {
+        "name": "A4_3_R",
+        "duration": 0.0416666679084301,
+        "tracks": 336
+      },
+      {
+        "name": "A4_2_R",
+        "duration": 0.0416666679084301,
+        "tracks": 359
+      },
+      {
+        "name": "A4_1_R",
+        "duration": 0.0416666679084301,
+        "tracks": 355
+      },
+      {
+        "name": "A4_13_R",
+        "duration": 0.0416666679084301,
+        "tracks": 350
+      },
+      {
+        "name": "A4_12_R",
+        "duration": 0.0416666679084301,
+        "tracks": 350
+      },
+      {
+        "name": "A4_11_R",
+        "duration": 0.0416666679084301,
+        "tracks": 350
+      },
+      {
+        "name": "A4_10_R",
+        "duration": 0.0416666679084301,
+        "tracks": 352
+      },
+      {
+        "name": "A3_8_L",
+        "duration": 0.0416666679084301,
+        "tracks": 348
+      },
+      {
+        "name": "A3_7_L",
+        "duration": 0.0416666679084301,
+        "tracks": 348
+      },
+      {
+        "name": "A3_6_L",
+        "duration": 0.0416666679084301,
+        "tracks": 352
+      },
+      {
+        "name": "A3_5_L",
+        "duration": 0.0416666679084301,
+        "tracks": 344
+      },
+      {
+        "name": "A3_4_L",
+        "duration": 0.0416666679084301,
+        "tracks": 348
+      },
+      {
+        "name": "A3_3_L",
+        "duration": 0.0416666679084301,
+        "tracks": 361
+      },
+      {
+        "name": "A3_2_L",
+        "duration": 0.0416666679084301,
+        "tracks": 355
+      },
+      {
+        "name": "A3_1_L",
+        "duration": 0.0416666679084301,
+        "tracks": 355
+      },
+      {
+        "name": "A2_8_R",
+        "duration": 0.0416666679084301,
+        "tracks": 348
+      },
+      {
+        "name": "A2_7_R",
+        "duration": 0.0416666679084301,
+        "tracks": 348
+      },
+      {
+        "name": "A2_6_R",
+        "duration": 0.0416666679084301,
+        "tracks": 352
+      },
+      {
+        "name": "A2_5_R",
+        "duration": 0.0416666679084301,
+        "tracks": 342
+      },
+      {
+        "name": "A2_4_R",
+        "duration": 0.0416666679084301,
+        "tracks": 348
+      },
+      {
+        "name": "A2_3_R",
+        "duration": 0.0416666679084301,
+        "tracks": 361
+      },
+      {
+        "name": "A2_2_R",
+        "duration": 0.0416666679084301,
+        "tracks": 355
+      },
+      {
+        "name": "A2_1_R",
+        "duration": 0.0416666679084301,
+        "tracks": 359
+      },
+      {
+        "name": "A1_9",
+        "duration": 0.0416666679084301,
+        "tracks": 348
+      },
+      {
+        "name": "A1_8",
+        "duration": 0.0416666679084301,
+        "tracks": 348
+      },
+      {
+        "name": "A1_7",
+        "duration": 0.0416666679084301,
+        "tracks": 344
+      },
+      {
+        "name": "A1_6",
+        "duration": 0.0416666679084301,
+        "tracks": 340
+      },
+      {
+        "name": "A1_5",
+        "duration": 0.0416666679084301,
+        "tracks": 330
+      },
+      {
+        "name": "A1_4",
+        "duration": 0.0416666679084301,
+        "tracks": 351
+      },
+      {
+        "name": "A1_3",
+        "duration": 0.0416666679084301,
+        "tracks": 351
+      },
+      {
+        "name": "A1_2",
+        "duration": 0.0416666679084301,
+        "tracks": 364
+      },
+      {
+        "name": "A1_1",
+        "duration": 0.0416666679084301,
+        "tracks": 349
+      },
+      {
+        "name": "103581_Symbiote",
+        "duration": 1.4583333730697632,
+        "tracks": 763
+      },
+      {
+        "name": "103571_Devouring_Start",
+        "duration": 0.5,
+        "tracks": 760
+      },
+      {
+        "name": "103571_Devouring_Loop",
+        "duration": 0.5416666865348816,
+        "tracks": 359
+      },
+      {
+        "name": "103571_Devouring_Appear",
+        "duration": 1.4583333730697632,
+        "tracks": 763
+      },
+      {
+        "name": "103551_Swing_Start_02",
+        "duration": 1.5416666269302368,
+        "tracks": 754
+      },
+      {
+        "name": "103551_Swing_Start",
+        "duration": 1.5416666269302368,
+        "tracks": 755
+      },
+      {
+        "name": "103551_Ground_Flight_To_Run_RF",
+        "duration": 0.5416666865348816,
+        "tracks": 761
+      },
+      {
+        "name": "103551_Ground_Flight_To_Run_RB",
+        "duration": 0.5416666865348816,
+        "tracks": 757
+      },
+      {
+        "name": "103551_Ground_Flight_To_Run_LF",
+        "duration": 0.5416666865348816,
+        "tracks": 760
+      },
+      {
+        "name": "103551_Ground_Flight_To_Run_LB",
+        "duration": 0.5416666865348816,
+        "tracks": 761
+      },
+      {
+        "name": "103551_Ground_Flight_To_Run_F",
+        "duration": 0.5416666865348816,
+        "tracks": 763
+      },
+      {
+        "name": "103551_Ground_Flight_To_Run_B",
+        "duration": 0.5416666865348816,
+        "tracks": 756
+      },
+      {
+        "name": "103551_Ground_Flight_Start_D",
+        "duration": 0.7083333134651184,
+        "tracks": 759
+      },
+      {
+        "name": "103551_Ground_Flight_Start_C",
+        "duration": 0.7083333134651184,
+        "tracks": 760
+      },
+      {
+        "name": "103551_Ground_Flight_Loop_D",
+        "duration": 0.5416666865348816,
+        "tracks": 343
+      },
+      {
+        "name": "103551_Ground_Flight_Loop_C",
+        "duration": 0.5416666865348816,
+        "tracks": 343
+      },
+      {
+        "name": "103551_Ground_Flight_End_D",
+        "duration": 1.9583333730697632,
+        "tracks": 766
+      },
+      {
+        "name": "103551_Ground_Flight_End_C",
+        "duration": 1.9583333730697632,
+        "tracks": 759
+      },
+      {
+        "name": "103551_Fire_R_Loop",
+        "duration": 2.0416667461395264,
+        "tracks": 746
+      },
+      {
+        "name": "103551_Fire_R",
+        "duration": 0.25,
+        "tracks": 752
+      },
+      {
+        "name": "103551_Fire_L_Loop",
+        "duration": 2.0416667461395264,
+        "tracks": 721
+      },
+      {
+        "name": "103551_Fire_L",
+        "duration": 0.25,
+        "tracks": 759
+      },
+      {
+        "name": "103551_Fire_False_R",
+        "duration": 1.125,
+        "tracks": 754
+      },
+      {
+        "name": "103551_Fire_False_L",
+        "duration": 1.125,
+        "tracks": 761
+      },
+      {
+        "name": "103551_Dash_R_End",
+        "duration": 0.4166666567325592,
+        "tracks": 761
+      },
+      {
+        "name": "103551_Dash_R",
+        "duration": 0.2083333283662796,
+        "tracks": 766
+      },
+      {
+        "name": "103551_Dash_L_End",
+        "duration": 0.4166666567325592,
+        "tracks": 763
+      },
+      {
+        "name": "103551_Dash_L",
+        "duration": 0.2083333283662796,
+        "tracks": 761
+      },
+      {
+        "name": "103541_Shackle",
+        "duration": 1.375,
+        "tracks": 755
+      },
+      {
+        "name": "103531_Descent_Start",
+        "duration": 0.4166666567325592,
+        "tracks": 755
+      },
+      {
+        "name": "103531_Descent_Loop",
+        "duration": 0.5416666865348816,
+        "tracks": 758
+      },
+      {
+        "name": "103531_Descent_End",
+        "duration": 1.0416666269302368,
+        "tracks": 755
+      },
+      {
+        "name": "103521_Tentacles_02",
+        "duration": 1.375,
+        "tracks": 758
+      },
+      {
+        "name": "103521_Tentacles_01",
+        "duration": 1.375,
+        "tracks": 766
+      },
+      {
+        "name": "103511_Attack03",
+        "duration": 2.25,
+        "tracks": 760
+      },
+      {
+        "name": "103511_Attack02",
+        "duration": 1.5416666269302368,
+        "tracks": 759
+      },
+      {
+        "name": "103511_Attack01",
+        "duration": 1.7083333730697632,
+        "tracks": 757
+      },
+      {
+        "name": "103501_Wallrun_F",
+        "duration": 0.625,
+        "tracks": 752
+      },
+      {
+        "name": "103501_LowCrawl_Move",
+        "duration": 0.8333333134651184,
+        "tracks": 761
+      },
+      {
+        "name": "103501_LowCrawl_Idle_R",
+        "duration": 5.375,
+        "tracks": 736
+      },
+      {
+        "name": "103501_LowCrawl_Idle_L",
+        "duration": 5.375,
+        "tracks": 744
+      }
+    ],
+    "assetMetadata": {
+      "extras": {
+        "author": "King_45 (https://sketchfab.com/King_45)",
+        "license": "CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)",
+        "source": "https://sketchfab.com/3d-models/venom-marvel-rivals-b76ed38dafec4f84ac1f48d4a17243eb",
+        "title": "Venom | Marvel Rivals"
+      },
+      "generator": "Sketchfab-16.62.0",
+      "version": "2.0"
+    },
+    "extras": null,
+    "mixamoNamedBones": 0
+  },
+  {
+    "file": "public/assets/suits/ironman-mua.glb",
+    "sizeMB": 6.34,
+    "vertices": 4253,
+    "triangles": 5538,
+    "meshes": 1,
+    "skinnedMeshes": 1,
+    "boneCount": 45,
+    "boneNames": [
+      "_rootJoint",
+      "ActorRoot_01",
+      "Bip01_02",
+      "Bip01_Pelvis_00",
+      "Bip01_Spine_03",
+      "Bip01_Spine1_04",
+      "Bip01_Spine2_05",
+      "Bip01_Neck_06",
+      "Bip01_Head_07",
+      "Bip01_HeadNub_08",
+      "Bip01_Ponytail1_09",
+      "Bip01_Ponytail11_010",
+      "Bip01_Ponytail1Nub_011",
+      "Bip01_L_Clavicle_012",
+      "Bip01_L_UpperArm_013",
+      "Bip01_L_Forearm_014",
+      "Bip01_L_Hand_015",
+      "Bip01_L_Finger0_016",
+      "Bip01_L_Finger01_017",
+      "Bip01_L_Finger0Nub_018",
+      "Bip01_L_Finger1_019",
+      "Bip01_L_Finger11_020",
+      "Bip01_L_Finger1Nub_021",
+      "Bip01_R_Clavicle_022",
+      "Bip01_R_UpperArm_023",
+      "Bip01_R_Forearm_024",
+      "Bip01_R_Hand_025",
+      "Bip01_R_Finger0_026",
+      "Bip01_R_Finger01_027",
+      "Bip01_R_Finger0Nub_028",
+      "Bip01_R_Finger1_029",
+      "Bip01_R_Finger11_030",
+      "Bip01_R_Finger1Nub_031",
+      "fx01_032",
+      "Bip01_L_Thigh_033",
+      "Bip01_L_Calf_034",
+      "Bip01_L_Foot_035",
+      "Bip01_L_Toe0_036",
+      "Bip01_L_Toe0Nub_037",
+      "Bip01_R_Thigh_038",
+      "Bip01_R_Calf_039",
+      "Bip01_R_Foot_040",
+      "Bip01_R_Toe0_041",
+      "Bip01_R_Toe0Nub_042",
+      "Motion_043"
+    ],
+    "dimensions": [
+      2.835901844122691,
+      2.9939890645439267,
+      0.5437710183677762
+    ],
+    "animationCount": 36,
+    "animations": [
+      {
+        "name": "idle",
+        "duration": 1.5,
+        "tracks": 63
+      },
+      {
+        "name": "jump_loop",
+        "duration": 0.03333332762122154,
+        "tracks": 61
+      },
+      {
+        "name": "jump_start",
+        "duration": 1.100000023841858,
+        "tracks": 62
+      },
+      {
+        "name": "menu_action",
+        "duration": 1.5,
+        "tracks": 62
+      },
+      {
+        "name": "menu_goodbye",
+        "duration": 2.5,
+        "tracks": 63
+      },
+      {
+        "name": "menu_idle",
+        "duration": 4.0333333015441895,
+        "tracks": 63
+      },
+      {
+        "name": "attack_heavy1",
+        "duration": 0.3333333134651184,
+        "tracks": 79
+      },
+      {
+        "name": "attack_knockback1",
+        "duration": 0.5333333015441895,
+        "tracks": 78
+      },
+      {
+        "name": "attack_knockback2",
+        "duration": 0.6666666865348816,
+        "tracks": 80
+      },
+      {
+        "name": "attack_light1",
+        "duration": 0.7333332896232605,
+        "tracks": 79
+      },
+      {
+        "name": "attack_light2",
+        "duration": 0.8666666746139526,
+        "tracks": 80
+      },
+      {
+        "name": "attack_light3",
+        "duration": 0.9333333373069763,
+        "tracks": 80
+      },
+      {
+        "name": "attack_stun2",
+        "duration": 0.9333333373069763,
+        "tracks": 79
+      },
+      {
+        "name": "attack_trip1",
+        "duration": 0.8333333134651184,
+        "tracks": 81
+      },
+      {
+        "name": "blocking",
+        "duration": 0.7333332896232605,
+        "tracks": 78
+      },
+      {
+        "name": "fly_fast",
+        "duration": 1.2333333492279053,
+        "tracks": 79
+      },
+      {
+        "name": "fly_idle",
+        "duration": 1.5,
+        "tracks": 78
+      },
+      {
+        "name": "fly_slow",
+        "duration": 1.2333333492279053,
+        "tracks": 79
+      },
+      {
+        "name": "pain_blocking",
+        "duration": 0.23333331942558289,
+        "tracks": 78
+      },
+      {
+        "name": "power_1",
+        "duration": 0.23333331942558289,
+        "tracks": 78
+      },
+      {
+        "name": "power_12",
+        "duration": 0.4333333373069763,
+        "tracks": 79
+      },
+      {
+        "name": "power_13",
+        "duration": 1.0333333015441895,
+        "tracks": 80
+      },
+      {
+        "name": "power_14",
+        "duration": 0.6666666865348816,
+        "tracks": 79
+      },
+      {
+        "name": "power_1_end",
+        "duration": 0.6666666865348816,
+        "tracks": 79
+      },
+      {
+        "name": "power_1_loop",
+        "duration": 0.5,
+        "tracks": 79
+      },
+      {
+        "name": "power_2",
+        "duration": 0.5333333015441895,
+        "tracks": 79
+      },
+      {
+        "name": "power_3",
+        "duration": 0.23333331942558289,
+        "tracks": 79
+      },
+      {
+        "name": "power_4",
+        "duration": 2.5333333015441895,
+        "tracks": 79
+      },
+      {
+        "name": "power_5",
+        "duration": 1.3666666746139526,
+        "tracks": 79
+      },
+      {
+        "name": "power_6",
+        "duration": 1.2666666507720947,
+        "tracks": 79
+      },
+      {
+        "name": "power_7",
+        "duration": 1.600000023841858,
+        "tracks": 79
+      },
+      {
+        "name": "power_8",
+        "duration": 2.7666666507720947,
+        "tracks": 80
+      },
+      {
+        "name": "power_9",
+        "duration": 1.9333332777023315,
+        "tracks": 80
+      },
+      {
+        "name": "victim1",
+        "duration": 1.9333332777023315,
+        "tracks": 82
+      },
+      {
+        "name": "zone_stark1.zone10",
+        "duration": 3.7333333492279053,
+        "tracks": 63
+      },
+      {
+        "name": "zone_stark2.zone5",
+        "duration": 7,
+        "tracks": 77
+      }
+    ],
+    "assetMetadata": {
+      "extras": {
+        "author": "ak2yny (https://sketchfab.com/ak2yny)",
+        "license": "CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)",
+        "source": "https://sketchfab.com/3d-models/15-iron-man-mua-16e993fe01564aa389cffb533156e311",
+        "title": "15 Iron Man MUA"
+      },
+      "generator": "Sketchfab-15.25.0",
+      "version": "2.0"
+    },
+    "extras": null,
+    "mixamoNamedBones": 0
+  },
+  {
+    "file": "public/assets/suits/ironman.glb",
+    "sizeMB": 3.95,
+    "vertices": 234292,
+    "triangles": 319923,
+    "meshes": 10,
+    "skinnedMeshes": 10,
+    "boneCount": 66,
+    "boneNames": [
+      "_rootJoint",
+      "mixamorigHips_01",
+      "mixamorigSpine_02",
+      "mixamorigSpine1_03",
+      "mixamorigSpine2_04",
+      "mixamorigNeck_05",
+      "mixamorigHead_06",
+      "mixamorigHeadTop_End_07",
+      "mixamorigLeftShoulder_08",
+      "mixamorigLeftArm_09",
+      "mixamorigLeftForeArm_010",
+      "mixamorigLeftHand_011",
+      "mixamorigLeftHandThumb1_012",
+      "mixamorigLeftHandThumb2_013",
+      "mixamorigLeftHandThumb3_014",
+      "mixamorigLeftHandThumb4_015",
+      "mixamorigLeftHandIndex1_016",
+      "mixamorigLeftHandIndex2_017",
+      "mixamorigLeftHandIndex3_018",
+      "mixamorigLeftHandIndex4_019",
+      "mixamorigLeftHandMiddle1_020",
+      "mixamorigLeftHandMiddle2_021",
+      "mixamorigLeftHandMiddle3_022",
+      "mixamorigLeftHandMiddle4_023",
+      "mixamorigLeftHandRing1_024",
+      "mixamorigLeftHandRing2_025",
+      "mixamorigLeftHandRing3_026",
+      "mixamorigLeftHandRing4_027",
+      "mixamorigLeftHandPinky1_028",
+      "mixamorigLeftHandPinky2_029",
+      "mixamorigLeftHandPinky3_030",
+      "mixamorigLeftHandPinky4_031",
+      "mixamorigRightShoulder_032",
+      "mixamorigRightArm_033",
+      "mixamorigRightForeArm_034",
+      "mixamorigRightHand_035",
+      "mixamorigRightHandThumb1_036",
+      "mixamorigRightHandThumb2_037",
+      "mixamorigRightHandThumb3_038",
+      "mixamorigRightHandThumb4_039",
+      "mixamorigRightHandIndex1_040",
+      "mixamorigRightHandIndex2_041",
+      "mixamorigRightHandIndex3_042",
+      "mixamorigRightHandIndex4_043",
+      "mixamorigRightHandMiddle1_044",
+      "mixamorigRightHandMiddle2_045",
+      "mixamorigRightHandMiddle3_046",
+      "mixamorigRightHandMiddle4_047",
+      "mixamorigRightHandRing1_048",
+      "mixamorigRightHandRing2_049",
+      "mixamorigRightHandRing3_050",
+      "mixamorigRightHandRing4_051",
+      "mixamorigRightHandPinky1_052",
+      "mixamorigRightHandPinky2_053",
+      "mixamorigRightHandPinky3_054",
+      "mixamorigRightHandPinky4_055",
+      "mixamorigLeftUpLeg_00",
+      "mixamorigLeftLeg_056",
+      "mixamorigLeftFoot_057",
+      "mixamorigLeftToeBase_058",
+      "mixamorigLeftToe_End_059",
+      "mixamorigRightUpLeg_060",
+      "mixamorigRightLeg_061",
+      "mixamorigRightFoot_062",
+      "mixamorigRightToeBase_063",
+      "mixamorigRightToe_End_064"
+    ],
+    "dimensions": [
+      0.03934707208509447,
+      0.06657241418412092,
+      0.01339356741590276
+    ],
+    "animationCount": 0,
+    "animations": [],
+    "assetMetadata": {
+      "generator": "glTF-Transform v4.4.2",
+      "version": "2.0",
+      "extras": {
+        "author": "9A Films / Nihar Arora (https://sketchfab.com/Nihar-9Afilms)",
+        "license": "CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)",
+        "source": "https://sketchfab.com/3d-models/iron-man-mark-85-rigged-dde1085c464d4f8da259fe6669ae4dd2",
+        "title": "Iron-Man Mark 85 | Rigged"
+      }
+    },
+    "extras": null,
+    "mixamoNamedBones": 65
+  },
+  {
+    "file": "public/assets/suits/venom.glb",
+    "sizeMB": 2.53,
+    "vertices": 4043,
+    "triangles": 6672,
+    "meshes": 3,
+    "skinnedMeshes": 3,
+    "boneCount": 26,
+    "boneNames": [
+      "GLTF_created_0_rootJoint",
+      "mixamorigHips_25",
+      "mixamorigSpine_14",
+      "mixamorigSpine1_13",
+      "mixamorigSpine2_12",
+      "mixamorigNeck_3",
+      "mixamorigHead_2",
+      "mixamorigHeadTop_End_1",
+      "mixamorigLeftShoulder_7",
+      "mixamorigLeftArm_6",
+      "mixamorigLeftForeArm_5",
+      "mixamorigLeftHand_4",
+      "mixamorigRightShoulder_11",
+      "mixamorigRightArm_10",
+      "mixamorigRightForeArm_9",
+      "mixamorigRightHand_8",
+      "mixamorigLeftUpLeg_19",
+      "mixamorigLeftLeg_18",
+      "mixamorigLeftFoot_17",
+      "mixamorigLeftToeBase_16",
+      "mixamorigLeftToe_End_15",
+      "mixamorigRightUpLeg_24",
+      "mixamorigRightLeg_23",
+      "mixamorigRightFoot_22",
+      "mixamorigRightToeBase_21",
+      "mixamorigRightToe_End_20"
+    ],
+    "dimensions": [
+      3.8945089751525703,
+      3.8833615915715667,
+      3.02640272767908
+    ],
+    "animationCount": 2,
+    "animations": [
+      {
+        "name": "Scream",
+        "duration": 5.433333396911621,
+        "tracks": 75
+      },
+      {
+        "name": "Jump",
+        "duration": 3.7333333492279053,
+        "tracks": 75
+      }
+    ],
+    "assetMetadata": {
+      "extras": {
+        "author": "As7 3d models (https://sketchfab.com/As7312008)",
+        "license": "CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)",
+        "source": "https://sketchfab.com/3d-models/the-venom-spiderman-2-playstation-fb18529d58324061a28d3e6d033328a7",
+        "title": "The Venom (Spiderman 2 Playstation)"
+      },
+      "generator": "Sketchfab-15.70.0",
+      "version": "2.0"
+    },
+    "extras": null,
+    "mixamoNamedBones": 25
+  }
+]

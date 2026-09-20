@@ -1,0 +1,1106 @@
+{
+  "passed": true,
+  "reports": [
+    {
+      "map": "procedural-city",
+      "triangles": 645095,
+      "generationMs": 149.2,
+      "courses": [
+        {
+          "seed": 50,
+          "gates": [
+            {
+              "id": "gate-0",
+              "type": "free",
+              "position": [
+                -97.60000000000001,
+                14.999899385140452,
+                -1.990103478077799
+              ],
+              "required": false
+            },
+            {
+              "id": "gate-1",
+              "type": "low-swing",
+              "position": [
+                -195.20000000000002,
+                10.115707072596592,
+                -4.237965004518628
+              ],
+              "required": true
+            },
+            {
+              "id": "gate-2",
+              "type": "dive",
+              "position": [
+                -244.8,
+                17.980000000447035,
+                40.05473607452586
+              ],
+              "required": true
+            },
+            {
+              "id": "gate-3",
+              "type": "split-route",
+              "position": [
+                -390.40000000000003,
+                14.999899385140452,
+                -1.6816673940047622
+              ],
+              "required": false
+            },
+            {
+              "id": "gate-4",
+              "type": "wall-run",
+              "position": [
+                -487.7754847049713,
+                9.699999988079071,
+                -18.665123332757503
+              ],
+              "required": true
+            },
+            {
+              "id": "gate-4-alt",
+              "type": "wall-run",
+              "position": [
+                -512.7349475860595,
+                9.699999988079071,
+                -58.6651233327575
+              ],
+              "required": true
+            },
+            {
+              "id": "gate-5",
+              "type": "rooftop-vault",
+              "position": [
+                -585.6,
+                64.10435638427734,
+                44.338424261659384
+              ],
+              "required": true
+            },
+            {
+              "id": "gate-6",
+              "type": "point-launch",
+              "position": [
+                -707.1999999999999,
+                4.115707075029945,
+                -35.6019789702259
+              ],
+              "required": true
+            },
+            {
+              "id": "gate-7",
+              "type": "wind",
+              "position": [
+                -780.8000000000001,
+                20.115707078546507,
+                4.708467177115381
+              ],
+              "required": false
+            },
+            {
+              "id": "gate-8",
+              "type": "free",
+              "position": [
+                -854.4,
+                14.999899385140452,
+                -39.91812957683578
+              ],
+              "required": false
+            },
+            {
+              "id": "gate-9",
+              "type": "precision",
+              "position": [
+                -976,
+                10.000603689230047,
+                0
+              ],
+              "required": false
+            }
+          ],
+          "finish": [
+            -976,
+            10.000603689230047,
+            0
+          ]
+        },
+        {
+          "seed": 137,
+          "gates": [
+            {
+              "id": "gate-0",
+              "type": "free",
+              "position": [
+                42.975361017510295,
+                14.999899385140452,
+                82.42237243652345
+              ],
+              "required": false
+            },
+            {
+              "id": "gate-1",
+              "type": "low-swing",
+              "position": [
+                -18.448446232359856,
+                9.980000000447035,
+                140.8447448730469
+              ],
+              "required": true
+            },
+            {
+              "id": "gate-2",
+              "type": "dive",
+              "position": [
+                -11.211036345921457,
+                17.999899385140452,
+                271.26711730957027
+              ],
+              "required": true
+            },
+            {
+              "id": "gate-3",
+              "type": "split-route",
+              "position": [
+                -21.519812468905002,
+                51.337738037109375,
+                305.6894897460938
+              ],
+              "required": false
+            },
+            {
+              "id": "gate-4",
+              "type": "wall-run",
+              "position": [
+                -17.095921654254198,
+                9.699999988079071,
+                442.6420608520508
+              ],
+              "required": true
+            },
+            {
+              "id": "gate-4-alt",
+              "type": "wall-run",
+              "position": [
+                -33.0959216542542,
+                9.699999988079071,
+                442.6420608520508
+              ],
+              "required": true
+            },
+            {
+              "id": "gate-5",
+              "type": "rooftop-vault",
+              "position": [
+                63.76233497494832,
+                5.077469444274902,
+                494.5342346191406
+              ],
+              "required": true
+            },
+            {
+              "id": "gate-6",
+              "type": "point-launch",
+              "position": [
+                9.378058291040361,
+                41.354496002197266,
+                576.956607055664
+              ],
+              "required": true
+            },
+            {
+              "id": "gate-7",
+              "type": "wind",
+              "position": [
+                31.230776400770992,
+                20.115707077061757,
+                659.3789794921876
+              ],
+              "required": false
+            },
+            {
+              "id": "gate-8",
+              "type": "free",
+              "position": [
+                26.842375779524446,
+                15.115707069635391,
+                717.8013519287109
+              ],
+              "required": false
+            },
+            {
+              "id": "gate-9",
+              "type": "precision",
+              "position": [
+                0,
+                10.000603689230047,
+                824.2237243652344
+              ],
+              "required": false
+            }
+          ],
+          "finish": [
+            0,
+            10.000603689230047,
+            824.2237243652344
+          ]
+        },
+        {
+          "seed": 214,
+          "gates": [
+            {
+              "id": "gate-0",
+              "type": "free",
+              "position": [
+                -97.60000000000001,
+                15.115707081384812,
+                16.28962269751355
+              ],
+              "required": false
+            },
+            {
+              "id": "gate-1",
+              "type": "low-swing",
+              "position": [
+                -171.20000000000002,
+                10.1157070719687,
+                -17.025538813322783
+              ],
+              "required": true
+            },
+            {
+              "id": "gate-2",
+              "type": "dive",
+              "position": [
+                -292.8,
+                18.1157070843185,
+                -10.239363660570234
+              ],
+              "required": true
+            },
+            {
+              "id": "gate-3",
+              "type": "split-route",
+              "position": [
+                -366.40000000000003,
+                14.999899385140452,
+                -8.043228224851191
+              ],
+              "required": false
+            },
+            {
+              "id": "gate-4",
+              "type": "wall-run",
+              "position": [
+                -488,
+                9.699999988079071,
+                66.32571258544922
+              ],
+              "required": true
+            },
+            {
+              "id": "gate-4-alt",
+              "type": "wall-run",
+              "position": [
+                -488,
+                9.699999988079071,
+                19.120952224731447
+              ],
+              "required": true
+            },
+            {
+              "id": "gate-5",
+              "type": "free",
+              "position": [
+                -585.6,
+                15.115707080992934,
+                -11.873973933979869
+              ],
+              "required": false
+            },
+            {
+              "id": "gate-6",
+              "type": "point-launch",
+              "position": [
+                -683.1999999999999,
+                4.115707074257784,
+                -7.708575397264212
+              ],
+              "required": true
+            },
+            {
+              "id": "gate-7",
+              "type": "wind",
+              "position": [
+                -780.8000000000001,
+                20.115707081388678,
+                -17.70924876909703
+              ],
+              "required": false
+            },
+            {
+              "id": "gate-8",
+              "type": "free",
+              "position": [
+                -878.4,
+                15.115707079218396,
+                11.446501209866256
+              ],
+              "required": false
+            },
+            {
+              "id": "gate-9",
+              "type": "precision",
+              "position": [
+                -976,
+                10.000603689230047,
+                0
+              ],
+              "required": false
+            }
+          ],
+          "finish": [
+            -976,
+            10.000603689230047,
+            0
+          ]
+        }
+      ]
+    },
+    {
+      "map": "new-york-city",
+      "triangles": 310129,
+      "generationMs": 49.5,
+      "courses": [
+        {
+          "seed": 50,
+          "gates": [
+            {
+              "id": "gate-0",
+              "type": "free",
+              "position": [
+                -73.60000000000001,
+                169.5109569091797,
+                22.0098965219222
+              ],
+              "required": false
+            },
+            {
+              "id": "gate-1",
+              "type": "low-swing",
+              "position": [
+                -147.20000000000002,
+                10.16715211504959,
+                -28.237965004518628
+              ],
+              "required": true
+            },
+            {
+              "id": "gate-2",
+              "type": "dive",
+              "position": [
+                -220.79999999999998,
+                137.5109569091797,
+                40.05473607452586
+              ],
+              "required": true
+            },
+            {
+              "id": "gate-3",
+              "type": "split-route",
+              "position": [
+                -294.40000000000003,
+                149.5109569091797,
+                -1.6816673940047622
+              ],
+              "required": false
+            },
+            {
+              "id": "gate-4",
+              "type": "wall-run",
+              "position": [
+                -368.0000004834869,
+                124.65069504623226,
+                -17.112584890527536
+              ],
+              "required": true
+            },
+            {
+              "id": "gate-4-alt",
+              "type": "wall-run",
+              "position": [
+                -368.0000004834869,
+                20.468217849731445,
+                -58.66448745727539
+              ],
+              "required": true
+            },
+            {
+              "id": "gate-5",
+              "type": "rooftop-vault",
+              "position": [
+                -441.59999999999997,
+                131.58483276367187,
+                68.33842426165938
+              ],
+              "required": true
+            },
+            {
+              "id": "gate-6",
+              "type": "point-launch",
+              "position": [
+                -515.1999999999999,
+                4.167152109741551,
+                -35.6019789702259
+              ],
+              "required": true
+            },
+            {
+              "id": "gate-7",
+              "type": "wind",
+              "position": [
+                -588.8000000000001,
+                179.5109569091797,
+                4.708467177115381
+              ],
+              "required": false
+            },
+            {
+              "id": "gate-8",
+              "type": "free",
+              "position": [
+                -662.4,
+                173.5109569091797,
+                -39.91812957683578
+              ],
+              "required": false
+            },
+            {
+              "id": "gate-9",
+              "type": "precision",
+              "position": [
+                -736,
+                171.5089569091797,
+                0
+              ],
+              "required": false
+            }
+          ],
+          "finish": [
+            -736,
+            171.5089569091797,
+            0
+          ]
+        },
+        {
+          "seed": 137,
+          "gates": [
+            {
+              "id": "gate-0",
+              "type": "free",
+              "position": [
+                18.975361017510295,
+                169.5109569091797,
+                87.96210937500001
+              ],
+              "required": false
+            },
+            {
+              "id": "gate-1",
+              "type": "low-swing",
+              "position": [
+                -18.448446232359856,
+                10.167152129040232,
+                175.92421875000002
+              ],
+              "required": true
+            },
+            {
+              "id": "gate-2",
+              "type": "dive",
+              "position": [
+                -11.211036345921457,
+                137.5109569091797,
+                263.886328125
+              ],
+              "required": true
+            },
+            {
+              "id": "gate-3",
+              "type": "split-route",
+              "position": [
+                -21.519812468905002,
+                149.5109569091797,
+                351.84843750000005
+              ],
+              "required": false
+            },
+            {
+              "id": "gate-4",
+              "type": "wall-run",
+              "position": [
+                -17.095921654254198,
+                13.980000000447035,
+                411.12789764404295
+              ],
+              "required": true
+            },
+            {
+              "id": "gate-4-alt",
+              "type": "wall-run",
+              "position": [
+                -81.0959216542542,
+                13.980000000447035,
+                403.4490570068359
+              ],
+              "required": true
+            },
+            {
+              "id": "gate-5",
+              "type": "rooftop-vault",
+              "position": [
+                15.762334974948317,
+                7.068217849731445,
+                527.77265625
+              ],
+              "required": true
+            },
+            {
+              "id": "gate-6",
+              "type": "point-launch",
+              "position": [
+                9.378058291040361,
+                139.3454132080078,
+                591.7347656249999
+              ],
+              "required": true
+            },
+            {
+              "id": "gate-7",
+              "type": "wind",
+              "position": [
+                31.230776400770992,
+                179.5109569091797,
+                703.6968750000001
+              ],
+              "required": false
+            },
+            {
+              "id": "gate-8",
+              "type": "free",
+              "position": [
+                26.842375779524446,
+                173.5109569091797,
+                791.658984375
+              ],
+              "required": false
+            },
+            {
+              "id": "gate-9",
+              "type": "precision",
+              "position": [
+                0,
+                171.5089569091797,
+                879.62109375
+              ],
+              "required": false
+            }
+          ],
+          "finish": [
+            0,
+            171.5089569091797,
+            879.62109375
+          ]
+        },
+        {
+          "seed": 214,
+          "gates": [
+            {
+              "id": "gate-0",
+              "type": "free",
+              "position": [
+                -73.60000000000001,
+                169.5109569091797,
+                16.28962269751355
+              ],
+              "required": false
+            },
+            {
+              "id": "gate-1",
+              "type": "low-swing",
+              "position": [
+                -147.20000000000002,
+                10.167152123621236,
+                -17.025538813322783
+              ],
+              "required": true
+            },
+            {
+              "id": "gate-2",
+              "type": "dive",
+              "position": [
+                -220.79999999999998,
+                137.5109569091797,
+                13.760636339429766
+              ],
+              "required": true
+            },
+            {
+              "id": "gate-3",
+              "type": "split-route",
+              "position": [
+                -294.40000000000003,
+                149.5109569091797,
+                -8.043228224851191
+              ],
+              "required": false
+            },
+            {
+              "id": "gate-4",
+              "type": "wall-run",
+              "position": [
+                -368,
+                13.99985465030477,
+                61.44515762329102
+              ],
+              "required": true
+            },
+            {
+              "id": "gate-4-alt",
+              "type": "wall-run",
+              "position": [
+                -368,
+                13.99985465030477,
+                21.407255554199217
+              ],
+              "required": true
+            },
+            {
+              "id": "gate-5",
+              "type": "rooftop-vault",
+              "position": [
+                -441.59999999999997,
+                75.19012603759765,
+                -11.873973933979869
+              ],
+              "required": true
+            },
+            {
+              "id": "gate-6",
+              "type": "point-launch",
+              "position": [
+                -515.1999999999999,
+                4.16715213074383,
+                -7.708575397264212
+              ],
+              "required": true
+            },
+            {
+              "id": "gate-7",
+              "type": "wind",
+              "position": [
+                -588.8000000000001,
+                179.5109569091797,
+                -17.70924876909703
+              ],
+              "required": false
+            },
+            {
+              "id": "gate-8",
+              "type": "free",
+              "position": [
+                -662.4,
+                173.5109569091797,
+                11.446501209866256
+              ],
+              "required": false
+            },
+            {
+              "id": "gate-9",
+              "type": "precision",
+              "position": [
+                -736,
+                171.5089569091797,
+                0
+              ],
+              "required": false
+            }
+          ],
+          "finish": [
+            -736,
+            171.5089569091797,
+            0
+          ]
+        }
+      ]
+    },
+    {
+      "map": "cyberpunk-city",
+      "triangles": 1257828,
+      "generationMs": 263.76,
+      "courses": [
+        {
+          "seed": 50,
+          "gates": [
+            {
+              "id": "gate-0",
+              "type": "free",
+              "position": [
+                -113.60000000000001,
+                14.999910102902959,
+                -1.990103478077799
+              ],
+              "required": false
+            },
+            {
+              "id": "gate-1",
+              "type": "low-swing",
+              "position": [
+                -227.20000000000002,
+                9.980000000447035,
+                -76.23796500451863
+              ],
+              "required": true
+            },
+            {
+              "id": "gate-2",
+              "type": "dive",
+              "position": [
+                -340.8,
+                37.57346314587278,
+                64.05473607452586
+              ],
+              "required": true
+            },
+            {
+              "id": "gate-3",
+              "type": "split-route",
+              "position": [
+                -454.40000000000003,
+                14.999910196342512,
+                -1.6816673940047622
+              ],
+              "required": false
+            },
+            {
+              "id": "gate-4",
+              "type": "wall-run",
+              "position": [
+                -579.5489567162077,
+                4.520163839576173,
+                -18.665574745603443
+              ],
+              "required": true
+            },
+            {
+              "id": "gate-4-alt",
+              "type": "wall-run",
+              "position": [
+                -579.7571750640869,
+                4.632529258728027,
+                -58.66557474560344
+              ],
+              "required": true
+            },
+            {
+              "id": "gate-5",
+              "type": "rooftop-vault",
+              "position": [
+                -681.6,
+                4.839664168207696,
+                20.338424261659384
+              ],
+              "required": true
+            },
+            {
+              "id": "gate-6",
+              "type": "point-launch",
+              "position": [
+                -795.1999999999999,
+                4.169603097516529,
+                -11.6019789702259
+              ],
+              "required": true
+            },
+            {
+              "id": "gate-7",
+              "type": "wind",
+              "position": [
+                -908.8000000000001,
+                19.99991213221199,
+                4.708467177115381
+              ],
+              "required": false
+            },
+            {
+              "id": "gate-8",
+              "type": "free",
+              "position": [
+                -1022.4,
+                15.169601788160435,
+                -15.918129576835781
+              ],
+              "required": false
+            },
+            {
+              "id": "gate-9",
+              "type": "precision",
+              "position": [
+                -1136,
+                9.99991070579813,
+                0
+              ],
+              "required": false
+            }
+          ],
+          "finish": [
+            -1136,
+            9.99991070579813,
+            0
+          ]
+        },
+        {
+          "seed": 137,
+          "gates": [
+            {
+              "id": "gate-0",
+              "type": "free",
+              "position": [
+                18.975361017510295,
+                30.77054405138233,
+                91.03450012207031
+              ],
+              "required": false
+            },
+            {
+              "id": "gate-1",
+              "type": "low-swing",
+              "position": [
+                -18.448446232359856,
+                9.980000000447035,
+                182.06900024414062
+              ],
+              "required": true
+            },
+            {
+              "id": "gate-2",
+              "type": "dive",
+              "position": [
+                -11.211036345921457,
+                18.169597421689446,
+                273.10350036621094
+              ],
+              "required": true
+            },
+            {
+              "id": "gate-3",
+              "type": "split-route",
+              "position": [
+                -21.519812468905002,
+                42.86663200963619,
+                364.13800048828125
+              ],
+              "required": false
+            },
+            {
+              "id": "gate-4",
+              "type": "wall-run",
+              "position": [
+                -17.095921654254198,
+                4.632528866088701,
+                519.2480621360183
+              ],
+              "required": true
+            },
+            {
+              "id": "gate-4-alt",
+              "type": "wall-run",
+              "position": [
+                -57.0959216542542,
+                4.632528866088716,
+                522.6819305442219
+              ],
+              "required": true
+            },
+            {
+              "id": "gate-5",
+              "type": "rooftop-vault",
+              "position": [
+                39.76233497494832,
+                230.01634986200824,
+                546.2070007324219
+              ],
+              "required": true
+            },
+            {
+              "id": "gate-6",
+              "type": "point-launch",
+              "position": [
+                9.378058291040361,
+                8.070095923733561,
+                637.2415008544922
+              ],
+              "required": true
+            },
+            {
+              "id": "gate-7",
+              "type": "wind",
+              "position": [
+                31.230776400770992,
+                19.980000000447035,
+                752.2760009765625
+              ],
+              "required": false
+            },
+            {
+              "id": "gate-8",
+              "type": "free",
+              "position": [
+                26.842375779524446,
+                14.980000000447035,
+                795.3105010986328
+              ],
+              "required": false
+            },
+            {
+              "id": "gate-9",
+              "type": "precision",
+              "position": [
+                0,
+                9.99991070579813,
+                910.3450012207031
+              ],
+              "required": false
+            }
+          ],
+          "finish": [
+            0,
+            9.99991070579813,
+            910.3450012207031
+          ]
+        },
+        {
+          "seed": 214,
+          "gates": [
+            {
+              "id": "gate-0",
+              "type": "free",
+              "position": [
+                -113.60000000000001,
+                15.169611545474936,
+                16.28962269751355
+              ],
+              "required": false
+            },
+            {
+              "id": "gate-1",
+              "type": "low-swing",
+              "position": [
+                -227.20000000000002,
+                9.99991281868472,
+                6.9744611866772175
+              ],
+              "required": true
+            },
+            {
+              "id": "gate-2",
+              "type": "dive",
+              "position": [
+                -340.8,
+                18.169603509459876,
+                -10.239363660570234
+              ],
+              "required": true
+            },
+            {
+              "id": "gate-3",
+              "type": "split-route",
+              "position": [
+                -454.40000000000003,
+                14.999908269131197,
+                -8.043228224851191
+              ],
+              "required": false
+            },
+            {
+              "id": "gate-4",
+              "type": "wall-run",
+              "position": [
+                -562.4844993591308,
+                4.632529258728027,
+                44.29291201522574
+              ],
+              "required": true
+            },
+            {
+              "id": "gate-4-alt",
+              "type": "wall-run",
+              "position": [
+                -563.4962152481079,
+                4.632529258728027,
+                -19.70708798477426
+              ],
+              "required": true
+            },
+            {
+              "id": "gate-5",
+              "type": "rooftop-vault",
+              "position": [
+                -633.6,
+                6.984031902966512,
+                -11.873973933979869
+              ],
+              "required": true
+            },
+            {
+              "id": "gate-6",
+              "type": "point-launch",
+              "position": [
+                -795.1999999999999,
+                4.169604274885614,
+                -7.708575397264212
+              ],
+              "required": true
+            },
+            {
+              "id": "gate-7",
+              "type": "wind",
+              "position": [
+                -908.8000000000001,
+                20.169601251188965,
+                -17.70924876909703
+              ],
+              "required": false
+            },
+            {
+              "id": "gate-8",
+              "type": "free",
+              "position": [
+                -1046.4,
+                14.999914173470984,
+                11.446501209866256
+              ],
+              "required": false
+            },
+            {
+              "id": "gate-9",
+              "type": "precision",
+              "position": [
+                -1136,
+                9.99991070579813,
+                0
+              ],
+              "required": false
+            }
+          ],
+          "finish": [
+            -1136,
+            9.99991070579813,
+            0
+          ]
+        }
+      ]
+    }
+  ]
+}

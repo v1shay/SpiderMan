@@ -28,10 +28,19 @@
     "test:scenes": "node --experimental-strip-types scripts/verify-city-scenes.mjs",
     "test:refinements": "node --experimental-strip-types scripts/verify-traversal-refinements.mjs",
     "test:explosive": "node --experimental-strip-types scripts/verify-wall-run-loop.mjs && node --experimental-strip-types scripts/verify-feel-math.mjs && node --experimental-strip-types scripts/verify-feel-integration.mjs && node --experimental-strip-types scripts/verify-advanced-traversal.mjs",
-    "test": "npm run test:traversal && npm run test:2099 && npm run test:wall && npm run test:swing-assistance && npm run test:surfaces && npm run test:integrated && npm run test:scenes && npm run test:explosive && npm run test:refinements && npm run test:city-horizon && npm run test:characters && npm run test:analytics",
+    "test": "npm run test:traversal && npm run test:2099 && npm run test:wall && npm run test:swing-assistance && npm run test:surfaces && npm run test:integrated && npm run test:scenes && npm run test:explosive && npm run test:refinements && npm run test:city-horizon && npm run test:characters && npm run test:web-strand && npm run test:analytics && npm run test:race-input",
     "test:city-horizon": "node --experimental-strip-types scripts/verify-city-horizon.mjs",
     "test:characters": "node --experimental-strip-types scripts/verify-character-lineup.mjs",
-    "test:analytics": "node --experimental-strip-types scripts/verify-visitor-identity.mjs"
+    "test:web-strand": "node --experimental-strip-types scripts/verify-web-strand.mjs",
+    "test:analytics": "node --experimental-strip-types scripts/verify-visitor-identity.mjs",
+    "test:race-input": "node --experimental-strip-types scripts/verify-race-input.mjs",
+    "test:continuity": "node --experimental-strip-types scripts/verify-traversal-continuity.mjs",
+    "test:performance": "node --experimental-strip-types scripts/verify-performance.mjs",
+    "test:tricks": "node --experimental-strip-types scripts/verify-tricks.mjs",
+    "test:missions": "node --experimental-strip-types scripts/verify-missions.mjs",
+    "test:racing": "node --experimental-strip-types scripts/verify-racing.mjs",
+    "test:combat": "node --experimental-strip-types scripts/verify-combat.mjs",
+    "import:combat": "node scripts/import-combat-animations.mjs source-assets/mixamo-combat"
   },
   "dependencies": {
     "@supabase/supabase-js": "2.112.4",

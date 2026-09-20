@@ -1,5 +1,6 @@
 import { createAdvancedRuntime, cloneAdvancedRuntime, advancedReleaseVelocity, catchVelocity, glideVelocity, chargedJumpVelocity, slingshotVelocity, pointLaunchVelocity, turnHorizontal, loopAngle, swingPhase, ADVANCED_TUNING, type AdvancedRuntime } from './traversal-advanced.ts';
-import { chargedSwingRelease, steerSwingTangent, arcadeWallRunVelocity, arcadeAirZipVelocity, hasWallRunSupport, AIR_ZIP } from './traversal-feel.ts';
+import { chargedSwingRelease, steerSwingHeading, arcadeWallRunVelocity, arcadeAirZipVelocity, hasWallRunSupport, AIR_ZIP } from './traversal-feel.ts';
+import { resolveTraversalAssists, type AssistRequest } from './traversal-assist-budget.ts';
 
 /**
  * Deterministic, renderer-agnostic traversal physics for a Spider-Man-style game.
@@ -124,6 +125,10 @@ export interface TraversalInput {
 }
 
 export interface TraversalEnvironment {
+  /** Predictive fan correction in m/s², composed with all other assists once. */
+  predictiveAssistAcceleration?: Vector3Like;
+  /** Authored corridors share remaining comfort allowance while attached. */
+  windAcceleration?: Vector3Like;
   /** True when the caller resolves triangle collision after this step. */
   externalCollision?: boolean;
   hasLineOfSight?: (origin: Vector3Like, target: Vector3Like) => boolean;
@@ -144,6 +149,12 @@ export interface TraversalEnvironment {
 }
 
 export interface SwingRuntime {
+  /** Real surface point rendered as the web endpoint. `anchor` stays its alias. */
+  visualAnchor?: Vector3Like;
+  /** Physics-only offset limited to 1.2m from the real surface anchor. */
+  simulationPivot?: Vector3Like;
+  obstructionSeconds?: number;
+  continuation?: 'corner' | 'reattach' | 'clear';
   /** Arcade mode uses the real anchor immediately; legacy mode retains capture. */
   pivot?: Vector3Like;
   captureStart?: Vector3Like;
@@ -156,6 +167,8 @@ export interface SwingRuntime {
   pressure: number;
   /** Cumulative low-swing braking impulse; never grants upward velocity. */
   groundAssistImpulse?: number;
+  /** Brief supported street contact that keeps a held web alive. */
+  groundSkimSeconds?: number;
   /** Validated ground push-off takes up initial slack above its support plane. */
   launchRopeLength?: number;
 }
@@ -185,6 +198,8 @@ export interface WallRuntime {
 }
 
 export interface TraversalState {
+  preferredAnchorId?: string;
+  assistImpulse?: number;
   advanced?: AdvancedRuntime;
   position: Vector3Like;
   velocity: Vector3Like;
@@ -217,6 +232,7 @@ export interface TraversalState {
   actionSequence?: number;
   mantle: { target: Vector3Like; elapsed: number; lowObstacle?: boolean } | null;
   swingNeedsRelease?: boolean;
+  swingResumeAfterWall?: boolean;
   /** One ground push-off per cooldown, never a per-frame hovering force. */
   swingGroundLaunchAfter?: number;
   /** Presentation-only release burst; physics remains freely airborne. */
@@ -231,6 +247,7 @@ export interface TraversalEvent {
   anchorId?: string;
   colliderId?: string;
   strength?: number;
+  reason?: string;
 }
 
 export interface TraversalAnimationContext {
@@ -468,7 +485,11 @@ function cloneState(state: TraversalState): TraversalState {
     advanced: state.advanced ? cloneAdvancedRuntime(state.advanced) : undefined,
     position: copy(state.position),
     velocity: copy(state.velocity),
-    swing: state.swing ? { ...state.swing, anchor: copy(state.swing.anchor) } : null,
+    swing: state.swing ? { ...state.swing, anchor: copy(state.swing.anchor),
+      pivot: state.swing.pivot ? copy(state.swing.pivot) : undefined,
+      visualAnchor: state.swing.visualAnchor ? copy(state.swing.visualAnchor) : undefined,
+      simulationPivot: state.swing.simulationPivot ? copy(state.swing.simulationPivot) : undefined,
+      captureStart: state.swing.captureStart ? copy(state.swing.captureStart) : undefined } : null,
     zip: state.zip ? { ...state.zip, target: copy(state.zip.target) } : null,
     wall: state.wall ? { ...state.wall, point: copy(state.wall.point), normal: copy(state.wall.normal) } : null,
     mantle: state.mantle ? { ...state.mantle, target: copy(state.mantle.target) } : null,
@@ -555,34 +576,71 @@ export function selectTraversalAnchor(
   return winner;
 }
 
+/** Predict the passive arc, including its trough and likely facade conflicts.
+ * This adds trajectory quality to aim quality without rewarding energy injection. */
+export function scoreSwingTrajectory(origin: Vector3Like, velocity: Vector3Like, forward: Vector3Like,
+  candidate: WebAnchorCandidate, environment: TraversalEnvironment, gravity = 29): number {
+  const offset = subtract(origin, candidate.point), radius = Math.max(1, length(offset));
+  const radial = normalize(offset), speed = length(velocity);
+  let p = copy(origin), v = reject(velocity, radial), conflicts = 0;
+  let lowest = copy(p);
+  const colliders = environment.anchorColliders ?? environment.colliders ?? [];
+  // Bounded six-sample horizon; scoring never issues full scene mesh sweeps.
+  for (let i = 0; i < 6; i++) {
+    v.y -= gravity * .12;
+    const next = add(p, scale(v, .12)), delta = subtract(next, candidate.point);
+    if (length(delta) > radius) {
+      const n = normalize(delta); p = add(candidate.point, scale(n, radius)); v = reject(v, n);
+    } else p = next;
+    if (p.y < lowest.y) lowest = copy(p);
+    if (colliders.some(box => p.x > box.min.x - .5 && p.x < box.max.x + .5
+      && p.z > box.min.z - .5 && p.z < box.max.z + .5 && p.y < box.max.y && p.y + 2 > box.min.y)) conflicts++;
+  }
+  const floor = environment.sampleGround?.(lowest, .2, 80) ?? environment.groundY;
+  const metresAboveFloor = floor === undefined ? 8 : lowest.y - floor;
+  const clearance = saturate((metresAboveFloor - .7) / 5);
+  // Once the capsule is safe, reward a readable street-level trough instead of
+  // monotonically preferring the highest possible anchor.
+  const lowArc = floor === undefined ? .5 : Math.exp(-Math.pow((metresAboveFloor - 3.2) / 4.2, 2));
+  const retention = speed > 3 ? length(reject(velocity, radial)) / speed : 1;
+  const progress = dot(subtract(p, origin), normalize(horizontal(forward))) / Math.max(10, speed * .72);
+  const momentum = speed > 3 ? dot(normalize(v), normalize(velocity)) : 1;
+  return retention * 1.4 + clearance * .7 + lowArc * .75 + progress * 1.2 + momentum * .6 - conflicts * 1.5;
+}
+
 function chooseSwingAnchor(
   state: TraversalState,
   input: TraversalInput,
   environment: TraversalEnvironment,
   config: TraversalConfig,
 ): WebAnchorCandidate | null {
-  const fallbackDirection = input.cameraForward ?? input.move ?? vector(0, 0, -1);
-  const aim = input.aimDirection ?? normalize(add(fallbackDirection, vector(0, 0.5, 0)));
+  const forward = input.cameraForward ?? input.move ?? vector(0, 0, -1);
+  const aim = normalize(input.aimDirection ?? add(forward, vector(0, .5, 0)));
   const colliders = environment.anchorColliders ?? environment.colliders ?? [];
-  const candidates = (environment.anchorCandidates ?? []).filter((candidate) =>
-    candidate.lineOfSight !== false && traversalLineOfSight(state.position, candidate.point, colliders))
-    .map(candidate => {
-      const radial = normalize(subtract(state.position, candidate.point));
-      const speed = length(state.velocity);
-      const retainedMomentum = speed > 3 ? length(reject(state.velocity, radial)) / speed : 1;
-      const range = distance(state.position, candidate.point);
-      const ground = environment.sampleGround?.(state.position, .2, 14);
-      const safeArc = ground === null || ground === undefined ? 1
-        : saturate((candidate.point.y - ground - 2.8) / Math.max(5, range * .7));
-      const elevation = saturate((candidate.point.y - state.position.y) / Math.max(range, 1));
-      const quality = config.advancedTraversal
-        ? .35 + retainedMomentum * .8 + safeArc * .7 + elevation * .65
-        : .65 + retainedMomentum * .5 + safeArc * .6;
-      return { ...candidate, weight: (candidate.weight ?? 1) * quality };
-    });
-  return selectTraversalAnchor(state.position, aim, candidates, {
-    ...config, anchorMaximumDistance: Math.min(config.anchorMaximumDistance, config.swingMaximumLength),
-  });
+  const sampledGround = environment.sampleGround?.(state.position, .2, 180);
+  const ground = sampledGround ?? (environment.groundY !== undefined && environment.groundY > -1000
+    ? environment.groundY : undefined);
+  const altitude = ground === undefined ? 0 : Math.max(0, state.position.y - ground);
+  // At altitude, a real visible facade slightly below the player can create the
+  // downward catch required for low swinging. Close to the street, keep the
+  // original overhead-only safety rule.
+  const minimumAnchorHeight = altitude > 12 || state.velocity.y < -8
+    ? Math.max(-20, config.anchorMinimumHeight - Math.max(0, altitude - 8) * .32)
+    : config.anchorMinimumHeight;
+  let winner: WebAnchorCandidate | null = null, bestScore = -Infinity;
+  for (const candidate of environment.anchorCandidates ?? []) {
+    if ((!config.allowSkyFallback && candidate.id === 'sky-fallback') || candidate.lineOfSight === false) continue;
+    const offset = subtract(candidate.point, state.position), range = length(offset);
+    if (range < config.anchorMinimumDistance || range > Math.min(config.anchorMaximumDistance, config.swingMaximumLength)
+      || offset.y < minimumAnchorHeight || !traversalLineOfSight(state.position, candidate.point, colliders)) continue;
+    const score = dot(aim, normalize(offset)) * 1.8
+      + scoreSwingTrajectory(state.position, state.velocity, forward, candidate, environment, config.gravity)
+      + Math.min(.6, Math.max(-.5, (candidate.weight ?? 1) - 1))
+      + (candidate.id && candidate.id === state.preferredAnchorId ? .4 : 0);
+    if (score > bestScore) { bestScore = score; winner = candidate; }
+  }
+  if (winner) state.preferredAnchorId = winner.id;
+  return winner;
 }
 
 function chooseZipTarget(
@@ -618,14 +676,22 @@ function attachSwing(
     state.velocity = scale(normalize(state.velocity, input.cameraForward), Math.max(length(state.velocity), state.wallCarrySpeed ?? 0));
     state.wallCarrySpeed = 0; state.wallCarryUntil = 0;
   }
-  const initialLength = clamp(distance(state.position, anchor.point), config.swingMinimumLength, config.swingMaximumLength);
-  if (config.advancedTraversal && !state.grounded) {
+  const anchorOffset = subtract(state.position, anchor.point);
+  // A short amount of catch slack lets the existing heading survive a side
+  // attachment. Tension takes it up naturally instead of projecting a fast
+  // descent sideways into the anchor's tangent plane on the first frame.
+  const catchSlack = config.arcadeTraversal && !state.grounded
+    ? Math.min(2.5, Math.max(0, dot(state.velocity, normalize(anchorOffset))) * .16) : 0;
+  const initialLength = clamp(length(anchorOffset) + catchSlack, config.swingMinimumLength, config.swingMaximumLength);
+  if (config.advancedTraversal && !config.arcadeTraversal && !state.grounded) {
     state.velocity = catchVelocity(state.velocity, subtract(state.position, anchor.point),
       input.cameraForward ?? input.move ?? vector(0, 0, -1), config.maximumSpeed);
   }
   if (state.advanced) { state.advanced.gliding = false; state.advanced.corner = null; state.advanced.loop = null; }
   state.swing = {
     anchor: copy(anchor.point),
+    visualAnchor: copy(anchor.point),
+    simulationPivot: config.arcadeTraversal ? copy(anchor.point) : undefined,
     pivot: config.arcadeTraversal ? copy(anchor.point) : add(state.position, vector(0, initialLength, 0)),
     captureStart: config.arcadeTraversal ? undefined : add(state.position, vector(0, initialLength, 0)),
     anchorId: anchor.id,
@@ -651,7 +717,9 @@ function attachSwing(
       const push = Math.min(minimumForwardSpeed, Math.max(0, minimumForwardSpeed - dot(state.velocity, direction)));
       state.velocity = add(state.velocity, scale(direction, push));
     }
-    state.velocity.y = Math.max(state.velocity.y, config.jumpSpeed * 1.35);
+    // Break contact cleanly without forcing every pavement start into a huge
+    // climb. Rope tension and the player's entry speed shape the actual arc.
+    state.velocity.y = Math.max(state.velocity.y, Math.min(8, config.jumpSpeed * .56));
     state.grounded = false;
     state.coyoteSeconds = 0;
     state.jumpBufferSeconds = 0;
@@ -849,41 +917,50 @@ function applySwing(
   const keyboardPressure = .45 + holdCharge * .55;
   swing.pressure = damp(swing.pressure, saturate(explicitPressure ?? keyboardPressure), 10, delta);
   const reelInput = clamp(value(input.reel), -1, 1);
-  const pressureReel = saturate((swing.pressure - 0.18) / 0.82);
-  const holdTargetLength = clamp(
-    swing.maximumLength * (1 - holdCharge * (.08 + pressureReel * .1)),
-    config.swingMinimumLength,
-    config.swingMaximumLength,
-  );
-  const predicted = add(state.position, scale(state.velocity, .4));
-  const floor = !input.diveHeld ? environment.sampleGround?.(predicted, .2, 14) : null;
-  const clearanceLength = floor !== null && floor !== undefined
-    ? Math.max(config.swingMinimumLength, swing.anchor.y - floor - 2.8) : Infinity;
-  const targetLength = Math.min(holdTargetLength, swing.launchRopeLength ?? Infinity, clearanceLength);
-  let lengthVelocity = reelInput !== 0 ? reelInput * config.swingReelSpeed
-    : swing.ropeLength > targetLength ? -config.swingReelSpeed * (.25 + pressureReel * .35) : 0;
-  if (swing.launchRopeLength !== undefined && swing.ropeLength > swing.launchRopeLength && reelInput <= 0) {
-    lengthVelocity = -Math.max(-Math.min(0, lengthVelocity),
-      Math.min(config.swingReelSpeed * 2, (swing.ropeLength - swing.launchRopeLength) / .18));
-  }
-  if (swing.ropeLength > clearanceLength && reelInput <= 0) lengthVelocity = Math.min(lengthVelocity,
-    -Math.min(24, (swing.ropeLength - clearanceLength) / .25));
-  // Sustained input gathers the arc, but cannot winch all the way into the
-  // attachment surface. The collider still wins against every rope correction.
+  const predicted = add(state.position, scale(state.velocity, .3));
+  const floor = !input.diveHeld ? environment.sampleGround?.(predicted, .2, 8) : null;
+  const clearanceRisk = floor !== null && floor !== undefined && predicted.y < floor + 1.2;
+  const assistedHeading = config.arcadeTraversal && !state.advanced?.loop && !input.diveHeld && reelInput === 0;
+  // Camera-led travel may pay out the horizontal part of the arc. Falling
+  // never earns slack: vertical motion still loads the web and gets support.
   const minimumLength = Math.max(config.swingMinimumLength, swing.maximumLength * .56);
   const previousLength = swing.ropeLength;
-  swing.ropeLength = clamp(swing.ropeLength + lengthVelocity * delta, minimumLength, swing.maximumLength);
+  const safetyMinimum = swing.maximumLength * .94;
+  let lengthVelocity = reelInput !== 0 ? reelInput * config.swingReelSpeed
+    : clearanceRisk && swing.ropeLength > safetyMinimum ? -1.5 : 0;
+  // The one-shot supported launch is a deliberate ability, with an explicit
+  // target set at takeoff. Ordinary midair holds never enter this branch.
+  if (swing.launchRopeLength !== undefined && reelInput <= 0 && swing.ropeLength > swing.launchRopeLength) {
+    lengthVelocity = -Math.min(config.swingReelSpeed * 2, (swing.ropeLength - swing.launchRopeLength) / .18);
+  }
+  swing.ropeLength = clamp(swing.ropeLength + lengthVelocity * delta,
+    reelInput === 0 && swing.launchRopeLength === undefined ? Math.max(minimumLength, Math.min(previousLength, safetyMinimum)) : minimumLength,
+    swing.maximumLength);
+  if (assistedHeading) {
+    const pivot = swing.simulationPivot ?? swing.pivot ?? swing.anchor;
+    const x = state.position.x - pivot.x, z = state.position.z - pivot.z;
+    const nextX = x + state.velocity.x * delta, nextZ = z + state.velocity.z * delta;
+    const travel = Math.max(0, nextX * nextX + nextZ * nextZ - x * x - z * z);
+    swing.ropeLength = Math.min(config.swingMaximumLength, Math.sqrt(swing.ropeLength ** 2 + travel * .85));
+    swing.maximumLength = Math.max(swing.maximumLength, swing.ropeLength);
+  }
   const actualLengthVelocity = (swing.ropeLength - previousLength) / delta;
 
-  const fromAnchor = subtract(state.position, swing.pivot ?? swing.anchor);
+  if (swing.simulationPivot) {
+    swing.simulationPivot = lerpVector(swing.simulationPivot, swing.visualAnchor ?? swing.anchor, 1 - Math.exp(-5 * delta));
+    swing.pivot = copy(swing.simulationPivot);
+  }
+  const fromAnchor = subtract(state.position, swing.simulationPivot ?? swing.pivot ?? swing.anchor);
   const range = Math.max(length(fromAnchor), EPSILON);
   const radial = scale(fromAnchor, 1 / range);
   const radialSpeed = dot(state.velocity, radial);
   const stretch = Math.max(0, range - swing.ropeLength);
   const taut = range >= swing.ropeLength - .12;
   const springAcceleration = stretch * config.swingSpring
-    + (taut ? Math.max(0, radialSpeed - Math.min(0, actualLengthVelocity)) * config.swingDamping : 0);
-  state.velocity = add(state.velocity, scale(radial, -springAcceleration * delta));
+    + (taut ? Math.max(0, radialSpeed - actualLengthVelocity) * config.swingDamping : 0);
+  const tensionImpulse = scale(radial, -springAcceleration * delta);
+  if (assistedHeading) { tensionImpulse.x *= .15; tensionImpulse.z *= .15; }
+  state.velocity = add(state.velocity, tensionImpulse);
 
   const explicitMove = horizontal(input.move ?? vector());
   const moveDirection = normalize(explicitMove,
@@ -896,24 +973,41 @@ function applySwing(
   const speedHeadroom = saturate(1 - length(state.velocity) / config.maximumSpeed);
   const pumping = config.swingPumpAcceleration * (.18 + inputStrength * inputAgreement * .82)
     * (.45 + bottomOfArc * .55) * (.62 + swing.pressure * .38) * (.65 + holdCharge * .35) * speedHeadroom;
-  state.velocity = add(state.velocity, scale(naturalTangent, pumping * delta));
-  if (config.arcadeTraversal) {
-    if (!state.advanced?.loop) state.velocity = steerSwingTangent(state.velocity, radial, tangentInput, delta,
-      config.swingSteerAcceleration * (.3 + bottomOfArc * .7) * inputStrength);
-  } else {
-    state.velocity = add(state.velocity, scale(tangentInput, config.swingSteerAcceleration * saturate(swing.attachedSeconds / .85) * (.3 + bottomOfArc * .7) * inputStrength * speedHeadroom * delta));
-  }
-  state.velocity.y -= config.gravity * delta;
-  if (config.advancedTraversal && state.advanced?.loop) {
-    const loop = state.advanced.loop;
-    const loopTangent = normalize(cross(loop.axis, radial));
-    const desiredSpeed = Math.min(config.maximumSpeed * .94,
-      Math.sqrt(Math.max(0, 5 * config.gravity * swing.ropeLength)) + 5);
-    const along = dot(state.velocity, loopTangent);
-    state.velocity = add(state.velocity, scale(loopTangent,
-      Math.min(ADVANCED_TUNING.loopMotorAcceleration * delta, Math.max(0, desiredSpeed - along))));
-  }
+  const physicalVelocity = copy(state.velocity);
+  const requests: AssistRequest[] = [];
+  // Evaluate ground protection first so steering/pumping cannot consume its budget.
+  const groundUsed = swing.groundAssistImpulse ?? 0;
   applyLowSwingGroundAssistance(state, input, environment, config, delta);
+  requests.push({ priority: 'ground', deltaVelocity: subtract(state.velocity, physicalVelocity) });
+  state.velocity = copy(physicalVelocity);
+  if (environment.predictiveAssistAcceleration) requests.push({ priority: 'collision',
+    deltaVelocity: scale(environment.predictiveAssistAcceleration, delta) });
+  if (!state.advanced?.loop) {
+    const avoiding = lengthSquared(environment.predictiveAssistAcceleration ?? vector()) > EPSILON;
+    const steered = config.arcadeTraversal
+      ? steerSwingHeading(physicalVelocity, moveDirection, delta,
+        avoiding ? 0 : config.swingSteerAcceleration * (.85 + inputStrength * .15))
+      : add(physicalVelocity, scale(tangentInput, config.swingSteerAcceleration * saturate(swing.attachedSeconds / .85)
+        * (.3 + bottomOfArc * .7) * inputStrength * speedHeadroom * delta));
+    requests.push({ priority: 'steering', deltaVelocity: subtract(steered, physicalVelocity) });
+    const assistedTravel = avoiding
+      ? normalize(horizontal(add(physicalVelocity, scale(environment.predictiveAssistAcceleration!, delta))), moveDirection)
+      : moveDirection;
+    const pumpDirection = assistedHeading ? assistedTravel : config.arcadeTraversal ? (avoiding
+      ? normalize(reject(add(physicalVelocity, scale(environment.predictiveAssistAcceleration!, delta)), radial), naturalTangent)
+      : tangentInput) : naturalTangent;
+    requests.push({ priority: 'comfort', deltaVelocity: scale(pumpDirection, pumping * delta) });
+  }
+  if (environment.windAcceleration) requests.push({ priority: 'comfort',
+    deltaVelocity: scale(reject(environment.windAcceleration, radial), delta) });
+  const assistance = resolveTraversalAssists(requests, delta);
+  state.assistImpulse = assistance.spent;
+  swing.groundAssistImpulse = groundUsed + assistance.applied.ground;
+  state.velocity = add(physicalVelocity, assistance.deltaVelocity);
+  state.velocity.y -= config.gravity * delta;
+  // Loops receive no tangent motor. Tension and earned kinetic energy carry
+  // the character over the anchor; steering/pumping are suppressed for the lap.
+
   swing.tension = saturate((springAcceleration + lengthSquared(reject(state.velocity, radial)) / Math.max(swing.ropeLength, 1)) / 70);
 }
 
@@ -957,37 +1051,166 @@ function applyLowSwingGroundAssistance(
   swing.groundAssistImpulse = usedImpulse + impulse;
 }
 
+export interface SwingContinuationInput {
+  obstruction?: { point: Vector3Like; normal?: Vector3Like; id?: string } | null;
+  constraintBlocked?: boolean;
+  contact?: SurfaceContact | null;
+  candidates?: readonly WebAnchorCandidate[];
+  hasLineOfSight?: (origin: Vector3Like, target: Vector3Like) => boolean;
+  dt?: number;
+}
+
+/** The shared geometry/mesh resolver. Only sustained failure with no surface,
+ * wall or replacement anchor may detach. It never grants a release boost. */
+export function resolveSwingContinuation(state: TraversalState, problem: SwingContinuationInput,
+  input: TraversalInput = {}, overrides: Partial<TraversalConfig> = {}, events: TraversalEvent[] = []) {
+  const config = mergeConfig(overrides), swing = state.swing;
+  if (!swing) return 'none' as const;
+  const dt = clamp(problem.dt ?? 1 / 120, 0, .05);
+  if (state.grounded) {
+    const horizontalSpeed = length(horizontal(state.velocity));
+    const skimSeconds = (swing.groundSkimSeconds ?? 0) + dt;
+    if (input.swingHeld && !input.diveHeld && horizontalSpeed >= 7.5 && skimSeconds <= .48) {
+      // Spider-Man can brush the street and run through the trough of an arc.
+      // This is a bounded upward impulse, not hovering: slow or prolonged ground
+      // contact still becomes a normal landing.
+      swing.groundSkimSeconds = skimSeconds;
+      state.grounded = false;
+      state.velocity.y = Math.max(state.velocity.y, Math.min(4.6, 2.25 + horizontalSpeed * .035));
+      state.landingSeconds = 0;
+      return 'skim' as const;
+    }
+    state.swing = null; state.swingNeedsRelease = false;
+    state.swingRetryAfter = state.elapsed + .1;
+    events.push(event('web-released', state, { anchorId: swing.anchorId, strength: 0, reason: 'ground-contact' }));
+    return 'landed' as const;
+  }
+  if (problem.contact?.feetTouching && acceptTraversalWallContact(state, problem.contact, state.velocity, input, config)) {
+    // Contact owns the wall run. Held swing resumes when support ends, while a
+    // fresh press can leave immediately; no artificial release is required.
+    state.swingRetryAfter = state.elapsed + .12;
+    return 'wall' as const;
+  }
+  const visual = swing.visualAnchor ?? swing.anchor;
+  if (!problem.obstruction && !problem.constraintBlocked) {
+    swing.groundSkimSeconds = Math.max(0, (swing.groundSkimSeconds ?? 0) - dt * 2.5);
+    swing.obstructionSeconds = 0; swing.continuation = 'clear'; return 'clear' as const;
+  }
+  swing.obstructionSeconds = (swing.obstructionSeconds ?? 0) + dt;
+  const hit = problem.obstruction;
+  // The near corner becomes a real surface attachment. Offset only the solver
+  // pivot toward free space; the rendered endpoint stays exactly on geometry.
+  if (hit && hit.point.y > state.position.y + .75 && distance(state.position, hit.point) >= config.swingMinimumLength
+    && (!problem.hasLineOfSight || problem.hasLineOfSight(state.position, hit.point))) {
+    const point = copy(hit.point), outward = normalize(hit.normal ?? subtract(state.position, point));
+    swing.anchor = point; swing.visualAnchor = copy(point);
+    swing.simulationPivot = add(point, scale(outward, Math.min(.8, config.playerRadius * 1.5)));
+    swing.pivot = copy(swing.simulationPivot); swing.captureStart = undefined;
+    swing.anchorId = hit.id ?? swing.anchorId;
+    // A fresh corner has its own radius, with no positional snap this tick.
+    swing.ropeLength = clamp(distance(state.position, swing.simulationPivot), config.swingMinimumLength, config.swingMaximumLength);
+    swing.maximumLength = swing.ropeLength; swing.obstructionSeconds = 0; swing.continuation = 'corner';
+    events.push(event('corner-tether', state, { anchorId: swing.anchorId, reason: 'surface-corner' }));
+    return 'corner' as const;
+  }
+  const alternatives = (problem.candidates ?? []).filter(candidate => candidate.id !== swing.anchorId
+    && candidate.id !== 'sky-fallback' && candidate.lineOfSight !== false
+    && (!problem.hasLineOfSight || problem.hasLineOfSight(state.position, candidate.point)));
+  const replacement = chooseSwingAnchor(state, input, { anchorCandidates: alternatives }, config);
+  if (replacement) {
+    // Do not call catchVelocity again: repeated geometry recovery cannot add energy.
+    swing.anchor = copy(replacement.point); swing.visualAnchor = copy(replacement.point);
+    swing.simulationPivot = copy(replacement.point); swing.pivot = copy(replacement.point); swing.captureStart = undefined;
+    swing.anchorId = replacement.id;
+    swing.ropeLength = clamp(distance(state.position, replacement.point), config.swingMinimumLength, config.swingMaximumLength);
+    swing.maximumLength = swing.ropeLength; swing.obstructionSeconds = 0; swing.continuation = 'reattach';
+    events.push(event('web-attached', state, { anchorId: replacement.id, reason: 'continuation' }));
+    return 'reattach' as const;
+  }
+  if (problem.constraintBlocked && !hit) {
+    // Capsule contact outranks the rope. Small disagreements borrow bounded
+    // slack instead of repeatedly detaching and recatching at a facade.
+    const range = distance(state.position, swing.simulationPivot ?? swing.pivot ?? visual);
+    const slack = Math.max(0, range - swing.ropeLength);
+    if (slack <= 1.2) {
+      swing.ropeLength = Math.min(config.swingMaximumLength, swing.ropeLength + slack);
+      swing.maximumLength = Math.max(swing.maximumLength, swing.ropeLength);
+      swing.obstructionSeconds = 0; return 'slack' as const;
+    }
+  }
+  if (swing.obstructionSeconds < .28) return 'grace' as const;
+  state.swing = null; state.swingRetryAfter = state.elapsed + .08;
+  events.push(event('web-released', state, { anchorId: swing.anchorId, strength: 0, reason: 'no-valid-continuation' }));
+  return 'detach' as const;
+}
+
 function enforceRopeConstraint(
   state: TraversalState,
   environment: TraversalEnvironment,
   config: TraversalConfig,
   events: TraversalEvent[],
+  input: TraversalInput,
+  delta: number,
 ): MotionResolution | null {
   const swing = state.swing;
   if (!swing) return null;
-  const pivot = swing.pivot ?? swing.anchor;
-  const offset = subtract(state.position, pivot);
-  const range = length(offset);
-  const occluded = !traversalLineOfSight(state.position, swing.anchor, environment.anchorColliders ?? environment.colliders ?? []);
-  if (occluded) {
-    state.swing = null;
-    state.swingRetryAfter = state.elapsed + .2;
-    events.push(event('web-released', state, { anchorId: swing.anchorId, strength: 0 }));
+  const pivot = swing.simulationPivot ?? swing.pivot ?? swing.anchor;
+  const visual = swing.visualAnchor ?? swing.anchor;
+  const offset = subtract(state.position, pivot), range = length(offset);
+  const boxes = environment.anchorColliders ?? environment.colliders ?? [];
+  const displacement = subtract(visual, state.position);
+  let obstruction: SwingContinuationInput['obstruction'] = null, hitTime = Infinity;
+  for (const box of boxes) {
+    const hit = segmentBoxHit(state.position, displacement, box.min, box.max);
+    if (hit && hit.time < 1 - .08 / Math.max(1, length(displacement)) && hit.time < hitTime) {
+      hitTime = hit.time;
+      obstruction = { point: add(state.position, scale(displacement, hit.time)), normal: hit.normal, id: box.id };
+    }
+  }
+  if (obstruction) {
+    resolveSwingContinuation(state, { obstruction, contact: environment.wallContact,
+      candidates: environment.anchorCandidates, dt: delta,
+      hasLineOfSight: (origin, target) => traversalLineOfSight(origin, target, boxes) }, input, config, events);
     return null;
   }
-  if (range <= swing.ropeLength || range < EPSILON) return null;
-  const radial = scale(offset, 1 / range);
-  const desired = add(pivot, scale(radial, swing.ropeLength));
-  // Rope shortening is movement too: sweep it through the exact same solids.
+  if (range <= swing.ropeLength || range < EPSILON) { if (!environment.externalCollision) swing.obstructionSeconds = 0; return null; }
+  const radial = scale(offset, 1 / range), desired = add(pivot, scale(radial, swing.ropeLength));
+  const assistedHeading = config.arcadeTraversal && !state.advanced?.loop && !input.diveHeld && !value(input.reel);
+  if (assistedHeading) {
+    // A spherical projection used to undo the camera turn every substep and
+    // drag the capsule sideways into its anchor building. Preserve the steered
+    // horizontal motion; apply only the vertical support part of the rope solve.
+    desired.x = state.position.x;
+    desired.z = state.position.z;
+    const supportedLength = distance(desired, pivot);
+    if (supportedLength > config.swingMaximumLength) {
+      // Reaching the real web's limit continues into a fresh catch. No release
+      // boost, backward yank, or invented surface point is needed.
+      state.swing = null;
+      state.swingNeedsRelease = false;
+      state.swingRetryAfter = state.elapsed + .04;
+      events.push(event('web-released', state, { anchorId: swing.anchorId, strength: 0, reason: 'steering-reach' }));
+      return null;
+    }
+    swing.ropeLength = supportedLength;
+    swing.maximumLength = Math.max(swing.maximumLength, supportedLength);
+  }
   const collision = resolveMotion(state, environment, config, 0, subtract(desired, state.position));
   if (distance(state.position, desired) > .025) {
-    state.swing = null;
-    state.swingRetryAfter = state.elapsed + .2;
-    events.push(event('web-released', state, { anchorId: swing.anchorId, strength: 0 }));
+    resolveSwingContinuation(state, { constraintBlocked: true, contact: collision.wall,
+      candidates: environment.anchorCandidates, dt: delta,
+      hasLineOfSight: (origin, target) => traversalLineOfSight(origin, target, boxes) }, input, config, events);
     return collision;
   }
-  const outwardSpeed = dot(state.velocity, radial);
-  if (outwardSpeed > 0) state.velocity = subtract(state.velocity, scale(radial, outwardSpeed));
+  if (!environment.externalCollision) swing.obstructionSeconds = 0;
+  const steeringPayoutSpeed = assistedHeading
+    ? Math.max(0, state.velocity.x * radial.x + state.velocity.z * radial.z) * .85 : 0;
+  const outwardSpeed = dot(state.velocity, radial) - steeringPayoutSpeed;
+  if (outwardSpeed > 0) {
+    const correction = scale(radial, outwardSpeed);
+    if (assistedHeading) { correction.x = 0; correction.z = 0; }
+    state.velocity = subtract(state.velocity, correction);
+  }
   return collision;
 }
 
@@ -1106,6 +1329,7 @@ export function acceptTraversalWallContact(
   const wasZipping = Boolean(state.zip && !state.zip.airDash) || (state.wallApproach === 'zip' && state.elapsed < (state.wallApproachUntil ?? 0));
   state.swing = null; state.zip = null;
   state.swingNeedsRelease = true;
+  state.swingResumeAfterWall = wasSwinging && Boolean(input.swingHeld);
   state.wall = { ...contact, normal, feetTouching: true, contactSeconds: 0, graceSeconds: config.wallContactGrace };
   state.wallRunActive = !wasZipping && !state.grounded && (wasSwinging || speed >= config.wallRunMinimumSpeed || impact > 10);
   state.wallCrawlActive = !state.wallRunActive;
@@ -1152,9 +1376,11 @@ function applyWallTraversal(
       if (config.advancedTraversal) {
         const side = normalize(cross(UP, normal));
         const strafe = clamp(value(input.wallStrafe), -1, 1), climb = clamp(value(input.wallClimb), -1, 1);
-        const requested = add(scale(side, strafe), vector(0, climb, 0));
+        const recovering = state.elapsed < (state.advanced?.wallRecoveryUntil ?? 0);
+        const requested = recovering ? scale(side, state.advanced?.wallRecoverySide ?? 1)
+          : add(scale(side, strafe), vector(0, climb, 0));
         const current = reject(state.velocity, normal);
-        const desired = length(requested) > .1 ? scale(normalize(requested), climb && !strafe ? 16 : 22)
+        const desired = length(requested) > .1 ? scale(normalize(requested), recovering ? 12 : climb && !strafe ? 16 : 22)
           : scale(normalize(current, side), Math.min(22, length(current)));
         state.velocity = add(lerpVector(current, desired, 1 - Math.exp(-6 * delta)), scale(normal, -.8));
         wall.runEntrySpeed = Math.min(26, length(state.velocity));
@@ -1530,6 +1756,10 @@ function stepTraversalTick(
   state.doubleJumpSeconds = Math.max(0, (state.doubleJumpSeconds ?? 0) - delta);
   state.rollSeconds = Math.max(0, (state.rollSeconds ?? 0) - delta);
   if (state.grounded) state.airJumps = 0;
+  if (input.jumpPressed || input.swingReleased || !input.swingHeld) state.swingResumeAfterWall = false;
+  if (state.swingResumeAfterWall && !state.wall?.feetTouching && !state.wallRunActive) {
+    state.swingNeedsRelease = false; state.swingResumeAfterWall = false;
+  }
   if (input.rollPressed && state.grounded && length(horizontal(state.velocity)) > 3
     && environment.canRoll?.(state.position, state.velocity)) {
     state.rollSeconds = .75; state.actionSequence = (state.actionSequence ?? 0) + 1;
@@ -1562,7 +1792,7 @@ function stepTraversalTick(
   }
 
   if ((input.swingPressed || input.swingHeld) && !state.advanced?.gliding && !state.advanced?.sling && !state.advanced?.corner && !input.swingReleased && !state.swing && !state.zip
-    && !state.swingNeedsRelease && state.elapsed >= (state.swingRetryAfter ?? 0)) {
+    && (!state.wallRunActive || input.swingPressed) && !state.swingNeedsRelease && state.elapsed >= (state.swingRetryAfter ?? 0)) {
     const anchor = chooseSwingAnchor(state, input, environment, config);
     if (anchor) attachSwing(state, anchor, input, config, events);
   }
@@ -1667,11 +1897,15 @@ function stepTraversalTick(
     }
   }
 
+  if (environment.windAcceleration && !state.swing && !state.grounded && !state.wallRunActive && !state.wallCrawlActive && !state.zip && !state.mantle) {
+    const wind = resolveTraversalAssists([{ priority: 'comfort', deltaVelocity: scale(environment.windAcceleration, delta) }], delta, 12);
+    state.velocity = add(state.velocity, wind.deltaVelocity); state.assistImpulse = wind.spent;
+  }
   clampVelocity(state, config.maximumSpeed);
   const incomingVelocity = copy(state.velocity);
   const incomingVerticalSpeed = state.velocity.y;
   const collision = resolveMotion(state, environment, config, delta);
-  const ropeCollision = enforceRopeConstraint(state, environment, config, events);
+  const ropeCollision = enforceRopeConstraint(state, environment, config, events, input, delta);
   // Validate support after rope motion; a grounded flag from the pre-correction
   // position must not turn an airborne swing into a running animation.
   const support = resolveMotion(state, environment, config, 0);
@@ -1685,6 +1919,9 @@ function stepTraversalTick(
   }
   state.grounded = support.grounded;
   if (state.wall?.feetTouching) acceptTraversalWallContact(state, state.wall, incomingVelocity, input, config);
+  if (state.swing && state.grounded && !environment.externalCollision) {
+    resolveSwingContinuation(state, { dt: delta }, input, config, events);
+  }
   if (state.mantle && distance(state.position, state.mantle.target) < .09) {
     state.mantle = null;
     state.wallCrawlActive = false;
@@ -1818,13 +2055,20 @@ function prepareAdvancedInput(state: TraversalState, input: TraversalInput, envi
       events.push(event('corner-tether', state, { anchorId: target.anchor.id }));
     }
   }
-  if (a.loop && (!input.loopHeld || !state.swing)) a.loop = null;
-  if (input.loopHeld && state.swing && !a.loop && a.diveSpeed >= ADVANCED_TUNING.loopMinimumDiveSpeed
-    && state.elapsed < a.diveUntil && state.elapsed >= a.loopAfter && state.swing.ropeLength > 8) {
+  if (a.loop && ((!input.loopHeld && !a.loop.automatic) || !state.swing)) a.loop = null;
+  const loopRadial = state.swing ? normalize(subtract(state.position, state.swing.simulationPivot ?? state.swing.anchor)) : UP;
+  const loopRadius = state.swing?.ropeLength ?? 0;
+  // At the bottom a taut full loop needs v² >= 5gr. At other points account
+  // for already-earned potential energy. No button or motor manufactures it.
+  const naturalLoopEnergy = Boolean(state.swing && lengthSquared(reject(state.velocity, loopRadial))
+    > config.gravity * loopRadius * (3 - 2 * loopRadial.y) * 1.08);
+  const requestedLoop = input.loopHeld && a.diveSpeed >= ADVANCED_TUNING.loopMinimumDiveSpeed && state.elapsed < a.diveUntil;
+  if ((naturalLoopEnergy || requestedLoop) && state.swing && !a.loop
+    && state.elapsed >= a.loopAfter && state.swing.ropeLength > 8) {
     const radial = normalize(subtract(state.position, state.swing.anchor));
     const axis = cross(radial, state.velocity);
     if (length(axis) > 1) {
-      a.loop = { axis: normalize(axis), previousRadial: radial, radians: 0, seconds: 0 };
+      a.loop = { axis: normalize(axis), previousRadial: radial, radians: 0, seconds: 0, automatic: naturalLoopEnergy };
       a.diveSpeed = 0; a.loopAfter = state.elapsed + 1;
     }
   }
@@ -1838,6 +2082,19 @@ export function commitAdvancedMotion(state: TraversalState, input: TraversalInpu
   const config = mergeConfig(overrides);
   if (!config.advancedTraversal || !state.advanced) return;
   const a = state.advanced;
+  if (state.wallRunActive && state.wall?.feetTouching && delta > 0) {
+    const moved = a.wallSamplePosition ? distance(state.position, a.wallSamplePosition) : Infinity;
+    const intent = Math.abs(input.wallClimb ?? 0) + Math.abs(input.wallStrafe ?? 0) + length(input.move ?? vector());
+    a.wallStallSeconds = intent > .1 && moved < delta * .8 ? (a.wallStallSeconds ?? 0) + delta : 0;
+    a.wallSamplePosition = copy(state.position);
+    if (a.wallStallSeconds > .12) {
+      const side = normalize(cross(UP, state.wall.normal));
+      const along = dot(side, input.move ?? input.cameraForward ?? state.velocity);
+      a.wallRecoverySide = state.elapsed < (a.wallRecoveryUntil ?? 0)
+        ? -(a.wallRecoverySide ?? 1) : Math.abs(along) > .1 ? Math.sign(along) : 1;
+      a.wallRecoveryUntil = state.elapsed + .6; a.wallStallSeconds = 0;
+    }
+  } else { a.wallSamplePosition = undefined; a.wallStallSeconds = 0; }
   if (state.grounded || state.wall?.feetTouching || state.wallRunActive || state.wallCrawlActive || state.mantle) {
     a.gliding = false; a.corner = null; a.loop = null;
   }
@@ -1852,8 +2109,8 @@ export function commitAdvancedMotion(state: TraversalState, input: TraversalInpu
     // Huge correction or backwards motion is not a successful acrobatic lap.
     if (Math.abs(angle) > .6 || angle < -.1 || loop.seconds > 8) { a.loop = null; return; }
     loop.radians = Math.max(0, loop.radians + angle); loop.previousRadial = radial;
-    if (loop.radians >= Math.PI * 2 - .04) {
-      state.velocity = add(state.velocity, scale(normalize(reject(state.velocity, radial)), 8));
+    if (loop.radians >= Math.PI * 2) {
+      // Completion awards style only; it does not create kinetic energy.
       clampVelocity(state, config.maximumSpeed);
       a.loop = null; a.loopAfter = state.elapsed + .8; a.pulse = 1;
       events.push(event('loop-completed', state, { strength: length(state.velocity) }));

@@ -15,6 +15,8 @@ export type SwingAssistanceInput = {
 export type SwingAssistanceState = {
   /** Output buffer; caller copies this velocity before normal force integration. */
   velocity: AssistanceVector;
+  /** Feed this to TraversalEnvironment.predictiveAssistAcceleration; do not apply twice. */
+  acceleration: AssistanceVector;
   steering: number;
   groundLift: number;
   active: boolean;
@@ -24,7 +26,9 @@ export type SwingAssistanceState = {
   nextProbeAt: number;
   sampledPosition: AssistanceVector;
   sampledForward: AssistanceVector;
+  sampledWish: AssistanceVector;
   selectedDirection: AssistanceVector;
+  avoidanceNormal: AssistanceVector;
   origin: AssistanceVector;
   direction: AssistanceVector;
   distance: number;
@@ -42,15 +46,15 @@ const copy = (target: AssistanceVector, source: AssistanceVector) => {
 
 export function createSwingAssistanceState(): SwingAssistanceState {
   return {
-    velocity: vector(), steering: 0, groundLift: 0, active: false, probeCount: 0, refreshes: 0,
-    elapsed: 0, nextProbeAt: 0, sampledPosition: vector(), sampledForward: vector(),
-    selectedDirection: vector(), origin: vector(), direction: vector(), distance: 0,
+    velocity: vector(), acceleration: vector(), steering: 0, groundLift: 0, active: false, probeCount: 0, refreshes: 0,
+    elapsed: 0, nextProbeAt: 0, sampledPosition: vector(), sampledForward: vector(), sampledWish: vector(),
+    selectedDirection: vector(), avoidanceNormal: vector(), origin: vector(), direction: vector(), distance: 0,
     clearance: Infinity, selectedClearance: Infinity, turnSide: 0, threatened: false,
   };
 }
 
 /**
- * A nine-ray predictive fan softly rotates velocity toward a real clear lane.
+ * A predictive capsule-width fan softly rotates velocity toward a real clear lane.
  * It never teleports, never invents an anchor, never bounces away from a facade,
  * and never starts a wall animation. Deliberate dives bypass the entire system.
  *
@@ -60,6 +64,7 @@ export function createSwingAssistanceState(): SwingAssistanceState {
  */
 export function stepSwingAssistance(state: SwingAssistanceState, input: SwingAssistanceInput, probe: AssistanceProbe): SwingAssistanceState {
   copy(state.velocity, input.velocity);
+  state.acceleration.x = 0; state.acceleration.y = 0; state.acceleration.z = 0;
   state.steering = 0;
   state.groundLift = 0;
   state.active = false;
@@ -75,39 +80,63 @@ export function stepSwingAssistance(state: SwingAssistanceState, input: SwingAss
   }
   const fx = input.velocity.x / speed;
   const fz = input.velocity.z / speed;
+  const wish = input.desiredDirection;
+  const wishLength = wish ? Math.hypot(wish.x, wish.z) : 0;
+  const wx = wish && wishLength > .1 ? wish.x / wishLength : fx;
+  const wz = wish && wishLength > .1 ? wish.z / wishLength : fz;
   const movedX = input.position.x - state.sampledPosition.x;
   const movedY = input.position.y - state.sampledPosition.y;
   const movedZ = input.position.z - state.sampledPosition.z;
   const moved = Math.hypot(movedX, movedY, movedZ);
-  const changedHeading = fx * state.sampledForward.x + fz * state.sampledForward.z < .94;
+  const changedHeading = fx * state.sampledForward.x + fz * state.sampledForward.z < .98
+    || wx * state.sampledWish.x + wz * state.sampledWish.z < .98;
   if (state.elapsed >= state.nextProbeAt || moved > 4 || changedHeading) {
     state.refreshes++;
     state.nextProbeAt = state.elapsed + .1;
     copy(state.sampledPosition, input.position);
     state.sampledForward.x = fx; state.sampledForward.y = 0; state.sampledForward.z = fz;
+    state.sampledWish.x = wx; state.sampledWish.z = wz;
     const radius = input.playerRadius ?? .46;
     const height = input.playerHeight ?? 2.05;
-    const maximum = clamp(speed * .85, 9, 52);
+    // Faster traversal needs more than one reaction-time of visibility. This is
+    // deliberately generous at the high-assist default, but it still follows
+    // real raycast clearance and never moves the capsule itself.
+    const maximum = clamp(speed * 1.7, 24, 145);
     const slope = clamp(input.velocity.y / speed, -1.5, 1.5);
     const normalization = 1 / Math.hypot(1, slope);
     state.distance = maximum;
     state.clearance = maximum;
+    state.avoidanceNormal.x = 0; state.avoidanceNormal.y = 0; state.avoidanceNormal.z = 0;
     const origin = state.origin;
     const direction = state.direction;
     // Five parallel rays cover torso, feet, head and both shoulders. A single
     // center ray misses corner scrapes and thin geometry above/below the chest.
-    for (let sample = 0; sample < 5; sample++) {
+    for (let sample = 0; sample < 7; sample++) {
       const side = sample === 3 ? -radius : sample === 4 ? radius : 0;
       const y = sample === 1 ? radius : sample === 2 ? height - radius : height * .5;
       origin.x = input.position.x - fz * side;
       origin.y = input.position.y + y;
       origin.z = input.position.z + fx * side;
       direction.x = fx * normalization; direction.y = slope * normalization; direction.z = fz * normalization;
+      // Also inspect level travel and the path a camera turn is about to take.
+      // A descending center ray can hit the street before seeing the facade.
+      if (sample === 5) { direction.x = fx; direction.y = 0; direction.z = fz; }
+      if (sample === 6) {
+        const angle = clamp(Math.atan2(fx * wz - fz * wx, fx * wx + fz * wz), -.65, .65);
+        direction.x = fx * Math.cos(angle) - fz * Math.sin(angle);
+        direction.y = 0;
+        direction.z = fx * Math.sin(angle) + fz * Math.cos(angle);
+      }
       const hit = probe(origin, direction, maximum);
       state.probeCount++;
       // Horizontal steering must not respond to the ground/roof surface. The
       // force solver owns ground skim, while final mesh contact owns collision.
-      if (hit && Math.abs(hit.normal.y) < .65 && hit.distance >= 0) state.clearance = Math.min(state.clearance, hit.distance);
+      if (hit && Math.abs(hit.normal.y) < .65 && hit.distance >= 0 && hit.distance < state.clearance) {
+        state.clearance = hit.distance;
+        const sign = hit.normal.x * direction.x + hit.normal.z * direction.z > 0 ? -1 : 1;
+        state.avoidanceNormal.x = hit.normal.x * sign;
+        state.avoidanceNormal.z = hit.normal.z * sign;
+      }
     }
     state.threatened = state.clearance < maximum - .05;
     state.selectedClearance = maximum;
@@ -115,22 +144,25 @@ export function stepSwingAssistance(state: SwingAssistanceState, input: SwingAss
     if (state.threatened) {
       let bestScore = -Infinity;
       let selectedSide = state.turnSide;
-      const wish = input.desiredDirection;
-      const wishLength = wish ? Math.hypot(wish.x, wish.z) : 0;
       // Wider fan rays look for usable lanes instead of simply adding an outward
       // wall normal. A modest previous-side bonus prevents left/right flicker.
-      for (const angle of [-.55, .55, -1.05, 1.05]) {
+      for (const angle of [-.3, .3, -.65, .65, -1.05, 1.05, -1.4, 1.4, -1.65, 1.65]) {
         const cos = Math.cos(angle), sin = Math.sin(angle);
         const dx = fx * cos - fz * sin;
         const dz = fx * sin + fz * cos;
-        origin.x = input.position.x; origin.y = input.position.y + height * .5; origin.z = input.position.z;
-        direction.x = dx * normalization; direction.y = slope * normalization; direction.z = dz * normalization;
-        const hit = probe(origin, direction, maximum);
-        state.probeCount++;
-        const clearance = hit && Math.abs(hit.normal.y) < .65 ? hit.distance : maximum;
+        let clearance = maximum;
+        for (const sideOffset of [-radius - .35, 0, radius + .35]) {
+          origin.x = input.position.x - dz * sideOffset;
+          origin.y = input.position.y + height * .5;
+          origin.z = input.position.z + dx * sideOffset;
+          direction.x = dx; direction.y = 0; direction.z = dz;
+          const hit = probe(origin, direction, maximum);
+          state.probeCount++;
+          if (hit && Math.abs(hit.normal.y) < .65) clearance = Math.min(clearance, hit.distance);
+        }
         const side = Math.sign(angle);
-        const intent = wish && wishLength > .1 ? (wish.x * dx + wish.z * dz) / wishLength : 0;
-        const score = clearance / maximum - Math.abs(angle) * .1 + intent * .2 + (side === state.turnSide ? .065 : 0);
+        const intent = wx * dx + wz * dz;
+        const score = clearance / maximum * 1.5 - Math.abs(angle) * .1 + intent * .32 + (side === state.turnSide ? .16 : 0);
         if (score > bestScore) {
           bestScore = score;
           state.selectedDirection.x = dx; state.selectedDirection.z = dz;
@@ -148,19 +180,27 @@ export function stepSwingAssistance(state: SwingAssistanceState, input: SwingAss
   const targetAngle = Math.atan2(fx * state.selectedDirection.z - fz * state.selectedDirection.x,
     fx * state.selectedDirection.x + fz * state.selectedDirection.z);
   const urgency = clamp(1 - clearance / Math.max(1, state.distance), 0, 1);
-  // Rotation preserves horizontal kinetic speed. Lateral acceleration is capped,
-  // and emergency braking only ever removes forward speed, never reverses it.
-  const maximumTurn = Math.min(1.25, 42 / speed) * (.3 + urgency * .7) * dt;
+  // Start rotating early. If there is too little turning room, shed speed
+  // progressively while turning; never teleport or reflect off the facade.
+  const maximumTurn = Math.min(2.6, 78 / speed) * (.8 + urgency * .2) * dt;
   const turn = clamp(targetAngle, -maximumTurn, maximumTurn);
   const collisionTime = clearance / speed;
-  const selectedStillBlocked = state.selectedClearance < state.distance * .78;
-  const braking = selectedStillBlocked && collisionTime < .35 ? 18 * clamp(1 - collisionTime / .35, 0, 1) * dt : 0;
+  const normalLength = Math.hypot(state.avoidanceNormal.x, state.avoidanceNormal.z);
+  const inward = normalLength > .01
+    ? Math.max(0, -(fx * state.avoidanceNormal.x + fz * state.avoidanceNormal.z) / normalLength) : 0;
+  const safeSpeed = Math.sqrt(2 * 54 * Math.max(0, clearance - 1));
+  const braking = collisionTime < .65 && inward > .55
+    ? Math.min(54 * dt, Math.max(0, speed - safeSpeed)) : 0;
   const correctedSpeed = Math.max(0, speed - braking);
   const cos = Math.cos(turn), sin = Math.sin(turn);
-  state.velocity.x = (fx * cos - fz * sin) * correctedSpeed;
-  state.velocity.z = (fx * sin + fz * cos) * correctedSpeed;
+  const dx = fx * cos - fz * sin;
+  const dz = fx * sin + fz * cos;
+  state.velocity.x = dx * correctedSpeed;
+  state.velocity.z = dz * correctedSpeed;
   // Y is exactly the caller's Y: ground assist, gravity, rope tension and dive
   // acceleration are composed once by the existing force-based solver.
+  state.acceleration.x = (state.velocity.x - input.velocity.x) / dt;
+  state.acceleration.z = (state.velocity.z - input.velocity.z) / dt;
   state.steering = turn / dt;
   state.active = Math.abs(turn) > 1e-6 || braking > 1e-6;
   return state;

@@ -1,0 +1,1782 @@
+{
+  "generatedAt": "2026-09-19T18:42:25.749Z",
+  "method": "Mixamo FBX source rig sampled at 30fps and retargeted in world space; source meshes and materials discarded",
+  "report": [
+    {
+      "packId": "2099",
+      "modelId": "miguel-2099",
+      "clips": 73,
+      "bytes": 11887236,
+      "imported": [
+        {
+          "name": "Shooting",
+          "file": "X Bot@Shooting.fbx",
+          "sha256": "7a0bf68b7d161f577ab14cb3b27593e06b7d453c931b459ab7d5357177ca4dba",
+          "duration": 1.1666666269302368,
+          "tracks": 65
+        },
+        {
+          "name": "Block",
+          "file": "X Bot@Block.fbx",
+          "sha256": "95b07078bc47da814c55882eb001affb772c972f483b83e4b839a27225c6cb52",
+          "duration": 2.866666555404663,
+          "tracks": 65
+        },
+        {
+          "name": "Body Block",
+          "file": "X Bot@Body Block.fbx",
+          "sha256": "3f61960d4d5b0241d38f1c00ba63678e7f9f344b27d4f48671e14f3fb5d7746f",
+          "duration": 3.433333396911621,
+          "tracks": 65
+        },
+        {
+          "name": "Punching",
+          "file": "X Bot@Punching.fbx",
+          "sha256": "8d6d929b88f159164bc4b0648d7cebe4b5fb435798e08a49d3ada857f09e0af3",
+          "duration": 1.2666666507720947,
+          "tracks": 65
+        },
+        {
+          "name": "Fist Fight A",
+          "file": "X Bot@Fist Fight A.fbx",
+          "sha256": "e551eff7e8953101f810bcccc0c3c1821857c73edc9c703d37e0d605bfccd1a1",
+          "duration": 4.666666507720947,
+          "tracks": 65
+        },
+        {
+          "name": "Kicking",
+          "file": "X Bot@Kicking.fbx",
+          "sha256": "3bbe5aab2a3b02f688db6115e70c94baa44f85883c24dc1b9146d46dbc6d08ac",
+          "duration": 2.1666667461395264,
+          "tracks": 65
+        },
+        {
+          "name": "Hurricane Kick",
+          "file": "X Bot@Hurricane Kick.fbx",
+          "sha256": "f282ec0f49baa1c6c52d4d6d3965b3d769c3ed6c7d928f9f1d1cda33b1c0c824",
+          "duration": 1.8333333730697632,
+          "tracks": 65
+        },
+        {
+          "name": "Receive Uppercut To The Face",
+          "file": "X Bot@Receive Uppercut To The Face.fbx",
+          "sha256": "734c70992fad801fd1e26ff98f4c5bfe0bcd89612da8ce1347d7e14bdb93d5f6",
+          "duration": 1.2333333492279053,
+          "tracks": 65
+        },
+        {
+          "name": "Taunt",
+          "file": "X Bot@Taunt.fbx",
+          "sha256": "0d8480bc424c65b530faa736c9163f37bdde4fe2202ef6a8129862d71e698cac",
+          "duration": 2.8333332538604736,
+          "tracks": 65
+        },
+        {
+          "name": "Defeated",
+          "file": "X Bot@Defeated.fbx",
+          "sha256": "6d419fb913bea3ee39968da3f51d247455279ced2687a5fbadb9f99da65acd4a",
+          "duration": 6.733333110809326,
+          "tracks": 65
+        },
+        {
+          "name": "Flying Shoulder Throw",
+          "file": "X Bot@Flying Shoulder Throw.fbx",
+          "sha256": "a018d00b00672a934d6bcda5ea112bae1cdcbc0a4ea507e2abc0b29d68289d31",
+          "duration": 3.700000047683716,
+          "tracks": 65
+        },
+        {
+          "name": "Getting Thrown",
+          "file": "X Bot@Getting Thrown.fbx",
+          "sha256": "cb2032723f087620509df7372eee533bfac2e2445b20ac8bcd9be517c0cde60f",
+          "duration": 4.333333492279053,
+          "tracks": 65
+        },
+        {
+          "name": "Spin Flip Kick",
+          "file": "X Bot@Spin Flip Kick.fbx",
+          "sha256": "5b451d3f78e4841ee57d21f5f12105d41a3375c5e5dfe043835c321fbe1b30ca",
+          "duration": 3.700000047683716,
+          "tracks": 65
+        },
+        {
+          "name": "Flip Kick",
+          "file": "X Bot@Flip Kick.fbx",
+          "sha256": "0f2ed010713b6262b8f5b4d2ec49300b10f0f6f371e6e779dfdac99790dedbbf",
+          "duration": 2.799999952316284,
+          "tracks": 65
+        },
+        {
+          "name": "Big Body Blow",
+          "file": "Big Body Blow.fbx",
+          "sha256": "b3a2321fe4d3d6f4cf81a95a6efafb66eb65668be3ce09f774549ba878b863f4",
+          "duration": 2.566666603088379,
+          "tracks": 129
+        },
+        {
+          "name": "Corkscrew Kip Up",
+          "file": "Corkscrew Kip Up.fbx",
+          "sha256": "a19503021ef711ebcbd8018274f83fb353cd143ff46d7269734ddcfbb1c1e4b3",
+          "duration": 2.7666666507720947,
+          "tracks": 129
+        },
+        {
+          "name": "Wall Crash",
+          "file": "Wall Crash.fbx",
+          "sha256": "9290b9a4866b23d60af0fe5c8256316d1d595ad3b1ec85a9d3779bb03ea862b0",
+          "duration": 2.4666666984558105,
+          "tracks": 129
+        },
+        {
+          "name": "Grab And Slam",
+          "file": "Grab And Slam.fbx",
+          "sha256": "d7b224e3bfd25724217bd618ff95d16b308d8c8c4a4aa4ae8b50f2d795bcd14c",
+          "duration": 4.266666889190674,
+          "tracks": 129
+        },
+        {
+          "name": "Butterfly Twirl",
+          "file": "Butterfly Twirl.fbx",
+          "sha256": "c0f7d54acf9a2024fd6dd0960b88ae3e1975945b5c84be55fd28fbe14f20d6d8",
+          "duration": 3.066666603088379,
+          "tracks": 129
+        },
+        {
+          "name": "Drop Kick",
+          "file": "Drop Kick.fbx",
+          "sha256": "42d31c403643a11f12e43ea26c019068e4391aeeeae7daee7dd32a3b80b2e397",
+          "duration": 2.9000000953674316,
+          "tracks": 129
+        }
+      ]
+    },
+    {
+      "packId": "amazing",
+      "modelId": "amazing",
+      "clips": 73,
+      "bytes": 11737936,
+      "imported": [
+        {
+          "name": "Shooting",
+          "file": "X Bot@Shooting.fbx",
+          "sha256": "7a0bf68b7d161f577ab14cb3b27593e06b7d453c931b459ab7d5357177ca4dba",
+          "duration": 1.1666666269302368,
+          "tracks": 65
+        },
+        {
+          "name": "Block",
+          "file": "X Bot@Block.fbx",
+          "sha256": "95b07078bc47da814c55882eb001affb772c972f483b83e4b839a27225c6cb52",
+          "duration": 2.866666555404663,
+          "tracks": 65
+        },
+        {
+          "name": "Body Block",
+          "file": "X Bot@Body Block.fbx",
+          "sha256": "3f61960d4d5b0241d38f1c00ba63678e7f9f344b27d4f48671e14f3fb5d7746f",
+          "duration": 3.433333396911621,
+          "tracks": 65
+        },
+        {
+          "name": "Punching",
+          "file": "X Bot@Punching.fbx",
+          "sha256": "8d6d929b88f159164bc4b0648d7cebe4b5fb435798e08a49d3ada857f09e0af3",
+          "duration": 1.2666666507720947,
+          "tracks": 65
+        },
+        {
+          "name": "Fist Fight A",
+          "file": "X Bot@Fist Fight A.fbx",
+          "sha256": "e551eff7e8953101f810bcccc0c3c1821857c73edc9c703d37e0d605bfccd1a1",
+          "duration": 4.666666507720947,
+          "tracks": 65
+        },
+        {
+          "name": "Kicking",
+          "file": "X Bot@Kicking.fbx",
+          "sha256": "3bbe5aab2a3b02f688db6115e70c94baa44f85883c24dc1b9146d46dbc6d08ac",
+          "duration": 2.1666667461395264,
+          "tracks": 65
+        },
+        {
+          "name": "Hurricane Kick",
+          "file": "X Bot@Hurricane Kick.fbx",
+          "sha256": "f282ec0f49baa1c6c52d4d6d3965b3d769c3ed6c7d928f9f1d1cda33b1c0c824",
+          "duration": 1.8333333730697632,
+          "tracks": 65
+        },
+        {
+          "name": "Receive Uppercut To The Face",
+          "file": "X Bot@Receive Uppercut To The Face.fbx",
+          "sha256": "734c70992fad801fd1e26ff98f4c5bfe0bcd89612da8ce1347d7e14bdb93d5f6",
+          "duration": 1.2333333492279053,
+          "tracks": 65
+        },
+        {
+          "name": "Taunt",
+          "file": "X Bot@Taunt.fbx",
+          "sha256": "0d8480bc424c65b530faa736c9163f37bdde4fe2202ef6a8129862d71e698cac",
+          "duration": 2.8333332538604736,
+          "tracks": 65
+        },
+        {
+          "name": "Defeated",
+          "file": "X Bot@Defeated.fbx",
+          "sha256": "6d419fb913bea3ee39968da3f51d247455279ced2687a5fbadb9f99da65acd4a",
+          "duration": 6.733333110809326,
+          "tracks": 65
+        },
+        {
+          "name": "Flying Shoulder Throw",
+          "file": "X Bot@Flying Shoulder Throw.fbx",
+          "sha256": "a018d00b00672a934d6bcda5ea112bae1cdcbc0a4ea507e2abc0b29d68289d31",
+          "duration": 3.700000047683716,
+          "tracks": 65
+        },
+        {
+          "name": "Getting Thrown",
+          "file": "X Bot@Getting Thrown.fbx",
+          "sha256": "cb2032723f087620509df7372eee533bfac2e2445b20ac8bcd9be517c0cde60f",
+          "duration": 4.333333492279053,
+          "tracks": 65
+        },
+        {
+          "name": "Spin Flip Kick",
+          "file": "X Bot@Spin Flip Kick.fbx",
+          "sha256": "5b451d3f78e4841ee57d21f5f12105d41a3375c5e5dfe043835c321fbe1b30ca",
+          "duration": 3.700000047683716,
+          "tracks": 65
+        },
+        {
+          "name": "Flip Kick",
+          "file": "X Bot@Flip Kick.fbx",
+          "sha256": "0f2ed010713b6262b8f5b4d2ec49300b10f0f6f371e6e779dfdac99790dedbbf",
+          "duration": 2.799999952316284,
+          "tracks": 65
+        },
+        {
+          "name": "Big Body Blow",
+          "file": "Big Body Blow.fbx",
+          "sha256": "b3a2321fe4d3d6f4cf81a95a6efafb66eb65668be3ce09f774549ba878b863f4",
+          "duration": 2.566666603088379,
+          "tracks": 129
+        },
+        {
+          "name": "Corkscrew Kip Up",
+          "file": "Corkscrew Kip Up.fbx",
+          "sha256": "a19503021ef711ebcbd8018274f83fb353cd143ff46d7269734ddcfbb1c1e4b3",
+          "duration": 2.7666666507720947,
+          "tracks": 129
+        },
+        {
+          "name": "Wall Crash",
+          "file": "Wall Crash.fbx",
+          "sha256": "9290b9a4866b23d60af0fe5c8256316d1d595ad3b1ec85a9d3779bb03ea862b0",
+          "duration": 2.4666666984558105,
+          "tracks": 129
+        },
+        {
+          "name": "Grab And Slam",
+          "file": "Grab And Slam.fbx",
+          "sha256": "d7b224e3bfd25724217bd618ff95d16b308d8c8c4a4aa4ae8b50f2d795bcd14c",
+          "duration": 4.266666889190674,
+          "tracks": 129
+        },
+        {
+          "name": "Butterfly Twirl",
+          "file": "Butterfly Twirl.fbx",
+          "sha256": "c0f7d54acf9a2024fd6dd0960b88ae3e1975945b5c84be55fd28fbe14f20d6d8",
+          "duration": 3.066666603088379,
+          "tracks": 129
+        },
+        {
+          "name": "Drop Kick",
+          "file": "Drop Kick.fbx",
+          "sha256": "42d31c403643a11f12e43ea26c019068e4391aeeeae7daee7dd32a3b80b2e397",
+          "duration": 2.9000000953674316,
+          "tracks": 129
+        }
+      ]
+    },
+    {
+      "packId": "classic-spider",
+      "modelId": "classic-spider",
+      "clips": 73,
+      "bytes": 11739388,
+      "imported": [
+        {
+          "name": "Shooting",
+          "file": "X Bot@Shooting.fbx",
+          "sha256": "7a0bf68b7d161f577ab14cb3b27593e06b7d453c931b459ab7d5357177ca4dba",
+          "duration": 1.1666666269302368,
+          "tracks": 65
+        },
+        {
+          "name": "Block",
+          "file": "X Bot@Block.fbx",
+          "sha256": "95b07078bc47da814c55882eb001affb772c972f483b83e4b839a27225c6cb52",
+          "duration": 2.866666555404663,
+          "tracks": 65
+        },
+        {
+          "name": "Body Block",
+          "file": "X Bot@Body Block.fbx",
+          "sha256": "3f61960d4d5b0241d38f1c00ba63678e7f9f344b27d4f48671e14f3fb5d7746f",
+          "duration": 3.433333396911621,
+          "tracks": 65
+        },
+        {
+          "name": "Punching",
+          "file": "X Bot@Punching.fbx",
+          "sha256": "8d6d929b88f159164bc4b0648d7cebe4b5fb435798e08a49d3ada857f09e0af3",
+          "duration": 1.2666666507720947,
+          "tracks": 65
+        },
+        {
+          "name": "Fist Fight A",
+          "file": "X Bot@Fist Fight A.fbx",
+          "sha256": "e551eff7e8953101f810bcccc0c3c1821857c73edc9c703d37e0d605bfccd1a1",
+          "duration": 4.666666507720947,
+          "tracks": 65
+        },
+        {
+          "name": "Kicking",
+          "file": "X Bot@Kicking.fbx",
+          "sha256": "3bbe5aab2a3b02f688db6115e70c94baa44f85883c24dc1b9146d46dbc6d08ac",
+          "duration": 2.1666667461395264,
+          "tracks": 65
+        },
+        {
+          "name": "Hurricane Kick",
+          "file": "X Bot@Hurricane Kick.fbx",
+          "sha256": "f282ec0f49baa1c6c52d4d6d3965b3d769c3ed6c7d928f9f1d1cda33b1c0c824",
+          "duration": 1.8333333730697632,
+          "tracks": 65
+        },
+        {
+          "name": "Receive Uppercut To The Face",
+          "file": "X Bot@Receive Uppercut To The Face.fbx",
+          "sha256": "734c70992fad801fd1e26ff98f4c5bfe0bcd89612da8ce1347d7e14bdb93d5f6",
+          "duration": 1.2333333492279053,
+          "tracks": 65
+        },
+        {
+          "name": "Taunt",
+          "file": "X Bot@Taunt.fbx",
+          "sha256": "0d8480bc424c65b530faa736c9163f37bdde4fe2202ef6a8129862d71e698cac",
+          "duration": 2.8333332538604736,
+          "tracks": 65
+        },
+        {
+          "name": "Defeated",
+          "file": "X Bot@Defeated.fbx",
+          "sha256": "6d419fb913bea3ee39968da3f51d247455279ced2687a5fbadb9f99da65acd4a",
+          "duration": 6.733333110809326,
+          "tracks": 65
+        },
+        {
+          "name": "Flying Shoulder Throw",
+          "file": "X Bot@Flying Shoulder Throw.fbx",
+          "sha256": "a018d00b00672a934d6bcda5ea112bae1cdcbc0a4ea507e2abc0b29d68289d31",
+          "duration": 3.700000047683716,
+          "tracks": 65
+        },
+        {
+          "name": "Getting Thrown",
+          "file": "X Bot@Getting Thrown.fbx",
+          "sha256": "cb2032723f087620509df7372eee533bfac2e2445b20ac8bcd9be517c0cde60f",
+          "duration": 4.333333492279053,
+          "tracks": 65
+        },
+        {
+          "name": "Spin Flip Kick",
+          "file": "X Bot@Spin Flip Kick.fbx",
+          "sha256": "5b451d3f78e4841ee57d21f5f12105d41a3375c5e5dfe043835c321fbe1b30ca",
+          "duration": 3.700000047683716,
+          "tracks": 65
+        },
+        {
+          "name": "Flip Kick",
+          "file": "X Bot@Flip Kick.fbx",
+          "sha256": "0f2ed010713b6262b8f5b4d2ec49300b10f0f6f371e6e779dfdac99790dedbbf",
+          "duration": 2.799999952316284,
+          "tracks": 65
+        },
+        {
+          "name": "Big Body Blow",
+          "file": "Big Body Blow.fbx",
+          "sha256": "b3a2321fe4d3d6f4cf81a95a6efafb66eb65668be3ce09f774549ba878b863f4",
+          "duration": 2.566666603088379,
+          "tracks": 129
+        },
+        {
+          "name": "Corkscrew Kip Up",
+          "file": "Corkscrew Kip Up.fbx",
+          "sha256": "a19503021ef711ebcbd8018274f83fb353cd143ff46d7269734ddcfbb1c1e4b3",
+          "duration": 2.7666666507720947,
+          "tracks": 129
+        },
+        {
+          "name": "Wall Crash",
+          "file": "Wall Crash.fbx",
+          "sha256": "9290b9a4866b23d60af0fe5c8256316d1d595ad3b1ec85a9d3779bb03ea862b0",
+          "duration": 2.4666666984558105,
+          "tracks": 129
+        },
+        {
+          "name": "Grab And Slam",
+          "file": "Grab And Slam.fbx",
+          "sha256": "d7b224e3bfd25724217bd618ff95d16b308d8c8c4a4aa4ae8b50f2d795bcd14c",
+          "duration": 4.266666889190674,
+          "tracks": 129
+        },
+        {
+          "name": "Butterfly Twirl",
+          "file": "Butterfly Twirl.fbx",
+          "sha256": "c0f7d54acf9a2024fd6dd0960b88ae3e1975945b5c84be55fd28fbe14f20d6d8",
+          "duration": 3.066666603088379,
+          "tracks": 129
+        },
+        {
+          "name": "Drop Kick",
+          "file": "Drop Kick.fbx",
+          "sha256": "42d31c403643a11f12e43ea26c019068e4391aeeeae7daee7dd32a3b80b2e397",
+          "duration": 2.9000000953674316,
+          "tracks": 129
+        }
+      ]
+    },
+    {
+      "packId": "classic-suit",
+      "modelId": "classic-suit",
+      "clips": 73,
+      "bytes": 9097776,
+      "imported": [
+        {
+          "name": "Shooting",
+          "file": "X Bot@Shooting.fbx",
+          "sha256": "7a0bf68b7d161f577ab14cb3b27593e06b7d453c931b459ab7d5357177ca4dba",
+          "duration": 1.1666666269302368,
+          "tracks": 49
+        },
+        {
+          "name": "Block",
+          "file": "X Bot@Block.fbx",
+          "sha256": "95b07078bc47da814c55882eb001affb772c972f483b83e4b839a27225c6cb52",
+          "duration": 2.866666555404663,
+          "tracks": 49
+        },
+        {
+          "name": "Body Block",
+          "file": "X Bot@Body Block.fbx",
+          "sha256": "3f61960d4d5b0241d38f1c00ba63678e7f9f344b27d4f48671e14f3fb5d7746f",
+          "duration": 3.433333396911621,
+          "tracks": 49
+        },
+        {
+          "name": "Punching",
+          "file": "X Bot@Punching.fbx",
+          "sha256": "8d6d929b88f159164bc4b0648d7cebe4b5fb435798e08a49d3ada857f09e0af3",
+          "duration": 1.2666666507720947,
+          "tracks": 49
+        },
+        {
+          "name": "Fist Fight A",
+          "file": "X Bot@Fist Fight A.fbx",
+          "sha256": "e551eff7e8953101f810bcccc0c3c1821857c73edc9c703d37e0d605bfccd1a1",
+          "duration": 4.666666507720947,
+          "tracks": 49
+        },
+        {
+          "name": "Kicking",
+          "file": "X Bot@Kicking.fbx",
+          "sha256": "3bbe5aab2a3b02f688db6115e70c94baa44f85883c24dc1b9146d46dbc6d08ac",
+          "duration": 2.1666667461395264,
+          "tracks": 49
+        },
+        {
+          "name": "Hurricane Kick",
+          "file": "X Bot@Hurricane Kick.fbx",
+          "sha256": "f282ec0f49baa1c6c52d4d6d3965b3d769c3ed6c7d928f9f1d1cda33b1c0c824",
+          "duration": 1.8333333730697632,
+          "tracks": 49
+        },
+        {
+          "name": "Receive Uppercut To The Face",
+          "file": "X Bot@Receive Uppercut To The Face.fbx",
+          "sha256": "734c70992fad801fd1e26ff98f4c5bfe0bcd89612da8ce1347d7e14bdb93d5f6",
+          "duration": 1.2333333492279053,
+          "tracks": 49
+        },
+        {
+          "name": "Taunt",
+          "file": "X Bot@Taunt.fbx",
+          "sha256": "0d8480bc424c65b530faa736c9163f37bdde4fe2202ef6a8129862d71e698cac",
+          "duration": 2.8333332538604736,
+          "tracks": 49
+        },
+        {
+          "name": "Defeated",
+          "file": "X Bot@Defeated.fbx",
+          "sha256": "6d419fb913bea3ee39968da3f51d247455279ced2687a5fbadb9f99da65acd4a",
+          "duration": 6.733333110809326,
+          "tracks": 49
+        },
+        {
+          "name": "Flying Shoulder Throw",
+          "file": "X Bot@Flying Shoulder Throw.fbx",
+          "sha256": "a018d00b00672a934d6bcda5ea112bae1cdcbc0a4ea507e2abc0b29d68289d31",
+          "duration": 3.700000047683716,
+          "tracks": 49
+        },
+        {
+          "name": "Getting Thrown",
+          "file": "X Bot@Getting Thrown.fbx",
+          "sha256": "cb2032723f087620509df7372eee533bfac2e2445b20ac8bcd9be517c0cde60f",
+          "duration": 4.333333492279053,
+          "tracks": 49
+        },
+        {
+          "name": "Spin Flip Kick",
+          "file": "X Bot@Spin Flip Kick.fbx",
+          "sha256": "5b451d3f78e4841ee57d21f5f12105d41a3375c5e5dfe043835c321fbe1b30ca",
+          "duration": 3.700000047683716,
+          "tracks": 49
+        },
+        {
+          "name": "Flip Kick",
+          "file": "X Bot@Flip Kick.fbx",
+          "sha256": "0f2ed010713b6262b8f5b4d2ec49300b10f0f6f371e6e779dfdac99790dedbbf",
+          "duration": 2.799999952316284,
+          "tracks": 49
+        },
+        {
+          "name": "Big Body Blow",
+          "file": "Big Body Blow.fbx",
+          "sha256": "b3a2321fe4d3d6f4cf81a95a6efafb66eb65668be3ce09f774549ba878b863f4",
+          "duration": 2.566666603088379,
+          "tracks": 97
+        },
+        {
+          "name": "Corkscrew Kip Up",
+          "file": "Corkscrew Kip Up.fbx",
+          "sha256": "a19503021ef711ebcbd8018274f83fb353cd143ff46d7269734ddcfbb1c1e4b3",
+          "duration": 2.7666666507720947,
+          "tracks": 97
+        },
+        {
+          "name": "Wall Crash",
+          "file": "Wall Crash.fbx",
+          "sha256": "9290b9a4866b23d60af0fe5c8256316d1d595ad3b1ec85a9d3779bb03ea862b0",
+          "duration": 2.4666666984558105,
+          "tracks": 97
+        },
+        {
+          "name": "Grab And Slam",
+          "file": "Grab And Slam.fbx",
+          "sha256": "d7b224e3bfd25724217bd618ff95d16b308d8c8c4a4aa4ae8b50f2d795bcd14c",
+          "duration": 4.266666889190674,
+          "tracks": 97
+        },
+        {
+          "name": "Butterfly Twirl",
+          "file": "Butterfly Twirl.fbx",
+          "sha256": "c0f7d54acf9a2024fd6dd0960b88ae3e1975945b5c84be55fd28fbe14f20d6d8",
+          "duration": 3.066666603088379,
+          "tracks": 97
+        },
+        {
+          "name": "Drop Kick",
+          "file": "Drop Kick.fbx",
+          "sha256": "42d31c403643a11f12e43ea26c019068e4391aeeeae7daee7dd32a3b80b2e397",
+          "duration": 2.9000000953674316,
+          "tracks": 97
+        }
+      ]
+    },
+    {
+      "packId": "homecoming-tech",
+      "modelId": "homecoming-tech",
+      "clips": 73,
+      "bytes": 9686408,
+      "imported": [
+        {
+          "name": "Shooting",
+          "file": "X Bot@Shooting.fbx",
+          "sha256": "7a0bf68b7d161f577ab14cb3b27593e06b7d453c931b459ab7d5357177ca4dba",
+          "duration": 1.1666666269302368,
+          "tracks": 52
+        },
+        {
+          "name": "Block",
+          "file": "X Bot@Block.fbx",
+          "sha256": "95b07078bc47da814c55882eb001affb772c972f483b83e4b839a27225c6cb52",
+          "duration": 2.866666555404663,
+          "tracks": 52
+        },
+        {
+          "name": "Body Block",
+          "file": "X Bot@Body Block.fbx",
+          "sha256": "3f61960d4d5b0241d38f1c00ba63678e7f9f344b27d4f48671e14f3fb5d7746f",
+          "duration": 3.433333396911621,
+          "tracks": 52
+        },
+        {
+          "name": "Punching",
+          "file": "X Bot@Punching.fbx",
+          "sha256": "8d6d929b88f159164bc4b0648d7cebe4b5fb435798e08a49d3ada857f09e0af3",
+          "duration": 1.2666666507720947,
+          "tracks": 52
+        },
+        {
+          "name": "Fist Fight A",
+          "file": "X Bot@Fist Fight A.fbx",
+          "sha256": "e551eff7e8953101f810bcccc0c3c1821857c73edc9c703d37e0d605bfccd1a1",
+          "duration": 4.666666507720947,
+          "tracks": 52
+        },
+        {
+          "name": "Kicking",
+          "file": "X Bot@Kicking.fbx",
+          "sha256": "3bbe5aab2a3b02f688db6115e70c94baa44f85883c24dc1b9146d46dbc6d08ac",
+          "duration": 2.1666667461395264,
+          "tracks": 52
+        },
+        {
+          "name": "Hurricane Kick",
+          "file": "X Bot@Hurricane Kick.fbx",
+          "sha256": "f282ec0f49baa1c6c52d4d6d3965b3d769c3ed6c7d928f9f1d1cda33b1c0c824",
+          "duration": 1.8333333730697632,
+          "tracks": 52
+        },
+        {
+          "name": "Receive Uppercut To The Face",
+          "file": "X Bot@Receive Uppercut To The Face.fbx",
+          "sha256": "734c70992fad801fd1e26ff98f4c5bfe0bcd89612da8ce1347d7e14bdb93d5f6",
+          "duration": 1.2333333492279053,
+          "tracks": 52
+        },
+        {
+          "name": "Taunt",
+          "file": "X Bot@Taunt.fbx",
+          "sha256": "0d8480bc424c65b530faa736c9163f37bdde4fe2202ef6a8129862d71e698cac",
+          "duration": 2.8333332538604736,
+          "tracks": 52
+        },
+        {
+          "name": "Defeated",
+          "file": "X Bot@Defeated.fbx",
+          "sha256": "6d419fb913bea3ee39968da3f51d247455279ced2687a5fbadb9f99da65acd4a",
+          "duration": 6.733333110809326,
+          "tracks": 52
+        },
+        {
+          "name": "Flying Shoulder Throw",
+          "file": "X Bot@Flying Shoulder Throw.fbx",
+          "sha256": "a018d00b00672a934d6bcda5ea112bae1cdcbc0a4ea507e2abc0b29d68289d31",
+          "duration": 3.700000047683716,
+          "tracks": 52
+        },
+        {
+          "name": "Getting Thrown",
+          "file": "X Bot@Getting Thrown.fbx",
+          "sha256": "cb2032723f087620509df7372eee533bfac2e2445b20ac8bcd9be517c0cde60f",
+          "duration": 4.333333492279053,
+          "tracks": 52
+        },
+        {
+          "name": "Spin Flip Kick",
+          "file": "X Bot@Spin Flip Kick.fbx",
+          "sha256": "5b451d3f78e4841ee57d21f5f12105d41a3375c5e5dfe043835c321fbe1b30ca",
+          "duration": 3.700000047683716,
+          "tracks": 52
+        },
+        {
+          "name": "Flip Kick",
+          "file": "X Bot@Flip Kick.fbx",
+          "sha256": "0f2ed010713b6262b8f5b4d2ec49300b10f0f6f371e6e779dfdac99790dedbbf",
+          "duration": 2.799999952316284,
+          "tracks": 52
+        },
+        {
+          "name": "Big Body Blow",
+          "file": "Big Body Blow.fbx",
+          "sha256": "b3a2321fe4d3d6f4cf81a95a6efafb66eb65668be3ce09f774549ba878b863f4",
+          "duration": 2.566666603088379,
+          "tracks": 104
+        },
+        {
+          "name": "Corkscrew Kip Up",
+          "file": "Corkscrew Kip Up.fbx",
+          "sha256": "a19503021ef711ebcbd8018274f83fb353cd143ff46d7269734ddcfbb1c1e4b3",
+          "duration": 2.7666666507720947,
+          "tracks": 104
+        },
+        {
+          "name": "Wall Crash",
+          "file": "Wall Crash.fbx",
+          "sha256": "9290b9a4866b23d60af0fe5c8256316d1d595ad3b1ec85a9d3779bb03ea862b0",
+          "duration": 2.4666666984558105,
+          "tracks": 104
+        },
+        {
+          "name": "Grab And Slam",
+          "file": "Grab And Slam.fbx",
+          "sha256": "d7b224e3bfd25724217bd618ff95d16b308d8c8c4a4aa4ae8b50f2d795bcd14c",
+          "duration": 4.266666889190674,
+          "tracks": 104
+        },
+        {
+          "name": "Butterfly Twirl",
+          "file": "Butterfly Twirl.fbx",
+          "sha256": "c0f7d54acf9a2024fd6dd0960b88ae3e1975945b5c84be55fd28fbe14f20d6d8",
+          "duration": 3.066666603088379,
+          "tracks": 104
+        },
+        {
+          "name": "Drop Kick",
+          "file": "Drop Kick.fbx",
+          "sha256": "42d31c403643a11f12e43ea26c019068e4391aeeeae7daee7dd32a3b80b2e397",
+          "duration": 2.9000000953674316,
+          "tracks": 104
+        }
+      ]
+    },
+    {
+      "packId": "miles-animated",
+      "modelId": "miles-animated",
+      "clips": 73,
+      "bytes": 12466548,
+      "imported": [
+        {
+          "name": "Shooting",
+          "file": "X Bot@Shooting.fbx",
+          "sha256": "7a0bf68b7d161f577ab14cb3b27593e06b7d453c931b459ab7d5357177ca4dba",
+          "duration": 1.1666666269302368,
+          "tracks": 65
+        },
+        {
+          "name": "Block",
+          "file": "X Bot@Block.fbx",
+          "sha256": "95b07078bc47da814c55882eb001affb772c972f483b83e4b839a27225c6cb52",
+          "duration": 2.866666555404663,
+          "tracks": 65
+        },
+        {
+          "name": "Body Block",
+          "file": "X Bot@Body Block.fbx",
+          "sha256": "3f61960d4d5b0241d38f1c00ba63678e7f9f344b27d4f48671e14f3fb5d7746f",
+          "duration": 3.433333396911621,
+          "tracks": 65
+        },
+        {
+          "name": "Punching",
+          "file": "X Bot@Punching.fbx",
+          "sha256": "8d6d929b88f159164bc4b0648d7cebe4b5fb435798e08a49d3ada857f09e0af3",
+          "duration": 1.2666666507720947,
+          "tracks": 65
+        },
+        {
+          "name": "Fist Fight A",
+          "file": "X Bot@Fist Fight A.fbx",
+          "sha256": "e551eff7e8953101f810bcccc0c3c1821857c73edc9c703d37e0d605bfccd1a1",
+          "duration": 4.666666507720947,
+          "tracks": 65
+        },
+        {
+          "name": "Kicking",
+          "file": "X Bot@Kicking.fbx",
+          "sha256": "3bbe5aab2a3b02f688db6115e70c94baa44f85883c24dc1b9146d46dbc6d08ac",
+          "duration": 2.1666667461395264,
+          "tracks": 65
+        },
+        {
+          "name": "Hurricane Kick",
+          "file": "X Bot@Hurricane Kick.fbx",
+          "sha256": "f282ec0f49baa1c6c52d4d6d3965b3d769c3ed6c7d928f9f1d1cda33b1c0c824",
+          "duration": 1.8333333730697632,
+          "tracks": 65
+        },
+        {
+          "name": "Receive Uppercut To The Face",
+          "file": "X Bot@Receive Uppercut To The Face.fbx",
+          "sha256": "734c70992fad801fd1e26ff98f4c5bfe0bcd89612da8ce1347d7e14bdb93d5f6",
+          "duration": 1.2333333492279053,
+          "tracks": 65
+        },
+        {
+          "name": "Taunt",
+          "file": "X Bot@Taunt.fbx",
+          "sha256": "0d8480bc424c65b530faa736c9163f37bdde4fe2202ef6a8129862d71e698cac",
+          "duration": 2.8333332538604736,
+          "tracks": 65
+        },
+        {
+          "name": "Defeated",
+          "file": "X Bot@Defeated.fbx",
+          "sha256": "6d419fb913bea3ee39968da3f51d247455279ced2687a5fbadb9f99da65acd4a",
+          "duration": 6.733333110809326,
+          "tracks": 65
+        },
+        {
+          "name": "Flying Shoulder Throw",
+          "file": "X Bot@Flying Shoulder Throw.fbx",
+          "sha256": "a018d00b00672a934d6bcda5ea112bae1cdcbc0a4ea507e2abc0b29d68289d31",
+          "duration": 3.700000047683716,
+          "tracks": 65
+        },
+        {
+          "name": "Getting Thrown",
+          "file": "X Bot@Getting Thrown.fbx",
+          "sha256": "cb2032723f087620509df7372eee533bfac2e2445b20ac8bcd9be517c0cde60f",
+          "duration": 4.333333492279053,
+          "tracks": 65
+        },
+        {
+          "name": "Spin Flip Kick",
+          "file": "X Bot@Spin Flip Kick.fbx",
+          "sha256": "5b451d3f78e4841ee57d21f5f12105d41a3375c5e5dfe043835c321fbe1b30ca",
+          "duration": 3.700000047683716,
+          "tracks": 65
+        },
+        {
+          "name": "Flip Kick",
+          "file": "X Bot@Flip Kick.fbx",
+          "sha256": "0f2ed010713b6262b8f5b4d2ec49300b10f0f6f371e6e779dfdac99790dedbbf",
+          "duration": 2.799999952316284,
+          "tracks": 65
+        },
+        {
+          "name": "Big Body Blow",
+          "file": "Big Body Blow.fbx",
+          "sha256": "b3a2321fe4d3d6f4cf81a95a6efafb66eb65668be3ce09f774549ba878b863f4",
+          "duration": 2.566666603088379,
+          "tracks": 129
+        },
+        {
+          "name": "Corkscrew Kip Up",
+          "file": "Corkscrew Kip Up.fbx",
+          "sha256": "a19503021ef711ebcbd8018274f83fb353cd143ff46d7269734ddcfbb1c1e4b3",
+          "duration": 2.7666666507720947,
+          "tracks": 129
+        },
+        {
+          "name": "Wall Crash",
+          "file": "Wall Crash.fbx",
+          "sha256": "9290b9a4866b23d60af0fe5c8256316d1d595ad3b1ec85a9d3779bb03ea862b0",
+          "duration": 2.4666666984558105,
+          "tracks": 129
+        },
+        {
+          "name": "Grab And Slam",
+          "file": "Grab And Slam.fbx",
+          "sha256": "d7b224e3bfd25724217bd618ff95d16b308d8c8c4a4aa4ae8b50f2d795bcd14c",
+          "duration": 4.266666889190674,
+          "tracks": 129
+        },
+        {
+          "name": "Butterfly Twirl",
+          "file": "Butterfly Twirl.fbx",
+          "sha256": "c0f7d54acf9a2024fd6dd0960b88ae3e1975945b5c84be55fd28fbe14f20d6d8",
+          "duration": 3.066666603088379,
+          "tracks": 129
+        },
+        {
+          "name": "Drop Kick",
+          "file": "Drop Kick.fbx",
+          "sha256": "42d31c403643a11f12e43ea26c019068e4391aeeeae7daee7dd32a3b80b2e397",
+          "duration": 2.9000000953674316,
+          "tracks": 129
+        }
+      ]
+    },
+    {
+      "packId": "miles-new",
+      "modelId": "miles-new",
+      "clips": 73,
+      "bytes": 12383096,
+      "imported": [
+        {
+          "name": "Shooting",
+          "file": "X Bot@Shooting.fbx",
+          "sha256": "7a0bf68b7d161f577ab14cb3b27593e06b7d453c931b459ab7d5357177ca4dba",
+          "duration": 1.1666666269302368,
+          "tracks": 65
+        },
+        {
+          "name": "Block",
+          "file": "X Bot@Block.fbx",
+          "sha256": "95b07078bc47da814c55882eb001affb772c972f483b83e4b839a27225c6cb52",
+          "duration": 2.866666555404663,
+          "tracks": 65
+        },
+        {
+          "name": "Body Block",
+          "file": "X Bot@Body Block.fbx",
+          "sha256": "3f61960d4d5b0241d38f1c00ba63678e7f9f344b27d4f48671e14f3fb5d7746f",
+          "duration": 3.433333396911621,
+          "tracks": 65
+        },
+        {
+          "name": "Punching",
+          "file": "X Bot@Punching.fbx",
+          "sha256": "8d6d929b88f159164bc4b0648d7cebe4b5fb435798e08a49d3ada857f09e0af3",
+          "duration": 1.2666666507720947,
+          "tracks": 65
+        },
+        {
+          "name": "Fist Fight A",
+          "file": "X Bot@Fist Fight A.fbx",
+          "sha256": "e551eff7e8953101f810bcccc0c3c1821857c73edc9c703d37e0d605bfccd1a1",
+          "duration": 4.666666507720947,
+          "tracks": 65
+        },
+        {
+          "name": "Kicking",
+          "file": "X Bot@Kicking.fbx",
+          "sha256": "3bbe5aab2a3b02f688db6115e70c94baa44f85883c24dc1b9146d46dbc6d08ac",
+          "duration": 2.1666667461395264,
+          "tracks": 65
+        },
+        {
+          "name": "Hurricane Kick",
+          "file": "X Bot@Hurricane Kick.fbx",
+          "sha256": "f282ec0f49baa1c6c52d4d6d3965b3d769c3ed6c7d928f9f1d1cda33b1c0c824",
+          "duration": 1.8333333730697632,
+          "tracks": 65
+        },
+        {
+          "name": "Receive Uppercut To The Face",
+          "file": "X Bot@Receive Uppercut To The Face.fbx",
+          "sha256": "734c70992fad801fd1e26ff98f4c5bfe0bcd89612da8ce1347d7e14bdb93d5f6",
+          "duration": 1.2333333492279053,
+          "tracks": 65
+        },
+        {
+          "name": "Taunt",
+          "file": "X Bot@Taunt.fbx",
+          "sha256": "0d8480bc424c65b530faa736c9163f37bdde4fe2202ef6a8129862d71e698cac",
+          "duration": 2.8333332538604736,
+          "tracks": 65
+        },
+        {
+          "name": "Defeated",
+          "file": "X Bot@Defeated.fbx",
+          "sha256": "6d419fb913bea3ee39968da3f51d247455279ced2687a5fbadb9f99da65acd4a",
+          "duration": 6.733333110809326,
+          "tracks": 65
+        },
+        {
+          "name": "Flying Shoulder Throw",
+          "file": "X Bot@Flying Shoulder Throw.fbx",
+          "sha256": "a018d00b00672a934d6bcda5ea112bae1cdcbc0a4ea507e2abc0b29d68289d31",
+          "duration": 3.700000047683716,
+          "tracks": 65
+        },
+        {
+          "name": "Getting Thrown",
+          "file": "X Bot@Getting Thrown.fbx",
+          "sha256": "cb2032723f087620509df7372eee533bfac2e2445b20ac8bcd9be517c0cde60f",
+          "duration": 4.333333492279053,
+          "tracks": 65
+        },
+        {
+          "name": "Spin Flip Kick",
+          "file": "X Bot@Spin Flip Kick.fbx",
+          "sha256": "5b451d3f78e4841ee57d21f5f12105d41a3375c5e5dfe043835c321fbe1b30ca",
+          "duration": 3.700000047683716,
+          "tracks": 65
+        },
+        {
+          "name": "Flip Kick",
+          "file": "X Bot@Flip Kick.fbx",
+          "sha256": "0f2ed010713b6262b8f5b4d2ec49300b10f0f6f371e6e779dfdac99790dedbbf",
+          "duration": 2.799999952316284,
+          "tracks": 65
+        },
+        {
+          "name": "Big Body Blow",
+          "file": "Big Body Blow.fbx",
+          "sha256": "b3a2321fe4d3d6f4cf81a95a6efafb66eb65668be3ce09f774549ba878b863f4",
+          "duration": 2.566666603088379,
+          "tracks": 129
+        },
+        {
+          "name": "Corkscrew Kip Up",
+          "file": "Corkscrew Kip Up.fbx",
+          "sha256": "a19503021ef711ebcbd8018274f83fb353cd143ff46d7269734ddcfbb1c1e4b3",
+          "duration": 2.7666666507720947,
+          "tracks": 129
+        },
+        {
+          "name": "Wall Crash",
+          "file": "Wall Crash.fbx",
+          "sha256": "9290b9a4866b23d60af0fe5c8256316d1d595ad3b1ec85a9d3779bb03ea862b0",
+          "duration": 2.4666666984558105,
+          "tracks": 129
+        },
+        {
+          "name": "Grab And Slam",
+          "file": "Grab And Slam.fbx",
+          "sha256": "d7b224e3bfd25724217bd618ff95d16b308d8c8c4a4aa4ae8b50f2d795bcd14c",
+          "duration": 4.266666889190674,
+          "tracks": 129
+        },
+        {
+          "name": "Butterfly Twirl",
+          "file": "Butterfly Twirl.fbx",
+          "sha256": "c0f7d54acf9a2024fd6dd0960b88ae3e1975945b5c84be55fd28fbe14f20d6d8",
+          "duration": 3.066666603088379,
+          "tracks": 129
+        },
+        {
+          "name": "Drop Kick",
+          "file": "Drop Kick.fbx",
+          "sha256": "42d31c403643a11f12e43ea26c019068e4391aeeeae7daee7dd32a3b80b2e397",
+          "duration": 2.9000000953674316,
+          "tracks": 129
+        }
+      ]
+    },
+    {
+      "packId": "no-way-home",
+      "modelId": "no-way-home",
+      "clips": 73,
+      "bytes": 12165648,
+      "imported": [
+        {
+          "name": "Shooting",
+          "file": "X Bot@Shooting.fbx",
+          "sha256": "7a0bf68b7d161f577ab14cb3b27593e06b7d453c931b459ab7d5357177ca4dba",
+          "duration": 1.1666666269302368,
+          "tracks": 65
+        },
+        {
+          "name": "Block",
+          "file": "X Bot@Block.fbx",
+          "sha256": "95b07078bc47da814c55882eb001affb772c972f483b83e4b839a27225c6cb52",
+          "duration": 2.866666555404663,
+          "tracks": 65
+        },
+        {
+          "name": "Body Block",
+          "file": "X Bot@Body Block.fbx",
+          "sha256": "3f61960d4d5b0241d38f1c00ba63678e7f9f344b27d4f48671e14f3fb5d7746f",
+          "duration": 3.433333396911621,
+          "tracks": 65
+        },
+        {
+          "name": "Punching",
+          "file": "X Bot@Punching.fbx",
+          "sha256": "8d6d929b88f159164bc4b0648d7cebe4b5fb435798e08a49d3ada857f09e0af3",
+          "duration": 1.2666666507720947,
+          "tracks": 65
+        },
+        {
+          "name": "Fist Fight A",
+          "file": "X Bot@Fist Fight A.fbx",
+          "sha256": "e551eff7e8953101f810bcccc0c3c1821857c73edc9c703d37e0d605bfccd1a1",
+          "duration": 4.666666507720947,
+          "tracks": 65
+        },
+        {
+          "name": "Kicking",
+          "file": "X Bot@Kicking.fbx",
+          "sha256": "3bbe5aab2a3b02f688db6115e70c94baa44f85883c24dc1b9146d46dbc6d08ac",
+          "duration": 2.1666667461395264,
+          "tracks": 65
+        },
+        {
+          "name": "Hurricane Kick",
+          "file": "X Bot@Hurricane Kick.fbx",
+          "sha256": "f282ec0f49baa1c6c52d4d6d3965b3d769c3ed6c7d928f9f1d1cda33b1c0c824",
+          "duration": 1.8333333730697632,
+          "tracks": 65
+        },
+        {
+          "name": "Receive Uppercut To The Face",
+          "file": "X Bot@Receive Uppercut To The Face.fbx",
+          "sha256": "734c70992fad801fd1e26ff98f4c5bfe0bcd89612da8ce1347d7e14bdb93d5f6",
+          "duration": 1.2333333492279053,
+          "tracks": 65
+        },
+        {
+          "name": "Taunt",
+          "file": "X Bot@Taunt.fbx",
+          "sha256": "0d8480bc424c65b530faa736c9163f37bdde4fe2202ef6a8129862d71e698cac",
+          "duration": 2.8333332538604736,
+          "tracks": 65
+        },
+        {
+          "name": "Defeated",
+          "file": "X Bot@Defeated.fbx",
+          "sha256": "6d419fb913bea3ee39968da3f51d247455279ced2687a5fbadb9f99da65acd4a",
+          "duration": 6.733333110809326,
+          "tracks": 65
+        },
+        {
+          "name": "Flying Shoulder Throw",
+          "file": "X Bot@Flying Shoulder Throw.fbx",
+          "sha256": "a018d00b00672a934d6bcda5ea112bae1cdcbc0a4ea507e2abc0b29d68289d31",
+          "duration": 3.700000047683716,
+          "tracks": 65
+        },
+        {
+          "name": "Getting Thrown",
+          "file": "X Bot@Getting Thrown.fbx",
+          "sha256": "cb2032723f087620509df7372eee533bfac2e2445b20ac8bcd9be517c0cde60f",
+          "duration": 4.333333492279053,
+          "tracks": 65
+        },
+        {
+          "name": "Spin Flip Kick",
+          "file": "X Bot@Spin Flip Kick.fbx",
+          "sha256": "5b451d3f78e4841ee57d21f5f12105d41a3375c5e5dfe043835c321fbe1b30ca",
+          "duration": 3.700000047683716,
+          "tracks": 65
+        },
+        {
+          "name": "Flip Kick",
+          "file": "X Bot@Flip Kick.fbx",
+          "sha256": "0f2ed010713b6262b8f5b4d2ec49300b10f0f6f371e6e779dfdac99790dedbbf",
+          "duration": 2.799999952316284,
+          "tracks": 65
+        },
+        {
+          "name": "Big Body Blow",
+          "file": "Big Body Blow.fbx",
+          "sha256": "b3a2321fe4d3d6f4cf81a95a6efafb66eb65668be3ce09f774549ba878b863f4",
+          "duration": 2.566666603088379,
+          "tracks": 129
+        },
+        {
+          "name": "Corkscrew Kip Up",
+          "file": "Corkscrew Kip Up.fbx",
+          "sha256": "a19503021ef711ebcbd8018274f83fb353cd143ff46d7269734ddcfbb1c1e4b3",
+          "duration": 2.7666666507720947,
+          "tracks": 129
+        },
+        {
+          "name": "Wall Crash",
+          "file": "Wall Crash.fbx",
+          "sha256": "9290b9a4866b23d60af0fe5c8256316d1d595ad3b1ec85a9d3779bb03ea862b0",
+          "duration": 2.4666666984558105,
+          "tracks": 129
+        },
+        {
+          "name": "Grab And Slam",
+          "file": "Grab And Slam.fbx",
+          "sha256": "d7b224e3bfd25724217bd618ff95d16b308d8c8c4a4aa4ae8b50f2d795bcd14c",
+          "duration": 4.266666889190674,
+          "tracks": 129
+        },
+        {
+          "name": "Butterfly Twirl",
+          "file": "Butterfly Twirl.fbx",
+          "sha256": "c0f7d54acf9a2024fd6dd0960b88ae3e1975945b5c84be55fd28fbe14f20d6d8",
+          "duration": 3.066666603088379,
+          "tracks": 129
+        },
+        {
+          "name": "Drop Kick",
+          "file": "Drop Kick.fbx",
+          "sha256": "42d31c403643a11f12e43ea26c019068e4391aeeeae7daee7dd32a3b80b2e397",
+          "duration": 2.9000000953674316,
+          "tracks": 129
+        }
+      ]
+    },
+    {
+      "packId": "pavitr-prabhakar",
+      "modelId": "pavitr-prabhakar",
+      "clips": 73,
+      "bytes": 9446416,
+      "imported": [
+        {
+          "name": "Shooting",
+          "file": "X Bot@Shooting.fbx",
+          "sha256": "7a0bf68b7d161f577ab14cb3b27593e06b7d453c931b459ab7d5357177ca4dba",
+          "duration": 1.1666666269302368,
+          "tracks": 50
+        },
+        {
+          "name": "Block",
+          "file": "X Bot@Block.fbx",
+          "sha256": "95b07078bc47da814c55882eb001affb772c972f483b83e4b839a27225c6cb52",
+          "duration": 2.866666555404663,
+          "tracks": 50
+        },
+        {
+          "name": "Body Block",
+          "file": "X Bot@Body Block.fbx",
+          "sha256": "3f61960d4d5b0241d38f1c00ba63678e7f9f344b27d4f48671e14f3fb5d7746f",
+          "duration": 3.433333396911621,
+          "tracks": 50
+        },
+        {
+          "name": "Punching",
+          "file": "X Bot@Punching.fbx",
+          "sha256": "8d6d929b88f159164bc4b0648d7cebe4b5fb435798e08a49d3ada857f09e0af3",
+          "duration": 1.2666666507720947,
+          "tracks": 50
+        },
+        {
+          "name": "Fist Fight A",
+          "file": "X Bot@Fist Fight A.fbx",
+          "sha256": "e551eff7e8953101f810bcccc0c3c1821857c73edc9c703d37e0d605bfccd1a1",
+          "duration": 4.666666507720947,
+          "tracks": 50
+        },
+        {
+          "name": "Kicking",
+          "file": "X Bot@Kicking.fbx",
+          "sha256": "3bbe5aab2a3b02f688db6115e70c94baa44f85883c24dc1b9146d46dbc6d08ac",
+          "duration": 2.1666667461395264,
+          "tracks": 50
+        },
+        {
+          "name": "Hurricane Kick",
+          "file": "X Bot@Hurricane Kick.fbx",
+          "sha256": "f282ec0f49baa1c6c52d4d6d3965b3d769c3ed6c7d928f9f1d1cda33b1c0c824",
+          "duration": 1.8333333730697632,
+          "tracks": 50
+        },
+        {
+          "name": "Receive Uppercut To The Face",
+          "file": "X Bot@Receive Uppercut To The Face.fbx",
+          "sha256": "734c70992fad801fd1e26ff98f4c5bfe0bcd89612da8ce1347d7e14bdb93d5f6",
+          "duration": 1.2333333492279053,
+          "tracks": 50
+        },
+        {
+          "name": "Taunt",
+          "file": "X Bot@Taunt.fbx",
+          "sha256": "0d8480bc424c65b530faa736c9163f37bdde4fe2202ef6a8129862d71e698cac",
+          "duration": 2.8333332538604736,
+          "tracks": 50
+        },
+        {
+          "name": "Defeated",
+          "file": "X Bot@Defeated.fbx",
+          "sha256": "6d419fb913bea3ee39968da3f51d247455279ced2687a5fbadb9f99da65acd4a",
+          "duration": 6.733333110809326,
+          "tracks": 50
+        },
+        {
+          "name": "Flying Shoulder Throw",
+          "file": "X Bot@Flying Shoulder Throw.fbx",
+          "sha256": "a018d00b00672a934d6bcda5ea112bae1cdcbc0a4ea507e2abc0b29d68289d31",
+          "duration": 3.700000047683716,
+          "tracks": 50
+        },
+        {
+          "name": "Getting Thrown",
+          "file": "X Bot@Getting Thrown.fbx",
+          "sha256": "cb2032723f087620509df7372eee533bfac2e2445b20ac8bcd9be517c0cde60f",
+          "duration": 4.333333492279053,
+          "tracks": 50
+        },
+        {
+          "name": "Spin Flip Kick",
+          "file": "X Bot@Spin Flip Kick.fbx",
+          "sha256": "5b451d3f78e4841ee57d21f5f12105d41a3375c5e5dfe043835c321fbe1b30ca",
+          "duration": 3.700000047683716,
+          "tracks": 50
+        },
+        {
+          "name": "Flip Kick",
+          "file": "X Bot@Flip Kick.fbx",
+          "sha256": "0f2ed010713b6262b8f5b4d2ec49300b10f0f6f371e6e779dfdac99790dedbbf",
+          "duration": 2.799999952316284,
+          "tracks": 50
+        },
+        {
+          "name": "Big Body Blow",
+          "file": "Big Body Blow.fbx",
+          "sha256": "b3a2321fe4d3d6f4cf81a95a6efafb66eb65668be3ce09f774549ba878b863f4",
+          "duration": 2.566666603088379,
+          "tracks": 100
+        },
+        {
+          "name": "Corkscrew Kip Up",
+          "file": "Corkscrew Kip Up.fbx",
+          "sha256": "a19503021ef711ebcbd8018274f83fb353cd143ff46d7269734ddcfbb1c1e4b3",
+          "duration": 2.7666666507720947,
+          "tracks": 100
+        },
+        {
+          "name": "Wall Crash",
+          "file": "Wall Crash.fbx",
+          "sha256": "9290b9a4866b23d60af0fe5c8256316d1d595ad3b1ec85a9d3779bb03ea862b0",
+          "duration": 2.4666666984558105,
+          "tracks": 100
+        },
+        {
+          "name": "Grab And Slam",
+          "file": "Grab And Slam.fbx",
+          "sha256": "d7b224e3bfd25724217bd618ff95d16b308d8c8c4a4aa4ae8b50f2d795bcd14c",
+          "duration": 4.266666889190674,
+          "tracks": 100
+        },
+        {
+          "name": "Butterfly Twirl",
+          "file": "Butterfly Twirl.fbx",
+          "sha256": "c0f7d54acf9a2024fd6dd0960b88ae3e1975945b5c84be55fd28fbe14f20d6d8",
+          "duration": 3.066666603088379,
+          "tracks": 100
+        },
+        {
+          "name": "Drop Kick",
+          "file": "Drop Kick.fbx",
+          "sha256": "42d31c403643a11f12e43ea26c019068e4391aeeeae7daee7dd32a3b80b2e397",
+          "duration": 2.9000000953674316,
+          "tracks": 100
+        }
+      ]
+    },
+    {
+      "packId": "spider-woman-atsv",
+      "modelId": "spider-woman-atsv",
+      "clips": 73,
+      "bytes": 3848964,
+      "imported": [
+        {
+          "name": "Shooting",
+          "file": "X Bot@Shooting.fbx",
+          "sha256": "7a0bf68b7d161f577ab14cb3b27593e06b7d453c931b459ab7d5357177ca4dba",
+          "duration": 1.1666666269302368,
+          "tracks": 20
+        },
+        {
+          "name": "Block",
+          "file": "X Bot@Block.fbx",
+          "sha256": "95b07078bc47da814c55882eb001affb772c972f483b83e4b839a27225c6cb52",
+          "duration": 2.866666555404663,
+          "tracks": 20
+        },
+        {
+          "name": "Body Block",
+          "file": "X Bot@Body Block.fbx",
+          "sha256": "3f61960d4d5b0241d38f1c00ba63678e7f9f344b27d4f48671e14f3fb5d7746f",
+          "duration": 3.433333396911621,
+          "tracks": 20
+        },
+        {
+          "name": "Punching",
+          "file": "X Bot@Punching.fbx",
+          "sha256": "8d6d929b88f159164bc4b0648d7cebe4b5fb435798e08a49d3ada857f09e0af3",
+          "duration": 1.2666666507720947,
+          "tracks": 20
+        },
+        {
+          "name": "Fist Fight A",
+          "file": "X Bot@Fist Fight A.fbx",
+          "sha256": "e551eff7e8953101f810bcccc0c3c1821857c73edc9c703d37e0d605bfccd1a1",
+          "duration": 4.666666507720947,
+          "tracks": 20
+        },
+        {
+          "name": "Kicking",
+          "file": "X Bot@Kicking.fbx",
+          "sha256": "3bbe5aab2a3b02f688db6115e70c94baa44f85883c24dc1b9146d46dbc6d08ac",
+          "duration": 2.1666667461395264,
+          "tracks": 20
+        },
+        {
+          "name": "Hurricane Kick",
+          "file": "X Bot@Hurricane Kick.fbx",
+          "sha256": "f282ec0f49baa1c6c52d4d6d3965b3d769c3ed6c7d928f9f1d1cda33b1c0c824",
+          "duration": 1.8333333730697632,
+          "tracks": 20
+        },
+        {
+          "name": "Receive Uppercut To The Face",
+          "file": "X Bot@Receive Uppercut To The Face.fbx",
+          "sha256": "734c70992fad801fd1e26ff98f4c5bfe0bcd89612da8ce1347d7e14bdb93d5f6",
+          "duration": 1.2333333492279053,
+          "tracks": 20
+        },
+        {
+          "name": "Taunt",
+          "file": "X Bot@Taunt.fbx",
+          "sha256": "0d8480bc424c65b530faa736c9163f37bdde4fe2202ef6a8129862d71e698cac",
+          "duration": 2.8333332538604736,
+          "tracks": 20
+        },
+        {
+          "name": "Defeated",
+          "file": "X Bot@Defeated.fbx",
+          "sha256": "6d419fb913bea3ee39968da3f51d247455279ced2687a5fbadb9f99da65acd4a",
+          "duration": 6.733333110809326,
+          "tracks": 20
+        },
+        {
+          "name": "Flying Shoulder Throw",
+          "file": "X Bot@Flying Shoulder Throw.fbx",
+          "sha256": "a018d00b00672a934d6bcda5ea112bae1cdcbc0a4ea507e2abc0b29d68289d31",
+          "duration": 3.700000047683716,
+          "tracks": 20
+        },
+        {
+          "name": "Getting Thrown",
+          "file": "X Bot@Getting Thrown.fbx",
+          "sha256": "cb2032723f087620509df7372eee533bfac2e2445b20ac8bcd9be517c0cde60f",
+          "duration": 4.333333492279053,
+          "tracks": 20
+        },
+        {
+          "name": "Spin Flip Kick",
+          "file": "X Bot@Spin Flip Kick.fbx",
+          "sha256": "5b451d3f78e4841ee57d21f5f12105d41a3375c5e5dfe043835c321fbe1b30ca",
+          "duration": 3.700000047683716,
+          "tracks": 20
+        },
+        {
+          "name": "Flip Kick",
+          "file": "X Bot@Flip Kick.fbx",
+          "sha256": "0f2ed010713b6262b8f5b4d2ec49300b10f0f6f371e6e779dfdac99790dedbbf",
+          "duration": 2.799999952316284,
+          "tracks": 20
+        },
+        {
+          "name": "Big Body Blow",
+          "file": "Big Body Blow.fbx",
+          "sha256": "b3a2321fe4d3d6f4cf81a95a6efafb66eb65668be3ce09f774549ba878b863f4",
+          "duration": 2.566666603088379,
+          "tracks": 40
+        },
+        {
+          "name": "Corkscrew Kip Up",
+          "file": "Corkscrew Kip Up.fbx",
+          "sha256": "a19503021ef711ebcbd8018274f83fb353cd143ff46d7269734ddcfbb1c1e4b3",
+          "duration": 2.7666666507720947,
+          "tracks": 40
+        },
+        {
+          "name": "Wall Crash",
+          "file": "Wall Crash.fbx",
+          "sha256": "9290b9a4866b23d60af0fe5c8256316d1d595ad3b1ec85a9d3779bb03ea862b0",
+          "duration": 2.4666666984558105,
+          "tracks": 40
+        },
+        {
+          "name": "Grab And Slam",
+          "file": "Grab And Slam.fbx",
+          "sha256": "d7b224e3bfd25724217bd618ff95d16b308d8c8c4a4aa4ae8b50f2d795bcd14c",
+          "duration": 4.266666889190674,
+          "tracks": 40
+        },
+        {
+          "name": "Butterfly Twirl",
+          "file": "Butterfly Twirl.fbx",
+          "sha256": "c0f7d54acf9a2024fd6dd0960b88ae3e1975945b5c84be55fd28fbe14f20d6d8",
+          "duration": 3.066666603088379,
+          "tracks": 40
+        },
+        {
+          "name": "Drop Kick",
+          "file": "Drop Kick.fbx",
+          "sha256": "42d31c403643a11f12e43ea26c019068e4391aeeeae7daee7dd32a3b80b2e397",
+          "duration": 2.9000000953674316,
+          "tracks": 40
+        }
+      ]
+    },
+    {
+      "packId": "symbiote-ps5",
+      "modelId": "symbiote-ps5",
+      "clips": 73,
+      "bytes": 11857084,
+      "imported": [
+        {
+          "name": "Shooting",
+          "file": "X Bot@Shooting.fbx",
+          "sha256": "7a0bf68b7d161f577ab14cb3b27593e06b7d453c931b459ab7d5357177ca4dba",
+          "duration": 1.1666666269302368,
+          "tracks": 65
+        },
+        {
+          "name": "Block",
+          "file": "X Bot@Block.fbx",
+          "sha256": "95b07078bc47da814c55882eb001affb772c972f483b83e4b839a27225c6cb52",
+          "duration": 2.866666555404663,
+          "tracks": 65
+        },
+        {
+          "name": "Body Block",
+          "file": "X Bot@Body Block.fbx",
+          "sha256": "3f61960d4d5b0241d38f1c00ba63678e7f9f344b27d4f48671e14f3fb5d7746f",
+          "duration": 3.433333396911621,
+          "tracks": 65
+        },
+        {
+          "name": "Punching",
+          "file": "X Bot@Punching.fbx",
+          "sha256": "8d6d929b88f159164bc4b0648d7cebe4b5fb435798e08a49d3ada857f09e0af3",
+          "duration": 1.2666666507720947,
+          "tracks": 65
+        },
+        {
+          "name": "Fist Fight A",
+          "file": "X Bot@Fist Fight A.fbx",
+          "sha256": "e551eff7e8953101f810bcccc0c3c1821857c73edc9c703d37e0d605bfccd1a1",
+          "duration": 4.666666507720947,
+          "tracks": 65
+        },
+        {
+          "name": "Kicking",
+          "file": "X Bot@Kicking.fbx",
+          "sha256": "3bbe5aab2a3b02f688db6115e70c94baa44f85883c24dc1b9146d46dbc6d08ac",
+          "duration": 2.1666667461395264,
+          "tracks": 65
+        },
+        {
+          "name": "Hurricane Kick",
+          "file": "X Bot@Hurricane Kick.fbx",
+          "sha256": "f282ec0f49baa1c6c52d4d6d3965b3d769c3ed6c7d928f9f1d1cda33b1c0c824",
+          "duration": 1.8333333730697632,
+          "tracks": 65
+        },
+        {
+          "name": "Receive Uppercut To The Face",
+          "file": "X Bot@Receive Uppercut To The Face.fbx",
+          "sha256": "734c70992fad801fd1e26ff98f4c5bfe0bcd89612da8ce1347d7e14bdb93d5f6",
+          "duration": 1.2333333492279053,
+          "tracks": 65
+        },
+        {
+          "name": "Taunt",
+          "file": "X Bot@Taunt.fbx",
+          "sha256": "0d8480bc424c65b530faa736c9163f37bdde4fe2202ef6a8129862d71e698cac",
+          "duration": 2.8333332538604736,
+          "tracks": 65
+        },
+        {
+          "name": "Defeated",
+          "file": "X Bot@Defeated.fbx",
+          "sha256": "6d419fb913bea3ee39968da3f51d247455279ced2687a5fbadb9f99da65acd4a",
+          "duration": 6.733333110809326,
+          "tracks": 65
+        },
+        {
+          "name": "Flying Shoulder Throw",
+          "file": "X Bot@Flying Shoulder Throw.fbx",
+          "sha256": "a018d00b00672a934d6bcda5ea112bae1cdcbc0a4ea507e2abc0b29d68289d31",
+          "duration": 3.700000047683716,
+          "tracks": 65
+        },
+        {
+          "name": "Getting Thrown",
+          "file": "X Bot@Getting Thrown.fbx",
+          "sha256": "cb2032723f087620509df7372eee533bfac2e2445b20ac8bcd9be517c0cde60f",
+          "duration": 4.333333492279053,
+          "tracks": 65
+        },
+        {
+          "name": "Spin Flip Kick",
+          "file": "X Bot@Spin Flip Kick.fbx",
+          "sha256": "5b451d3f78e4841ee57d21f5f12105d41a3375c5e5dfe043835c321fbe1b30ca",
+          "duration": 3.700000047683716,
+          "tracks": 65
+        },
+        {
+          "name": "Flip Kick",
+          "file": "X Bot@Flip Kick.fbx",
+          "sha256": "0f2ed010713b6262b8f5b4d2ec49300b10f0f6f371e6e779dfdac99790dedbbf",
+          "duration": 2.799999952316284,
+          "tracks": 65
+        },
+        {
+          "name": "Big Body Blow",
+          "file": "Big Body Blow.fbx",
+          "sha256": "b3a2321fe4d3d6f4cf81a95a6efafb66eb65668be3ce09f774549ba878b863f4",
+          "duration": 2.566666603088379,
+          "tracks": 129
+        },
+        {
+          "name": "Corkscrew Kip Up",
+          "file": "Corkscrew Kip Up.fbx",
+          "sha256": "a19503021ef711ebcbd8018274f83fb353cd143ff46d7269734ddcfbb1c1e4b3",
+          "duration": 2.7666666507720947,
+          "tracks": 129
+        },
+        {
+          "name": "Wall Crash",
+          "file": "Wall Crash.fbx",
+          "sha256": "9290b9a4866b23d60af0fe5c8256316d1d595ad3b1ec85a9d3779bb03ea862b0",
+          "duration": 2.4666666984558105,
+          "tracks": 129
+        },
+        {
+          "name": "Grab And Slam",
+          "file": "Grab And Slam.fbx",
+          "sha256": "d7b224e3bfd25724217bd618ff95d16b308d8c8c4a4aa4ae8b50f2d795bcd14c",
+          "duration": 4.266666889190674,
+          "tracks": 129
+        },
+        {
+          "name": "Butterfly Twirl",
+          "file": "Butterfly Twirl.fbx",
+          "sha256": "c0f7d54acf9a2024fd6dd0960b88ae3e1975945b5c84be55fd28fbe14f20d6d8",
+          "duration": 3.066666603088379,
+          "tracks": 129
+        },
+        {
+          "name": "Drop Kick",
+          "file": "Drop Kick.fbx",
+          "sha256": "42d31c403643a11f12e43ea26c019068e4391aeeeae7daee7dd32a3b80b2e397",
+          "duration": 2.9000000953674316,
+          "tracks": 129
+        }
+      ]
+    },
+    {
+      "packId": "tobey",
+      "modelId": "tobey",
+      "clips": 73,
+      "bytes": 12243028,
+      "imported": [
+        {
+          "name": "Shooting",
+          "file": "X Bot@Shooting.fbx",
+          "sha256": "7a0bf68b7d161f577ab14cb3b27593e06b7d453c931b459ab7d5357177ca4dba",
+          "duration": 1.1666666269302368,
+          "tracks": 65
+        },
+        {
+          "name": "Block",
+          "file": "X Bot@Block.fbx",
+          "sha256": "95b07078bc47da814c55882eb001affb772c972f483b83e4b839a27225c6cb52",
+          "duration": 2.866666555404663,
+          "tracks": 65
+        },
+        {
+          "name": "Body Block",
+          "file": "X Bot@Body Block.fbx",
+          "sha256": "3f61960d4d5b0241d38f1c00ba63678e7f9f344b27d4f48671e14f3fb5d7746f",
+          "duration": 3.433333396911621,
+          "tracks": 65
+        },
+        {
+          "name": "Punching",
+          "file": "X Bot@Punching.fbx",
+          "sha256": "8d6d929b88f159164bc4b0648d7cebe4b5fb435798e08a49d3ada857f09e0af3",
+          "duration": 1.2666666507720947,
+          "tracks": 65
+        },
+        {
+          "name": "Fist Fight A",
+          "file": "X Bot@Fist Fight A.fbx",
+          "sha256": "e551eff7e8953101f810bcccc0c3c1821857c73edc9c703d37e0d605bfccd1a1",
+          "duration": 4.666666507720947,
+          "tracks": 65
+        },
+        {
+          "name": "Kicking",
+          "file": "X Bot@Kicking.fbx",
+          "sha256": "3bbe5aab2a3b02f688db6115e70c94baa44f85883c24dc1b9146d46dbc6d08ac",
+          "duration": 2.1666667461395264,
+          "tracks": 65
+        },
+        {
+          "name": "Hurricane Kick",
+          "file": "X Bot@Hurricane Kick.fbx",
+          "sha256": "f282ec0f49baa1c6c52d4d6d3965b3d769c3ed6c7d928f9f1d1cda33b1c0c824",
+          "duration": 1.8333333730697632,
+          "tracks": 65
+        },
+        {
+          "name": "Receive Uppercut To The Face",
+          "file": "X Bot@Receive Uppercut To The Face.fbx",
+          "sha256": "734c70992fad801fd1e26ff98f4c5bfe0bcd89612da8ce1347d7e14bdb93d5f6",
+          "duration": 1.2333333492279053,
+          "tracks": 65
+        },
+        {
+          "name": "Taunt",
+          "file": "X Bot@Taunt.fbx",
+          "sha256": "0d8480bc424c65b530faa736c9163f37bdde4fe2202ef6a8129862d71e698cac",
+          "duration": 2.8333332538604736,
+          "tracks": 65
+        },
+        {
+          "name": "Defeated",
+          "file": "X Bot@Defeated.fbx",
+          "sha256": "6d419fb913bea3ee39968da3f51d247455279ced2687a5fbadb9f99da65acd4a",
+          "duration": 6.733333110809326,
+          "tracks": 65
+        },
+        {
+          "name": "Flying Shoulder Throw",
+          "file": "X Bot@Flying Shoulder Throw.fbx",
+          "sha256": "a018d00b00672a934d6bcda5ea112bae1cdcbc0a4ea507e2abc0b29d68289d31",
+          "duration": 3.700000047683716,
+          "tracks": 65
+        },
+        {
+          "name": "Getting Thrown",
+          "file": "X Bot@Getting Thrown.fbx",
+          "sha256": "cb2032723f087620509df7372eee533bfac2e2445b20ac8bcd9be517c0cde60f",
+          "duration": 4.333333492279053,
+          "tracks": 65
+        },
+        {
+          "name": "Spin Flip Kick",
+          "file": "X Bot@Spin Flip Kick.fbx",
+          "sha256": "5b451d3f78e4841ee57d21f5f12105d41a3375c5e5dfe043835c321fbe1b30ca",
+          "duration": 3.700000047683716,
+          "tracks": 65
+        },
+        {
+          "name": "Flip Kick",
+          "file": "X Bot@Flip Kick.fbx",
+          "sha256": "0f2ed010713b6262b8f5b4d2ec49300b10f0f6f371e6e779dfdac99790dedbbf",
+          "duration": 2.799999952316284,
+          "tracks": 65
+        },
+        {
+          "name": "Big Body Blow",
+          "file": "Big Body Blow.fbx",
+          "sha256": "b3a2321fe4d3d6f4cf81a95a6efafb66eb65668be3ce09f774549ba878b863f4",
+          "duration": 2.566666603088379,
+          "tracks": 129
+        },
+        {
+          "name": "Corkscrew Kip Up",
+          "file": "Corkscrew Kip Up.fbx",
+          "sha256": "a19503021ef711ebcbd8018274f83fb353cd143ff46d7269734ddcfbb1c1e4b3",
+          "duration": 2.7666666507720947,
+          "tracks": 129
+        },
+        {
+          "name": "Wall Crash",
+          "file": "Wall Crash.fbx",
+          "sha256": "9290b9a4866b23d60af0fe5c8256316d1d595ad3b1ec85a9d3779bb03ea862b0",
+          "duration": 2.4666666984558105,
+          "tracks": 129
+        },
+        {
+          "name": "Grab And Slam",
+          "file": "Grab And Slam.fbx",
+          "sha256": "d7b224e3bfd25724217bd618ff95d16b308d8c8c4a4aa4ae8b50f2d795bcd14c",
+          "duration": 4.266666889190674,
+          "tracks": 129
+        },
+        {
+          "name": "Butterfly Twirl",
+          "file": "Butterfly Twirl.fbx",
+          "sha256": "c0f7d54acf9a2024fd6dd0960b88ae3e1975945b5c84be55fd28fbe14f20d6d8",
+          "duration": 3.066666603088379,
+          "tracks": 129
+        },
+        {
+          "name": "Drop Kick",
+          "file": "Drop Kick.fbx",
+          "sha256": "42d31c403643a11f12e43ea26c019068e4391aeeeae7daee7dd32a3b80b2e397",
+          "duration": 2.9000000953674316,
+          "tracks": 129
+        }
+      ]
+    }
+  ]
+}

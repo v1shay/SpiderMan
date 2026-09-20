@@ -1,45 +1,125 @@
 .trigger {
   position: absolute;
   z-index: 8;
-  top: 104px;
-  right: 22px;
-  display: grid;
-  grid-template-columns: 28px 1fr 20px;
-  place-items: center;
-  gap: 5px;
-  width: 112px;
-  height: 54px;
-  padding: 0 9px;
+  left: 18px;
+  bottom: 18px;
+  display: block;
+  width: 142px;
+  height: 108px;
+  padding: 0;
+  overflow: hidden;
   color: #dffaff;
   cursor: pointer;
-  border: 3px solid #06111f;
+  border: 4px solid #07111c;
+  border-radius: 8px 19px 8px 17px;
   outline: 2px solid #4eddf3;
-  background: #0b5272;
+  background: rgba(5, 43, 65, 0.42);
+  backdrop-filter: blur(17px) saturate(1.4);
   box-shadow:
-    5px 5px 0 #020911,
-    inset 0 0 0 2px #73e8f7;
+    4px 5px 0 #020911a3,
+    inset 0 1px 0 #e8fdffd6,
+    inset 0 0 0 2px #73e8f7b8,
+    inset 0 0 18px #1fcbe04f,
+    0 0 16px #21c9ee48;
+  transform: rotate(1.8deg);
+  transform-origin: left bottom;
   text-transform: uppercase;
 }
-.trigger svg {
-  width: 25px;
+.triggerMap {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  filter: grayscale(0.55) brightness(0.48) sepia(0.4) hue-rotate(145deg)
+    saturate(1.6);
 }
-.trigger span {
-  font-size: 12px;
-  letter-spacing: 0.13em;
+.triggerMap :global(.maplibregl-canvas) {
+  outline: none;
+}
+.triggerMap :global(.maplibregl-control-container) {
+  display: none;
+}
+.triggerMap :global(.mini-map-marker) {
+  display: block;
+  width: 7px;
+  height: 7px;
+  border: 1px solid #07111d;
+  border-radius: 50%;
+  background: #75edff;
+  box-shadow:
+    0 0 0 2px #75edff66,
+    0 0 8px #6fecff;
+}
+.triggerMap :global(.mini-map-marker-self) {
+  width: 10px;
+  height: 10px;
+  border-radius: 1px 6px 6px;
+  background: #ff3650;
+  box-shadow:
+    0 0 0 2px #ffffffb8,
+    0 0 11px #ff3650;
+  transform: rotate(45deg);
+}
+.triggerMap :global(.mini-map-marker-finish) {
+  width: 9px;
+  height: 9px;
+  border-radius: 0;
+  background: #ffd34d;
+  box-shadow:
+    0 0 0 2px #fff0a5a8,
+    0 0 10px #ffd34d;
+}
+.triggerScanlines {
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(
+      180deg,
+      rgba(224, 253, 255, 0.34),
+      rgba(58, 202, 226, 0.11) 28%,
+      transparent 52%
+    ),
+    linear-gradient(135deg, #1fd7f520, transparent 42%),
+    repeating-linear-gradient(0deg, transparent 0 3px, #bdf9ff20 4px);
+  pointer-events: none;
+}
+.triggerTitle {
+  position: absolute;
+  left: 5px;
+  right: 5px;
+  bottom: 5px;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 6px;
+  color: #e6fcff;
+  border-left: 2px solid #55eaff;
+  background: #031120d9;
+  font-size: 7px;
+  letter-spacing: 0.08em;
+  text-shadow: 0 0 8px #4be8ff;
+}
+.triggerTitle svg {
+  width: 15px;
+  height: 15px;
 }
 .trigger small {
+  position: absolute;
+  top: 6px;
+  right: 6px;
   display: grid;
   place-items: center;
-  width: 18px;
-  height: 18px;
+  width: 19px;
+  height: 19px;
   color: #071521;
-  border: 1px solid #071521;
+  border: 2px solid #071521;
   background: #8cecf7;
+  box-shadow: 2px 2px 0 #06111f;
   font-size: 9px;
 }
 .trigger:hover {
-  background: #12769a;
-  transform: translate(-1px, -1px);
+  transform: translate(-1px, -1px) rotate(1.8deg);
+  filter: brightness(1.25);
 }
 
 .panel {
@@ -355,6 +435,23 @@
 .districtRail button[data-loaded='false'] small {
   color: #e7a857;
 }
+.districtRail button[data-loading='true'] {
+  position: relative;
+  overflow: hidden;
+  cursor: wait;
+}
+.districtRail button[data-loading='true']::after {
+  position: absolute;
+  z-index: 4;
+  bottom: 0;
+  left: 0;
+  width: var(--district-load, 0%);
+  height: 4px;
+  content: '';
+  background: var(--cyan);
+  box-shadow: 0 0 12px var(--cyan);
+  transition: width .28s ease-out;
+}
 .mapError {
   position: absolute;
   z-index: 3;
@@ -409,12 +506,10 @@
 
 @media (max-width: 760px) {
   .trigger {
-    top: 82px;
-    right: 12px;
-    width: 92px;
-    height: 50px;
-    grid-template-columns: 23px 1fr 17px;
-    padding: 0 6px;
+    left: 12px;
+    bottom: 12px;
+    width: 126px;
+    height: 82px;
   }
   .panel {
     inset: 56px 8px 12px;

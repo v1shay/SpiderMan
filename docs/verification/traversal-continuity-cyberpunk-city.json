@@ -1,0 +1,137 @@
+{
+  "map": "cyberpunk-city",
+  "triangles": 1257828,
+  "textureDecoding": false,
+  "simulationHz": 120,
+  "trials": [
+    {
+      "trial": "central-street",
+      "frames": 1920,
+      "start": [
+        -16,
+        0.172,
+        -16
+      ],
+      "end": [
+        -13.369,
+        20.464,
+        -85.27
+      ],
+      "distance": 178.509,
+      "maxHeight": 20.464,
+      "maxSpeed": 64.745,
+      "groundedReleases": 1,
+      "airtimeSeconds": 15.892,
+      "swingSeconds": 3.317,
+      "longestAttachmentSeconds": 1.758,
+      "immediateDetaches": 0,
+      "stalledHeldFrames": 232,
+      "maximumConsecutiveStallFrames": 32,
+      "contacts": 6209,
+      "wallFrames": 1319,
+      "penetrationFrames": 0,
+      "assistanceFrames": 50,
+      "probes": 194,
+      "anchorSearches": 141,
+      "meanAnchorCandidates": 0.823,
+      "events": {
+        "jump": 2,
+        "web-attached": 6,
+        "land": 1,
+        "web-released": 2,
+        "double-jump": 1,
+        "wall-contact": 2
+      },
+      "detaches": {},
+      "detachSamples": [],
+      "sampleFailures": [],
+      "cpuFrameMeanMs": 0.141,
+      "cpuFrameP95Ms": 0.361
+    },
+    {
+      "trial": "cross-street",
+      "frames": 720,
+      "start": [
+        -8,
+        0.002,
+        -16
+      ],
+      "end": [
+        -58.966,
+        1.632,
+        20.704
+      ],
+      "distance": 98.345,
+      "maxHeight": 15.019,
+      "maxSpeed": 44.313,
+      "groundedReleases": 0,
+      "airtimeSeconds": 5.975,
+      "swingSeconds": 2.775,
+      "longestAttachmentSeconds": 1.45,
+      "immediateDetaches": 0,
+      "stalledHeldFrames": 35,
+      "maximumConsecutiveStallFrames": 17,
+      "contacts": 1036,
+      "wallFrames": 236,
+      "penetrationFrames": 0,
+      "assistanceFrames": 112,
+      "probes": 183,
+      "anchorSearches": 24,
+      "meanAnchorCandidates": 4.833,
+      "events": {
+        "jump": 1,
+        "web-attached": 2,
+        "wall-contact": 2,
+        "double-jump": 1,
+        "land": 1
+      },
+      "detaches": {},
+      "detachSamples": [],
+      "sampleFailures": [],
+      "cpuFrameMeanMs": 0.233,
+      "cpuFrameP95Ms": 0.562
+    },
+    {
+      "trial": "unrendered-repeat-tile",
+      "frames": 720,
+      "start": [
+        3960,
+        0.172,
+        -1533.242
+      ],
+      "end": [
+        3953.028,
+        13.621,
+        -1603.278
+      ],
+      "distance": 102.717,
+      "maxHeight": 13.621,
+      "maxSpeed": 32.711,
+      "groundedReleases": 3,
+      "airtimeSeconds": 5.233,
+      "swingSeconds": 3.808,
+      "longestAttachmentSeconds": 0.858,
+      "immediateDetaches": 0,
+      "stalledHeldFrames": 0,
+      "maximumConsecutiveStallFrames": 0,
+      "contacts": 443,
+      "wallFrames": 145,
+      "penetrationFrames": 0,
+      "assistanceFrames": 91,
+      "probes": 190,
+      "anchorSearches": 14,
+      "meanAnchorCandidates": 11.214,
+      "events": {
+        "jump": 4,
+        "web-attached": 5,
+        "land": 1,
+        "wall-contact": 1
+      },
+      "detaches": {},
+      "detachSamples": [],
+      "sampleFailures": [],
+      "cpuFrameMeanMs": 0.163,
+      "cpuFrameP95Ms": 0.284
+    }
+  ]
+}

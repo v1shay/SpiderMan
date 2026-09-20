@@ -46,6 +46,9 @@ export class TraversalSpeedBlur {
   private quad = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), this.material);
   private pulse = 0;
   private previousSpeed = 0;
+  private width = 1;
+  private height = 1;
+  private resolutionScale = .85;
   constructor() { this.scene.add(this.quad); }
   get strength() { return this.material.uniforms.strength.value as number; }
   update(delta: number, speed: number, burst: boolean, reducedMotion = false, gliding = false) {
@@ -55,12 +58,28 @@ export class TraversalSpeedBlur {
     this.pulse = Math.max(0, this.pulse - delta);
     this.material.uniforms.strength.value = reducedMotion ? 0 : Math.max(.018 * Math.sin(Math.PI * this.pulse / .24), gliding ? THREE.MathUtils.clamp((speed - 15) / 85, 0, 1) * .008 : 0);
   }
-  resize(width: number, height: number) { this.target.setSize(width, height); }
+  resize(width: number, height: number) {
+    this.width = Math.max(1, Math.round(width)); this.height = Math.max(1, Math.round(height));
+    this.target.setSize(Math.max(1, Math.round(this.width * this.resolutionScale)), Math.max(1, Math.round(this.height * this.resolutionScale)));
+  }
+  setResolutionScale(scale: number) {
+    const next = Number.isFinite(scale) ? THREE.MathUtils.clamp(scale, .5, 1) : .85;
+    if (next === this.resolutionScale) return;
+    this.resolutionScale = next;
+    this.resize(this.width, this.height);
+  }
+  get targetSize() { return { width: this.target.width, height: this.target.height }; }
   render(renderer: THREE.WebGLRenderer, scene: THREE.Scene, camera: THREE.Camera) {
-    // A single linear-light/output conversion path also at zero blur prevents
-    // the sky and custom materials changing brightness when a pulse starts.
-    renderer.setRenderTarget(this.target); renderer.render(scene, camera);
-    renderer.setRenderTarget(null); renderer.render(this.scene, this.camera);
+    const previousTarget = renderer.getRenderTarget();
+    // Idle renders once at native canvas resolution: no offscreen copy or resampling.
+    if (this.strength < .0001) { renderer.render(scene, camera); return; }
+    // Three renders linear HDR into the target without tone mapping. The final
+    // shader applies the same tone mapping and output conversion as direct render.
+    // The atmosphere includes both chunks, so the sky follows this same color path.
+    try {
+      renderer.setRenderTarget(this.target); renderer.render(scene, camera);
+      renderer.setRenderTarget(previousTarget); renderer.render(this.scene, this.camera);
+    } finally { renderer.setRenderTarget(previousTarget); }
   }
   dispose() { this.target.dispose(); this.quad.geometry.dispose(); this.material.dispose(); }
 }

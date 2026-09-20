@@ -1,0 +1,143 @@
+[
+  {
+    "id": "symbiote-ps5",
+    "target": 190000,
+    "beforeVertices": 495770,
+    "afterVertices": 238182,
+    "reductionPercent": 52,
+    "beforeBytes": 49746624,
+    "afterBytes": 22568200,
+    "primitives": [
+      {
+        "beforeVertices": 65532,
+        "afterVertices": 26498,
+        "beforeTriangles": 116336,
+        "afterTriangles": 44580,
+        "error": 0.0005979951238259673
+      },
+      {
+        "beforeVertices": 65532,
+        "afterVertices": 26691,
+        "beforeTriangles": 116165,
+        "afterTriangles": 44518,
+        "error": 0.0007720390567556024
+      },
+      {
+        "beforeVertices": 65532,
+        "afterVertices": 27069,
+        "beforeTriangles": 110819,
+        "afterTriangles": 42465,
+        "error": 0.0007720049470663071
+      },
+      {
+        "beforeVertices": 32375,
+        "afterVertices": 14477,
+        "beforeTriangles": 48680,
+        "afterTriangles": 18656,
+        "error": 0.0005319912452250719
+      },
+      {
+        "beforeVertices": 65532,
+        "afterVertices": 36867,
+        "beforeTriangles": 59069,
+        "afterTriangles": 22636,
+        "error": 0.004254863131791353
+      },
+      {
+        "beforeVertices": 36515,
+        "afterVertices": 18708,
+        "beforeTriangles": 35651,
+        "afterTriangles": 13662,
+        "error": 0.0027184737846255302
+      },
+      {
+        "beforeVertices": 65532,
+        "afterVertices": 35779,
+        "beforeTriangles": 66086,
+        "afterTriangles": 25325,
+        "error": 0.0020713061094284058
+      },
+      {
+        "beforeVertices": 65532,
+        "afterVertices": 34352,
+        "beforeTriangles": 71784,
+        "afterTriangles": 27509,
+        "error": 0.0019190001767128706
+      },
+      {
+        "beforeVertices": 33688,
+        "afterVertices": 17741,
+        "beforeTriangles": 36722,
+        "afterTriangles": 14073,
+        "error": 0.0019080574857071042
+      }
+    ]
+  },
+  {
+    "id": "homecoming-tech",
+    "target": 85000,
+    "beforeVertices": 111467,
+    "afterVertices": 86416,
+    "reductionPercent": 22.5,
+    "beforeBytes": 24748048,
+    "afterBytes": 22231596,
+    "primitives": [
+      {
+        "beforeVertices": 27558,
+        "afterVertices": 21308,
+        "beforeTriangles": 50840,
+        "afterTriangles": 38422,
+        "error": 0.00016100968059618026
+      },
+      {
+        "beforeVertices": 23567,
+        "afterVertices": 17720,
+        "beforeTriangles": 43488,
+        "afterTriangles": 32866,
+        "error": 0.0007720168214291334
+      },
+      {
+        "beforeVertices": 10689,
+        "afterVertices": 8028,
+        "beforeTriangles": 20480,
+        "afterTriangles": 15477,
+        "error": 0.0020131783094257116
+      },
+      {
+        "beforeVertices": 5056,
+        "afterVertices": 3862,
+        "beforeTriangles": 9252,
+        "afterTriangles": 6992,
+        "error": 0.001581948483362794
+      },
+      {
+        "beforeVertices": 16336,
+        "afterVertices": 12447,
+        "beforeTriangles": 28234,
+        "afterTriangles": 21337,
+        "error": 0.00013640051474794745
+      },
+      {
+        "beforeVertices": 19717,
+        "afterVertices": 15687,
+        "beforeTriangles": 29712,
+        "afterTriangles": 22454,
+        "error": 0.00014634776744060218
+      },
+      {
+        "beforeVertices": 2528,
+        "afterVertices": 1986,
+        "beforeTriangles": 3828,
+        "afterTriangles": 2892,
+        "error": 0.002714499831199646
+      },
+      {
+        "beforeVertices": 2910,
+        "afterVertices": 2272,
+        "beforeTriangles": 3792,
+        "afterTriangles": 2864,
+        "error": 0.0003841581929009408
+      }
+    ]
+  }
+]

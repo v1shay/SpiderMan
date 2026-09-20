@@ -1,7 +1,10 @@
 'use client';
 
 import { hasWallRunSupport } from '@/lib/traversal-feel';
-import { ADVANCED_TRAVERSAL_CONFIG as SPIDER_TRAVERSAL_FEEL } from '@/lib/traversal-advanced';
+import {
+  ADVANCED_TUNING,
+  ADVANCED_TRAVERSAL_CONFIG as SPIDER_TRAVERSAL_FEEL,
+} from '@/lib/traversal-advanced';
 import {
   probeAdvancedWorld,
   probeLowObstacle,
@@ -13,25 +16,43 @@ import { clone as cloneRig } from 'three/examples/jsm/utils/SkeletonUtils.js';
 import {
   RaceSession,
   createRaceCourse,
+  dailyRaceSeed,
+  raceResultValue,
+  type RaceCourse,
+  type RaceMode,
   validRaceCourse,
   raceDistance,
   type RaceView,
   type RacePoint,
 } from '@/lib/race-session';
+import { sampleRaceInput } from '@/lib/race-input';
+import { InputSystem, toTraversalInput } from '@/lib/input-system';
+import { TraversalTelemetry } from '@/lib/telemetry';
+import { RenderQualityManager } from '@/lib/render-quality';
+import { TrickSystem } from '@/lib/trick-system';
+import { MissionSystem, createCityMission, type MissionView } from '@/lib/mission-system';
+import { MissionVisuals } from '@/lib/mission-visuals';
+import { BossSystem, type BossSnapshot, type BossWorld } from '@/lib/boss-system';
+import { BOSS_DEFINITIONS, type BossId } from '@/lib/boss-definitions';
+import { BossVisuals } from '@/lib/boss-visuals';
+import { verifyBlurColors } from '@/lib/render-verification';
 import {
   GhostRecorder,
   poseGhost,
   loadGhost,
   saveGhost,
   readBest,
+  readBestRun,
+  isBetterRaceRun,
   storeBest,
   type GhostRecord,
   type GhostRig,
 } from '@/lib/race-ghost';
-import { RaceWorldVisuals, applyWind } from '@/lib/race-world';
-import { CityWeather, isSnowSky, type SkyPreset } from '@/lib/city-weather';
+import { RaceWorldVisuals, sampleWindAssist, createRaceGeometrySampler, raceRoutePoints } from '@/lib/race-world';
+import { CityWeather, type SkyPreset } from '@/lib/city-weather';
 import { CityHorizon } from '@/lib/city-horizon';
 import { createCityAtmosphere } from '@/lib/city-atmosphere';
+import { WebStrand, WEB_STRAND_MODEL } from '@/lib/web-strand';
 import { forwardRef, useEffect, useImperativeHandle, useRef } from 'react';
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
@@ -59,6 +80,7 @@ import {
   stepTraversalInPlace,
   refreshTraversalContext,
   acceptTraversalWallContact,
+  resolveSwingContinuation,
   applyLandingRoll,
   type TraversalContext,
   type TraversalInput,
@@ -102,22 +124,49 @@ import {
 } from '@/lib/traversal-camera';
 import { findWallScenario, findRollScenario } from '@/lib/traversal-scenarios';
 
+export type ActivityAction = 'hulk'|'venom'|'ironman'|'courier'|'rescue'|'style'|'retry'|'stop';
 export type GameHud = {
+  boss?: BossSnapshot | null;
+  mission?: MissionView | null;
+  activityMessage?: string;
+  trickScore?: number;
+  flowMultiplier?: number;
   speed: number;
   altitude: number;
   fps: number;
   swinging: boolean;
+  mode: string;
+  charge: number;
+  chargeLabel: string;
+  announcement: HudTrick | null;
+  callout: {
+    x: number;
+    y: number;
+    side: 'left' | 'right';
+  };
 };
-export type RaceAction = 'invite' | 'accept' | 'decline' | 'cancel' | 'pb';
+export type HudTrick = {
+  id: number;
+  label: string;
+  score: number;
+  multiplier: number;
+  kind: 'air' | 'web' | 'glide' | 'impact';
+};
+export type RaceAction = 'invite' | 'accept' | 'decline' | 'cancel' | 'pb' | 'restart' | 'daily' | 'mode-speed' | 'mode-style' | 'mode-combined';
 export type MapPlayer = { id: string; position: RacePoint; self: boolean };
 export type SpiderGameHandle = {
   travelTo: (id: DistrictId) => void;
+  switchSuit: (id: SuitId) => void;
   raceAction: (action: RaceAction) => void;
+  activityAction: (action: ActivityAction) => void;
 };
 
 type Props = {
   night?: boolean;
   sky?: SkyPreset;
+  experimentalCamera?: boolean;
+  cameraZoom?: number;
+  paused?: boolean;
   onRaceView?: (view: RaceView) => void;
   onMapPlayers?: (players: MapPlayer[]) => void;
   suitId: SuitId;
@@ -160,6 +209,7 @@ type RemoteAvatar = {
   suitId: SuitId;
   lastSequence: number;
   lastUpdate: number;
+  animationAccumulator: number;
 };
 
 type StreamedTile = {
@@ -814,7 +864,9 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(
   function SpiderGame(props, ref) {
     const mountRef = useRef<HTMLDivElement>(null);
     const travelRef = useRef<(id: DistrictId) => void>(() => undefined);
+    const switchSuitRef = useRef<(id: SuitId) => void>(() => undefined);
     const raceActionRef = useRef<(action: RaceAction) => void>(() => undefined);
+    const activityActionRef = useRef<(action: ActivityAction) => void>(() => undefined);
     const callbacksRef = useRef(props);
     useEffect(() => {
       callbacksRef.current = props;
@@ -823,7 +875,9 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(
       ref,
       () => ({
         travelTo: (id) => travelRef.current(id),
+        switchSuit: (id) => switchSuitRef.current(id),
         raceAction: (action) => raceActionRef.current(action),
+        activityAction: (action) => activityActionRef.current(action),
       }),
       [],
     );
@@ -834,6 +888,8 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(
       let disposed = false;
       let frameId = 0;
       let ready = false;
+      let activeSuitId = props.suitId;
+      let avatarLoadGeneration = 0;
       const scene = new THREE.Scene();
       scene.fog = new THREE.Fog('#9acbe3', 1000, 2600);
       const atmosphere = createCityAtmosphere(scene);
@@ -1065,7 +1121,44 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(
       const districtModelPromises = new Map<string, Promise<THREE.Group>>();
       const loader = supportLegacyMaterials(new GLTFLoader());
       loader.setMeshoptDecoder(MeshoptDecoder);
-      const keys = new Set<string>();
+      const inputSystem = new InputSystem();
+      const keys = inputSystem.raw.keys;
+      const telemetry = new TraversalTelemetry();
+      const quality = new RenderQualityManager();
+      const tricks = new TrickSystem();
+      const missions = new MissionSystem();
+      const missionVisuals = new MissionVisuals(scene);
+      let activityMessage = '';
+      let interactPressed = false;
+      const bosses = new BossSystem();
+      const bossVisuals = new BossVisuals(scene);
+      let bossLoadingGeneration = 0;
+      let bossAttackPressed = false;
+      let bossHeavyPressed = false;
+      let bossLauncherPressed = false;
+      let bossGrabPressed = false;
+      let bossDodgePressed = false;
+      let bossWebPressed = false;
+      let bossTauntPressed = false;
+      let bossCheckpointPlayer: THREE.Vector3 | null = null;
+      const bossWorld: BossWorld = {
+        groundAt: (point) => {
+          const world = repeatingWorlds.get(currentDistrict);
+          const hit = world?.supportAt(point, 1.5, 40);
+          return hit ? capsuleSupportHeight(hit, .8) : null;
+        },
+        move: (from, to, radius) => {
+          const world = repeatingWorlds.get(currentDistrict);
+          if (!world) return {...from};
+          const height = BOSS_DEFINITIONS[bosses.snapshot()?.id ?? 'hulk'].height;
+          const hit = world.sweepCapsule(from,to,{x:to.x-from.x,y:to.y-from.y,z:to.z-from.z},radius,height);
+          return {x:hit.position.x,y:hit.position.y,z:hit.position.z};
+        },
+        lineOfSight: (from,to) => {
+          const ray = new THREE.Vector3().copy(to).sub(from), distance = ray.length();
+          return distance < .1 || !raycastWorld(new THREE.Vector3().copy(from),ray.normalize(),distance-.08);
+        },
+      };
       const initialDistrict = getDistrict(props.districtId);
       const initialSpawn = districtSpawn(initialDistrict);
       const player = {
@@ -1086,6 +1179,7 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(
       let cameraYaw = initialDistrict.spawnYaw ?? 0;
       let cameraPitch = initialDistrict.spawnPitch ?? 0.08;
       let wallCameraBlend = 0;
+      let combatCameraBlend = 0;
       let wallCameraYawAnchor = cameraYaw;
       let wallCameraWasRequested = false;
       const wallCameraNormal = new THREE.Vector3(0, 0, 1);
@@ -1105,9 +1199,13 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(
       let fpsFrames = 0;
       let measuredFps = 60;
       let buildingCorrectionCount = 0;
-      let performanceScaled = false;
+      let telemetryAt = 0;
       let lastFrameTime = performance.now();
+      let wasPaused = false;
       let elapsedTime = 0;
+      let visualTime = 0;
+      let pausedVisualSky: SkyPreset | null = null;
+      let pausedVisualNight: boolean | null = null;
       let jumpPressed = false;
       let glidePressed = false,
         chargeJumpReleased = false,
@@ -1120,17 +1218,21 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(
       };
       let wallCrawlPressed = false;
       let zipPressed = false;
-      let zipReleased = false;
       let pointerHeld = false;
       let pointerPressed = false;
       let pointerReleased = false;
+      let hudAnnouncement: HudTrick | null = null;
+      let hudAnnouncementAt = -10;
+      const trickQueue: HudTrick[] = [];
+      let trickProbeAt = 0;
+      let trickClearance = {left: 100, right: 100};
+      let lastTrickSpeed = 0;
 
       let pointerZipActive = false;
       let grappleLineUntil = -1;
       let pointerPressure: number | undefined;
       let measuredPressure = false;
-      let pointerDownAt = 0;
-      let swingCommitted = false;
+
       let hoverTogglePressed = false;
       let cruiseTogglePressed = false;
       let ironFlightMode: IronFlightMode = 'grounded';
@@ -1165,15 +1267,9 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(
       webLine.visible = false;
       webLine.frustumCulled = false;
       scene.add(webLine);
+      let webStrand: WebStrand | null = null;
+      const webTargetPoint = new THREE.Vector3();
       const extraTethers = new TraversalTetherVisual(scene);
-      const abilityStatus = document.createElement('output');
-      abilityStatus.setAttribute('aria-label', 'Traversal ability status');
-      abilityStatus.style.cssText =
-        'position:absolute;right:16px;bottom:78px;z-index:40;pointer-events:none;color:white;background:#101921c9;padding:6px 9px;border-radius:6px;font:12px sans-serif';
-      abilityStatus.textContent =
-        'G glide · C charge jump · X slingshot · Z+A/D corner · L dive loop';
-      mount.appendChild(abilityStatus);
-
       const resize = () => {
         const width = Math.max(1, mount.clientWidth);
         const height = Math.max(1, mount.clientHeight);
@@ -1219,7 +1315,10 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(
       let recorder: GhostRecorder | null = null,
         ghostRecord: GhostRecord | null = null,
         ghostRig: GhostRig | null = null;
+      let ghostSave: Promise<void> = Promise.resolve();
+      let ghostLoadGeneration = 0;
       let lastRaceSide = -1;
+      let selectedRaceMode: RaceMode = 'speed';
       let raceCourseId = '',
         raceBest: number | null = null,
         raceMessage = 'Own the skyline',
@@ -1228,6 +1327,7 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(
       const raceVisuals = new RaceWorldVisuals(scene);
       const raceNow = () => performance.timeOrigin + performance.now();
       const removeGhost = () => {
+        ghostLoadGeneration++;
         if (!ghostRig) return;
         ghostRig.root.removeFromParent();
         ghostRig.model.traverse((o) => {
@@ -1245,13 +1345,16 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(
         if (!world) return;
         raceCourseId = course.id;
         raceBest = readBest(course.id);
+        race.bestSplits = readBestRun(course.id)?.splits ?? [];
         raceVisuals.setCourse(course, world);
         ghostRecord = null;
         removeGhost();
-        void loadGhost(course.id)
+        const loadGeneration = ghostLoadGeneration;
+        void ghostSave.then(() => loadGhost(course.id))
           .then((record) => {
             if (
               disposed ||
+              loadGeneration !== ghostLoadGeneration ||
               race?.course?.id !== course.id ||
               !record ||
               !avatar
@@ -1392,6 +1495,7 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(
             suitId: latest.suitId,
             lastSequence: latest.sequence,
             lastUpdate: performance.now(),
+            animationAccumulator: 0,
           });
         })()
           .catch((error) =>
@@ -1420,7 +1524,9 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(
             12,
             delta,
           );
-          remote.wallPose.reset(remote.surfaceFrame);
+          remote.animationAccumulator += delta;
+          const animateRemote = remote.animationAccumulator >= 1 / quality.settings.secondaryAnimationHz;
+          if (animateRemote) remote.wallPose.reset(remote.surfaceFrame);
           const crawling = remote.mode === 'wallCrawl';
           const ironCruise =
             remote.mode === 'iron-cruise' || remote.mode === 'iron-boost';
@@ -1437,7 +1543,7 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(
             7,
             delta,
           );
-          remote.animator.update(delta, {
+          if (animateRemote) remote.animator.update(remote.animationAccumulator, {
             pose: networkPose(remote.mode),
             mode: remote.mode,
             grounded: ['idle', 'land', 'perch', 'run'].includes(remote.mode),
@@ -1448,13 +1554,14 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(
             boost: remote.mode === 'iron-boost',
             crawlDirection: remote.velocity.y < -0.1 ? -1 : 1,
           });
+          if (animateRemote) remote.animationAccumulator = 0;
           remote.repulsors?.update(
             ironCruise || remote.mode === 'iron-hover',
             remote.velocity.length(),
             remote.mode === 'iron-boost',
             elapsedTime,
           );
-          if (crawling) {
+          if (crawling && animateRemote) {
             const normal = new THREE.Vector3(
               Math.sin(remote.targetYaw),
               0,
@@ -1487,7 +1594,7 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(
       };
 
       const connectMultiplayer = () => {
-        multiplayer = SpiderMultiplayer.create(props.suitId, currentDistrict, {
+        multiplayer = SpiderMultiplayer.create(activeSuitId, currentDistrict, {
           onPlayerState: ensureRemoteAvatar,
           onRacePacket: (packet) => {
             const world = repeatingWorlds.get(currentDistrict);
@@ -1502,8 +1609,10 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(
                 ))
             )
               return;
+            if (packet.course?.mapId && packet.course.mapId !== currentDistrict) return;
             race?.receive(packet, raceNow());
-            prepareRaceCourse();
+            if (!race?.course) {raceVisuals.clear();removeGhost();ghostRecord=null;recorder=null;raceCourseId='';}
+            else prepareRaceCourse();
           },
           onPeers: (peerIds) => {
             onlinePeerCount = peerIds.size;
@@ -1520,7 +1629,7 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(
           },
         });
         reportMultiplayer();
-        if (multiplayer) void multiplayer.join(currentDistrict, props.suitId);
+        if (multiplayer) void multiplayer.join(currentDistrict, activeSuitId);
       };
 
       const tileKey = (x: number, z: number) => `${x}:${z}`;
@@ -1731,6 +1840,8 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(
             root.position.set(...config.position);
             root.rotation.y = config.rotation ?? 0;
             root.add(model);
+            if (config.id !== currentDistrict)
+              root.traverse((object) => object.layers.set(31));
             scene.add(root);
             root.updateWorldMatrix(true, true);
             const landmarkBoxes =
@@ -1974,6 +2085,8 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(
               Math.max(8, rotatedDepth + 8),
             );
             weather.apply(horizon.root);
+            if (config.id !== currentDistrict)
+              horizon.root.traverse((object) => object.layers.set(31));
             scene.add(horizon.root);
             districtStreams.set(config.id, {
               horizon,
@@ -2038,14 +2151,29 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(
         return promise;
       };
 
-      const loadAvatar = async () => {
-        const suit = getSuit(props.suitId);
+      const disposeAvatar = (target: AvatarRig | null) => {
+        if (!target) return;
+        target.animator.mixer.stopAllAction();
+        target.root.removeFromParent();
+        target.root.traverse((object) => {
+          if (!(object instanceof THREE.Mesh)) return;
+          object.geometry.dispose();
+          const materials = Array.isArray(object.material)
+            ? object.material
+            : [object.material];
+          materials.forEach((material) => material.dispose());
+        });
+      };
+
+      const loadAvatar = async (suitId: SuitId = activeSuitId) => {
+        const generation = ++avatarLoadGeneration;
+        const suit = getSuit(suitId);
         callbacksRef.current.onStatus(`Syncing ${suit.name} rig`, 4);
         const gltf = await loadModel<{
           scene: THREE.Group;
           animations: THREE.AnimationClip[];
         }>(suit.model, `${suit.name} suit`, 4, 42);
-        if (disposed) return;
+        if (disposed || generation !== avatarLoadGeneration) return;
         prepareMaterials(gltf.scene, renderer, 'character');
         calibrate2099Materials(gltf.scene);
         const authoredClips = suitAnimationClips(gltf.animations, suit);
@@ -2076,6 +2204,7 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(
             ),
           );
         }
+        if (disposed || generation !== avatarLoadGeneration) return;
         normalizeSuit(gltf.scene, suit, 2.05);
         const root = new THREE.Group();
         root.name = `Player: ${suit.name}`;
@@ -2091,7 +2220,7 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(
           suit.traversal === 'ironman'
             ? new IronManRepulsors(root, animator.bones)
             : null;
-        avatar = {
+        const nextAvatar: AvatarRig = {
           root,
           model: gltf.scene,
           animator,
@@ -2099,6 +2228,16 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(
           wallPose: new WallPose(gltf.scene, suit.id),
           repulsors,
         };
+        nextAvatar.animator.update(0.18, {
+          pose: 'perch',
+          grounded: true,
+          speed: 0,
+          verticalSpeed: 0,
+        });
+        const previousAvatar = avatar;
+        avatar = nextAvatar;
+        activeSuitId = suit.id;
+        disposeAvatar(previousAvatar);
         renderer.domElement.dataset.suit = suit.id;
         renderer.domElement.dataset.animationClips = animator.clips
           .map((clip) => clip.name)
@@ -2106,6 +2245,30 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(
         renderer.domElement.dataset.rigRoles = [
           ...new Set(animator.bones.map((entry) => entry.role)),
         ].join('|');
+        callbacksRef.current.onStatus(`${suit.name} ready`, 100);
+      };
+
+      switchSuitRef.current = (id: SuitId) => {
+        if (id === activeSuitId) return;
+        void loadAvatar(id).then(() => {
+          if (disposed || activeSuitId !== id) return;
+          clearRemoteAvatars();
+          if (multiplayer) void multiplayer.join(currentDistrict, activeSuitId);
+        });
+      };
+
+      const loadWebVisual = async () => {
+        const gltf = await loadModel<{ scene: THREE.Group }>(
+          WEB_STRAND_MODEL,
+          'authored Spider-Man web',
+          0,
+          0,
+          false,
+        );
+        if (disposed) return;
+        webStrand = new WebStrand(gltf.scene);
+        scene.add(webStrand.group);
+        renderer.domElement.dataset.webVisual = 'downloaded-spiderman-web';
       };
 
       const readPointer = (event: MouseEvent) => {
@@ -2125,6 +2288,7 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(
           measuredPressure = true;
         if (measuredPressure && pressure > 0)
           pointerPressure = clamp(pressure, 0.1, 1);
+        inputSystem.setPressure(pointerPressure);
       };
 
       const collectAnchorCandidates = (ndc: THREE.Vector2) => {
@@ -2201,12 +2365,16 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(
             // Imported cities need not contain hand-authored anchor tags. Search
             // elevated facades alongside the travel corridor, then require actual
             // visible triangle contact. Never attach to a proxy or empty sky.
-            const heading =
-              Math.hypot(player.velocity.x, player.velocity.z) > 8
-                ? Math.atan2(-player.velocity.x, -player.velocity.z)
-                : cameraYaw;
-            for (const elevation of [0.52, 0.87, 1.13])
-              for (const side of [-0.9, -0.45, 0, 0.45, 0.9]) {
+            const heading = cameraYaw;
+            const supportBelow = meshSupportAt(traversal.position, 0.2, 180);
+            const altitude = supportBelow
+              ? Math.max(0, traversal.position.y - supportBelow.point.y)
+              : 0;
+            const elevations = altitude > 14 || traversal.velocity.y < -8
+              ? [-0.16, 0.1, 0.34, 0.62, 0.92]
+              : [0.34, 0.58, 0.87, 1.13];
+            for (const elevation of elevations)
+              for (const side of [-1.65, -1.2, -0.6, 0, 0.6, 1.2, 1.65]) {
                 const yaw = heading + side;
                 const direction = new THREE.Vector3(
                   -Math.sin(yaw) * Math.cos(elevation),
@@ -2215,7 +2383,7 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(
                 );
                 addSurface(
                   raycastWorld(chest, direction, 145),
-                  1 + elevation * 0.12,
+                  1 + Math.max(-0.04, elevation * 0.12),
                 );
               }
           }
@@ -2375,36 +2543,19 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(
           'Mouse capture was unavailable. Click the game to retry.';
       };
       const onPointerDown = (event: MouseEvent) => {
-        if (event.button === 2) {
-          event.preventDefault();
-          return;
-        }
-        if (event.button !== 0 || !ready) return;
+        if (![0, 2].includes(event.button) || !ready) return;
+        event.preventDefault();
+        inputSystem.gainFocus();
+        inputSystem.setButton(event.button, true);
         renderer.domElement.focus({ preventScroll: true });
-        if (document.pointerLockElement !== renderer.domElement) {
-          // The capture click only enters mouse-look; it must not fire a web zip.
-          if (!pointerLockPending) {
-            pointerLockPending = true;
-            try {
-              renderer.domElement
-                .requestPointerLock()
-                ?.catch(onPointerLockError);
-            } catch {
-              onPointerLockError();
-            }
-          }
-          return;
-        }
         readPointer(event);
-        if (getSuit(props.suitId).traversal === 'spider' && traversal.zip) {
-          traversal.zip = null;
-          pointerZipActive = false;
+        if (event.button === 0 && traversal.zip) traversal.zip = null;
+        if (event.button === 2) pointerZipActive = true;
+        if (document.pointerLockElement !== renderer.domElement && !pointerLockPending) {
+          pointerLockPending = true;
+          try { renderer.domElement.requestPointerLock()?.catch(onPointerLockError); }
+          catch { onPointerLockError(); }
         }
-        pointerHeld = true;
-        pointerDownAt = performance.now();
-        swingCommitted = false;
-        pointerPressed = false;
-        pointerReleased = false;
       };
       const onPointerMove = (event: PointerEvent) => {
         readPointer(event);
@@ -2422,15 +2573,9 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(
       };
       const onContextMenu = (event: MouseEvent) => event.preventDefault();
       const onPointerUp = (event: MouseEvent) => {
-        if (event.button !== 0 || !pointerHeld) return;
+        if (![0, 2].includes(event.button)) return;
         readPointer(event);
-        pointerHeld = false;
-        if (!swingCommitted && performance.now() - pointerDownAt < 180) {
-          pointerZipActive = true;
-          zipPressed = true;
-          zipReleased = false;
-        } else pointerReleased = true;
-        swingCommitted = false;
+        inputSystem.setButton(event.button, false);
       };
       const onKeyDown = (event: KeyboardEvent) => {
         if (event.code === 'Escape') {
@@ -2442,7 +2587,8 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(
         if (process.env.NODE_ENV !== 'production')
           renderer.domElement.dataset.lastKey = event.code;
         const firstPress = !keys.has(event.code);
-        keys.add(event.code);
+        inputSystem.gainFocus();
+        inputSystem.setKey(event.code, true);
         if (
           [
             'Space',
@@ -2456,6 +2602,14 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(
           ].includes(event.code)
         )
           event.preventDefault();
+        if (event.code === 'KeyN' && firstPress) interactPressed = true;
+        if (event.code === 'KeyK' && firstPress) bossAttackPressed = true;
+        if (event.code === 'KeyL' && firstPress) bossHeavyPressed = true;
+        if (event.code === 'KeyI' && firstPress) bossLauncherPressed = true;
+        if (event.code === 'KeyU' && firstPress) bossGrabPressed = true;
+        if (event.code === 'KeyJ' && firstPress) bossDodgePressed = true;
+        if (event.code === 'KeyH' && firstPress) bossWebPressed = true;
+        if (event.code === 'KeyY' && firstPress) bossTauntPressed = true;
         if (event.code === 'Space' && firstPress) {
           jumpPressed = true;
         }
@@ -2472,7 +2626,6 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(
         if (event.code === 'KeyQ' && firstPress) wallCrawlPressed = true;
         if (event.code === 'KeyE' && firstPress) {
           zipPressed = true;
-          zipReleased = false;
         }
         if (event.code === 'KeyF' && firstPress) hoverTogglePressed = true;
         if (event.code === 'KeyE' && firstPress) cruiseTogglePressed = true;
@@ -2501,13 +2654,14 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(
         }
       };
       const onKeyUp = (event: KeyboardEvent) => {
-        keys.delete(event.code);
-        if (event.code === 'KeyE') zipReleased = true;
+        inputSystem.setKey(event.code, false);
         if (event.code === 'KeyC') chargeJumpReleased = true;
         if (event.code === 'KeyX') slingshotReleased = true;
       };
       const clearKeys = () => {
-        keys.clear();
+        inputSystem.loseFocus();
+        bossAttackPressed = bossHeavyPressed = bossLauncherPressed = bossGrabPressed = false;
+        bossDodgePressed = bossWebPressed = bossTauntPressed = interactPressed = false;
         glidePressed = false;
         chargeJumpReleased = false;
         slingshotReleased = false;
@@ -2517,10 +2671,8 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(
         pointerHeld = false;
         pointerPressed = false;
         zipPressed = false;
-        swingCommitted = false;
         pointerReleased = true;
         pointerZipActive = false;
-        zipReleased = true;
         hoverTogglePressed = false;
         cruiseTogglePressed = false;
         wallCrawlPressed = false;
@@ -2584,7 +2736,7 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(
           button.style.cssText =
             'padding:8px;margin:3px;border:1px solid #48cfea;background:#12384a;color:white';
           button.onclick = () => {
-            if (!ready || getSuit(props.suitId).traversal !== 'spider') return;
+            if (!ready || getSuit(activeSuitId).traversal !== 'spider') return;
             const world = repeatingWorlds.get(currentDistrict);
             if (!world) return;
             let spawn = safeSpawn(getDistrict(currentDistrict));
@@ -2630,6 +2782,7 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(
               spawn = best;
             }
             clearKeys();
+            inputSystem.gainFocus();
             anchorSearchAt = -10;
             player.position.copy(spawn);
             player.velocity.set(0, 0, 0);
@@ -2649,7 +2802,8 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(
                 ),
               );
             meshWallContact = null;
-            keys.add('KeyW');
+            inputSystem.gainFocus();
+            inputSystem.setKey('KeyW', true);
             trial = {
               elapsed: 0,
               previous: spawn.clone(),
@@ -2698,7 +2852,8 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(
             .addScaledVector(scenario.normal, 7)
             .add(new THREE.Vector3(0, 3, 0));
           meshWallContact = null;
-          keys.add('KeyW');
+          inputSystem.gainFocus();
+          inputSystem.setKey('KeyW', true);
           wallTrial = {
             kind: 'wall',
             elapsed: 0,
@@ -2756,6 +2911,10 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(
         };
         trialPanel.appendChild(rollButton);
 
+        const renderCheck = document.createElement('button');
+        renderCheck.textContent = 'Verify blur color';
+        renderCheck.onclick = () => { const report=verifyBlurColors(renderer); renderer.domElement.dataset.blurColorCheck=JSON.stringify(report); trialOutput.textContent=JSON.stringify(report); };
+        trialPanel.appendChild(renderCheck);
         const cancel = document.createElement('button');
         cancel.textContent = 'Stop trial';
         cancel.onclick = () => {
@@ -2780,11 +2939,100 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(
       window.addEventListener('keyup', onKeyUp);
       window.addEventListener('blur', clearKeys);
 
+      const verifiedActivityPoints = () => {
+        const world = repeatingWorlds.get(currentDistrict);
+        if (!world) return [];
+        const points: {x:number;y:number;z:number}[] = [];
+        for (const distance of [60, 145, 230]) {
+          let found = false;
+          for (let angle = 0; angle < Math.PI * 2 && !found; angle += Math.PI / 6) {
+            const p = new THREE.Vector3(player.position.x + Math.cos(angle) * distance, 600, player.position.z + Math.sin(angle) * distance);
+            const hit = world.raycast(p, {x:0,y:-1,z:0}, 800, .85);
+            if (!hit) continue;
+            const target = hit.point.clone();target.y = capsuleSupportHeight(hit);
+            if (world.isCapsuleClear(target, .46, 2.05, false)) {points.push({x:target.x,y:target.y,z:target.z});found=true;}
+          }
+        }
+        return points;
+      };
+      activityActionRef.current = (action) => {
+        if (action === 'stop') { bossLoadingGeneration++;bosses.stop();missions.stop();activityMessage = ''; return; }
+        if (action === 'retry') {
+          if (bosses.snapshot()) {
+            bosses.retry();
+            if (bossCheckpointPlayer) {
+              const entry = bossCheckpointPlayer.clone();
+              player.position.copy(entry);player.velocity.set(0,0,0);
+              Object.assign(traversal,createTraversalState(entry));traversal.grounded=true;
+              meshWallContact=null;inputSystem.resetActions();
+            }
+            activityMessage='Fight restarted · K strike · J dodge · H restrain';
+          } else missions.retry(tricks.score);
+          return;
+        }
+        if (['hulk','venom','ironman'].includes(action)) {
+          if (race && ['countdown','racing'].includes(race.phase)) {activityMessage='Finish or leave the race first';return;}
+          missions.stop();bosses.stop();
+          const id=action as BossId,world=repeatingWorlds.get(currentDistrict);
+          if(!world)return;
+          let arena:THREE.Vector3|null=null;
+          const height=BOSS_DEFINITIONS[id].height;
+          for(const distance of [0,12,24,36]) {
+            for(let angle=0;angle<Math.PI*2;angle+=Math.PI/6) {
+              const candidate={x:player.position.x+Math.cos(angle)*distance,y:player.position.y+8,z:player.position.z+Math.sin(angle)*distance};
+              const hit=world.supportAt(candidate,2,55);
+              if(!hit)continue;
+              const center=hit.point.clone();center.y=capsuleSupportHeight(hit);
+              if(!world.isCapsuleClear(center,.55,2.05,false)||Math.abs(center.y-player.position.y)>20)continue;
+              let clear=true;
+              for(let probe=0;probe<8;probe++){
+                const probeAngle=probe*Math.PI/4;
+                const sample={x:center.x+Math.cos(probeAngle)*7,y:center.y+5,z:center.z+Math.sin(probeAngle)*7};
+                const floor=world.supportAt(sample,2,18);
+                if(!floor){clear=false;break;}
+                const point=floor.point.clone();point.y=capsuleSupportHeight(floor,.8);
+                if(Math.abs(point.y-center.y)>1||!world.isCapsuleClear(point,1.15,height,false)){clear=false;break;}
+              }
+              if(clear){arena=center;break;}
+            }
+            if(arena)break;
+          }
+          if(!arena){activityMessage='Move to an open street or rooftop to begin the fight';return;}
+          const fightForward=camera.getWorldDirection(new THREE.Vector3()).setY(0).normalize();
+          const bossProbe={x:arena.x+fightForward.x*7,y:arena.y+5,z:arena.z+fightForward.z*7};
+          const bossFloor=world.supportAt(bossProbe,2,18);
+          if(!bossFloor){activityMessage='Move to a wider rooftop or street to begin the fight';return;}
+          const spawn=bossFloor.point.clone();spawn.y=capsuleSupportHeight(bossFloor,.8);
+          bossCheckpointPlayer=arena.clone();
+          const generation=++bossLoadingGeneration;
+          activityMessage=`Loading ${BOSS_DEFINITIONS[id].name} encounter…`;
+          void bossVisuals.load(id).then(()=>{
+            if(disposed||generation!==bossLoadingGeneration)return;
+            player.position.copy(arena!);player.velocity.set(0,0,0);
+            Object.assign(traversal,createTraversalState(arena!));traversal.grounded=true;
+            meshWallContact=null;inputSystem.resetActions();
+            cameraYaw=Math.atan2(-fightForward.x,-fightForward.z);
+            camera.position.copy(arena!).addScaledVector(fightForward,-7).add(new THREE.Vector3(0,3,0));
+            bosses.start(id,spawn,bossWorld);
+            activityMessage='K strike · J dodge · Hold H to restrain · keep moving';
+          }).catch(error=>{if(!disposed&&generation===bossLoadingGeneration)activityMessage=`Encounter unavailable: ${error instanceof Error?error.message:String(error)}`;});
+          return;
+        }
+        if (['courier','rescue','style'].includes(action)) {
+          if (race && ['countdown','racing'].includes(race.phase)) {activityMessage = 'Finish or leave the race first';return;}
+          bossLoadingGeneration++;bosses.stop();
+          const points = verifiedActivityPoints();
+          if(points.length<3){activityMessage='Move toward the city to find a clear route';return;}
+          missions.start(createCityMission(action as 'courier'|'rescue'|'style', points),tricks.score);
+          activityMessage='Follow the cyan objective beacon';
+        }
+      };
+
       const setupRace = () => {
         race = new RaceSession(multiplayer?.id ?? crypto.randomUUID(), {
           send: (packet) => multiplayer?.publishRace(packet),
           teleport: (point) => {
-            clearKeys();
+            inputSystem.resetActions();
             meshWallContact = null;
             player.position.fromArray(point);
             player.velocity.set(0, 0, 0);
@@ -2806,19 +3054,20 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(
           },
           started: () => {
             if (avatar) recorder = new GhostRecorder(avatar);
-            raceMessage = 'GO · follow the beacon';
+            raceMessage = 'GO · pass each cyan gate';
           },
           finished: (course, time) => {
             recorder?.capture(time);
-            const best = readBest(course.id);
-            if (best === null || time < best) {
-              const saved = storeBest(course, time);
+            const best = readBestRun(course.id);
+            const metadata = {score:race?.styleScore??0, splits:race?.splits??[]};
+            if (isBetterRaceRun(course,time,metadata.score,best)) {
+              const saved = storeBest(course, time, metadata);
               raceBest = time;
               raceMessage = saved
                 ? 'NEW PERSONAL BEST'
                 : 'PB set · browser storage unavailable';
               if (recorder)
-                void saveGhost(recorder.record(course, time)).catch(() => {
+                ghostSave = saveGhost(recorder.record(course, time, metadata)).catch(() => {
                   raceMessage = 'PB saved · ghost storage unavailable';
                 });
             } else raceMessage = 'FINISH · challenge your ghost';
@@ -2827,7 +3076,10 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(
         });
         raceActionRef.current = (action) => {
           if (!race) return;
+          if (action.startsWith('mode-')) { selectedRaceMode = action.slice(5) as RaceMode; return; }
+          if (action === 'restart') { raceCourseId=''; race.restart(raceNow()); prepareRaceCourse(); recorder = null; raceVisuals.setProgress(race.activeGateIds,race.completedGateIds); return; }
           if (action === 'accept') {
+            bossLoadingGeneration++;bosses.stop();missions.stop();
             race.accept(raceNow());
             raceMessage = 'Accepted · waiting for launch';
           } else if (action === 'decline') {
@@ -2848,7 +3100,7 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(
               const value = JSON.parse(
                 localStorage.getItem('2099-last-course') ?? 'null',
               );
-              if (validRaceCourse(value)) previous = value;
+              if (validRaceCourse(value) && value.gates?.length && value.mapId === currentDistrict) previous = value;
             } catch {
               /* storage is optional */
             }
@@ -2856,16 +3108,20 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(
             const origin = safeSpawn(
               getDistrict(currentDistrict),
             ).toArray() as RacePoint;
-            const course =
-              previous && (peers === 0 || action === 'pb')
+            let course: RaceCourse;
+            try { course =
+              previous && action === 'pb'
                 ? previous
                 : createRaceCourse(
                     origin,
                     world.width,
                     world.depth,
-                    crypto.getRandomValues(new Uint32Array(1))[0],
-                    lastRaceSide >= 0 ? lastRaceSide : (previous?.side ?? -1),
+                    action === 'daily' ? dailyRaceSeed(currentDistrict) : crypto.getRandomValues(new Uint32Array(1))[0],
+                    action === 'daily' ? -1 : lastRaceSide >= 0 ? lastRaceSide : (previous?.side ?? -1),
+                    {sample:createRaceGeometrySampler(world),mode:selectedRaceMode,mapId:currentDistrict},
                   );
+            } catch { raceMessage='No clear course here · move to another rooftop and retry';activityMessage=raceMessage;return; }
+            bossLoadingGeneration++;bosses.stop();missions.stop();
             if (race.invite(course, raceNow(), peers, crypto.randomUUID())) {
               lastRaceSide = course.side;
               raceCourseId = '';
@@ -2879,11 +3135,23 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(
       };
 
       travelRef.current = (id: DistrictId) => {
+        race?.cancel(raceNow());raceVisuals.clear();removeGhost();ghostRecord=null;recorder=null;raceCourseId='';
+        bossLoadingGeneration++;bosses.stop();missions.stop();activityMessage='';
         const district = getDistrict(id);
         void loadDistrict(district)
           .then(() => {
             if (disposed) return;
             currentDistrict = id;
+            for (const [districtId, stream] of districtStreams) {
+              const visible = districtId === id;
+              stream.horizon.root.traverse((object) =>
+                object.layers.set(visible ? 0 : 31),
+              );
+              for (const tile of stream.tiles.values())
+                tile.root.traverse((object) =>
+                  object.layers.set(visible ? 0 : 31),
+                );
+            }
             cameraPitch = district.spawnPitch ?? 0.08;
             player.position.copy(safeSpawn(district));
             cameraYaw = spawnViewYaw(player.position, district.spawnYaw ?? 0);
@@ -2891,6 +3159,7 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(
             player.facing = cameraYaw;
             player.velocity.set(0, 0, 0);
             player.grounded = true;
+            avatar?.root.position.copy(player.position);
             setTraversalKinematics(traversal, player.position, player.velocity);
             traversal.grounded = true;
             traversal.mode = 'idle';
@@ -2923,7 +3192,7 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(
               .join(',');
             clearRemoteAvatars();
             onlinePeerCount = 0;
-            if (multiplayer) void multiplayer.join(id, props.suitId);
+            if (multiplayer) void multiplayer.join(id, activeSuitId);
             callbacksRef.current.onDistrictChange(id);
             callbacksRef.current.onStatus(`${district.name} ready`, 100);
           })
@@ -2938,9 +3207,16 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(
         if (!avatar) return;
         avatar.wallPose.reset(avatar.surfaceFrame);
         avatar.root.position.copy(player.position);
+        const combatSnapshot = bosses.snapshot();
+        const combatDirection = combatSnapshot
+          ? new THREE.Vector3().copy(combatSnapshot.position).sub(player.position)
+          : null;
+        const combatYaw = combatDirection && combatDirection.lengthSq() > .01
+          ? Math.atan2(-combatDirection.x, -combatDirection.z)
+          : context.animation.bodyYaw;
         avatar.root.rotation.y = dampYaw(
           avatar.root.rotation.y,
-          context.animation.bodyYaw,
+          combatSnapshot?.status === 'active' ? combatYaw : context.animation.bodyYaw,
           13,
           delta,
         );
@@ -2950,7 +3226,7 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(
           8,
           delta,
         );
-        const activeSuit = getSuit(props.suitId);
+        const activeSuit = getSuit(activeSuitId);
         const isIronMan = activeSuit.traversal === 'ironman';
         const ironPitch =
           ironFlightMode === 'cruise'
@@ -3033,6 +3309,7 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(
             ? traversal.advanced.sling.seconds / 1.1
             : 0,
           actionSequence: traversal.actionSequence,
+          combat: bosses.snapshot()?.player,
           timeToLanding: landingPrediction.time,
           trickClearance: landingPrediction.clear,
           trickRequest,
@@ -3096,26 +3373,74 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(
       const tick = (timestamp = performance.now()) => {
         if (disposed) return;
         frameId = requestAnimationFrame(tick);
-        const delta = Math.min(
-          Math.max((timestamp - lastFrameTime) / 1000, 0),
-          0.1,
-        );
-        lastFrameTime = timestamp;
-        elapsedTime += delta;
+        const rawFrameMs = Math.max(0, timestamp - lastFrameTime);
+        const visualDelta = Math.min(Math.max(rawFrameMs / 1000, 0), 0.1);
+        visualTime += visualDelta;
+        const paused = callbacksRef.current.paused === true;
         const requestedSky = callbacksRef.current.sky ?? 'golden';
         const effectiveSky =
-          currentDistrict === 'cyberpunk-city' && !isSnowSky(requestedSky)
-            ? 'snow'
+          currentDistrict === 'cyberpunk-city'
+            ? 'blizzard'
             : requestedSky;
+        lastFrameTime = timestamp;
+        if (paused) {
+          if (!wasPaused) {
+            wasPaused = true;
+            clearKeys();
+            if (document.pointerLockElement === renderer.domElement)
+              document.exitPointerLock();
+            renderer.domElement.dataset.paused = 'true';
+          }
+          const requestedNight = callbacksRef.current.night ?? false;
+          const visualPresetChanged =
+            pausedVisualSky !== effectiveSky ||
+            pausedVisualNight !== requestedNight;
+          pausedVisualSky = effectiveSky;
+          pausedVisualNight = requestedNight;
+          const atmosphereDelta = visualPresetChanged ? 4 : visualDelta;
+          atmosphere.update(
+            visualTime,
+            player.position,
+            requestedNight,
+            atmosphereDelta,
+            effectiveSky,
+          );
+          weather.update(
+            visualTime,
+            player.position,
+            effectiveSky,
+            requestedNight,
+            atmosphereDelta,
+          );
+          sun.intensity = THREE.MathUtils.lerp(2.1, 0.3, atmosphere.night);
+          skyFill.intensity = THREE.MathUtils.lerp(1.55, 0.85, atmosphere.night);
+          rim.intensity = THREE.MathUtils.lerp(0.7, 1.4, atmosphere.night);
+          speedBlur.render(renderer, scene, camera);
+          return;
+        }
+        if (wasPaused) {
+          wasPaused = false;
+          pausedVisualSky = null;
+          pausedVisualNight = null;
+          inputSystem.gainFocus();
+          renderer.domElement.dataset.paused = 'false';
+        }
+        if (ready && document.visibilityState === 'visible') telemetry.record('frame', rawFrameMs);
+        const rawDelta = Math.min(
+          Math.max(rawFrameMs / 1000, 0),
+          0.1,
+        );
+        const delta = rawDelta * (bosses.snapshot()?.timeScale ?? 1);
+        elapsedTime += delta;
         atmosphere.update(
-          elapsedTime,
+          visualTime,
           player.position,
           callbacksRef.current.night ?? false,
           delta,
           effectiveSky,
         );
         weather.update(
-          elapsedTime,
+          visualTime,
           player.position,
           effectiveSky,
           callbacksRef.current.night ?? false,
@@ -3132,15 +3457,17 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(
           trial.elapsed += delta;
           const held = trial.elapsed % 3.35 < 3;
           if (held && !trial.phase) {
-            pointerHeld = true;
+            inputSystem.setButton(0, true);
           }
           if (!held && trial.phase) {
-            pointerHeld = false;
-            pointerReleased = true;
+            inputSystem.setButton(0, false);
           }
           trial.phase = held;
         }
-        if (race?.phase === 'countdown') clearKeys();
+        // The race teleport clears stale movement once. During the countdown,
+        // suppress traversal without erasing a fresh press every render frame;
+        // a held web input can therefore become active on the first race tick.
+
         if (wallTrial) {
           wallTrial.elapsed += delta;
           if (
@@ -3177,38 +3504,50 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(
             wallTrial.stage = 4;
           }
         }
-        if (
-          pointerHeld &&
-          !swingCommitted &&
-          performance.now() - pointerDownAt >= 180
-        ) {
-          swingCommitted = true;
-          pointerPressed = true;
-        }
-        const forward = new THREE.Vector3(
-          -Math.sin(cameraYaw),
-          0,
-          -Math.cos(cameraYaw),
-        );
-        const right = new THREE.Vector3(
-          Math.cos(cameraYaw),
-          0,
-          -Math.sin(cameraYaw),
-        );
+        // Advance countdown BEFORE sampling, so held buttons activate on GO itself.
+        race?.tick(raceNow(), player.position.toArray() as RacePoint, {styleScore:tricks.score});
+        const actions = sampleRaceInput(inputSystem, race?.phase, ready && bosses.snapshot()?.status !== 'dead');
+        const bossAtInput = bosses.snapshot();
+        const raceInputLocked = !actions.enabled || bossAtInput?.cinematic === 'intro';
+        renderer.domElement.dataset.inputRacePhase = race?.phase ?? 'free';
+        renderer.domElement.dataset.rawSwingHeld=String(inputSystem.raw.buttons.has(0));
+        renderer.domElement.dataset.actionSwingHeld=String(actions.swing.held);
+        renderer.domElement.dataset.actionSwingPressed=String(actions.swing.pressed);
+        if(actions.swing.pressed) renderer.domElement.dataset.swingInputAt=String(performance.now());
+        pointerHeld = actions.swing.held;
+        pointerPressed = actions.swing.pressed;
+        pointerReleased = actions.swing.released;
+        zipPressed = actions.zip.pressed || actions.pointLaunch.pressed;
+        jumpPressed ||= actions.jump.pressed;
+        rollPressed ||= actions.roll.pressed;
+        glidePressed ||= actions.glide.pressed;
+        wallCrawlPressed ||= actions.wallCrawl.pressed;
+        chargeJumpReleased ||= actions.chargeJump.released;
+        slingshotReleased ||= actions.slingshot.released;
+        cancelAbilities ||= actions.cancelAbilities;
+        hoverTogglePressed ||= actions.trick.pressed;
+        cruiseTogglePressed ||= actions.pointLaunch.pressed;
+        const forward = bossAtInput?.status === 'active' && bossAtInput.cinematic !== 'intro'
+          ? camera.getWorldDirection(new THREE.Vector3()).setY(0).normalize()
+          : new THREE.Vector3(-Math.sin(cameraYaw), 0, -Math.cos(cameraYaw));
+        const right = new THREE.Vector3(-forward.z, 0, forward.x);
         const wish = new THREE.Vector3();
-        if (keys.has('KeyW')) wish.add(forward);
-        if (keys.has('KeyS')) wish.sub(forward);
-        if (keys.has('KeyD')) wish.add(right);
-        if (keys.has('KeyA')) wish.sub(right);
+        if (!raceInputLocked) {
+          if (keys.has('KeyW')) wish.add(forward);
+          if (keys.has('KeyS')) wish.sub(forward);
+          if (keys.has('KeyD')) wish.add(right);
+          if (keys.has('KeyA')) wish.sub(right);
+        }
         if (wish.lengthSq() > 1) wish.normalize();
-        const hero = getSuit(props.suitId);
+        const hero = getSuit(activeSuitId);
         const cameraAim = camera.getWorldDirection(new THREE.Vector3());
         if (pointerHeld || pointerZipActive) {
           raycaster.setFromCamera(pointerNdc, camera);
           cameraAim.copy(raycaster.ray.direction);
         }
         const pointerSwingHeld =
-          pointerHeld && (swingCommitted || Boolean(trial?.phase));
+          !raceInputLocked &&
+          pointerHeld;
         const swingHeld = hero.traversal === 'spider' && pointerSwingHeld;
         const targetNdc =
           pointerHeld || pointerPressed || pointerZipActive
@@ -3216,15 +3555,18 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(
             : new THREE.Vector2(0, 0.08);
         const needsAnchor =
           hero.traversal === 'spider' &&
+          !raceInputLocked &&
           ((!traversal.swing &&
             !traversal.zip &&
             swingHeld &&
             !traversal.swingNeedsRelease &&
             (!traversal.advanced?.gliding || pointerPressed)) ||
             zipPressed);
+        const anchorStart = performance.now();
         const anchorCandidates = needsAnchor
           ? collectAnchorCandidates(targetNdc)
           : [];
+        if (needsAnchor) telemetry.record('anchor', performance.now() - anchorStart);
         if (
           needsAnchor &&
           swingHeld &&
@@ -3254,17 +3596,19 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(
             {
               hoverToggle: hoverTogglePressed,
               cruiseToggle: cruiseTogglePressed,
-              ascend: keys.has('Space'),
-              ascendPressed: jumpPressed,
-              descend: keys.has('ShiftLeft'),
-              boost: pointerHeld,
+              ascend: !raceInputLocked && keys.has('Space'),
+              ascendPressed: !raceInputLocked && jumpPressed,
+              descend: !raceInputLocked && keys.has('ShiftLeft'),
+              boost: !raceInputLocked && pointerHeld,
               aim: cameraAim,
             },
             delta,
           );
         }
 
+        const streamingStart = performance.now();
         updateWorldStreaming(currentDistrict, player.position);
+        telemetry.record('streaming', performance.now() - streamingStart);
         const activeColliders = nearbyColliders(
           player.position,
           Math.max(42, player.velocity.length() * 0.12),
@@ -3302,45 +3646,50 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(
                 };
         traversalOverrides.cameraMotionScale = reducedMotion ? 0 : 1;
         const frameInput: TraversalInput = {
-          glidePressed,
-          chargeJumpHeld: keys.has('KeyC'),
-          chargeJumpReleased,
-          slingshotHeld: keys.has('KeyX'),
-          slingshotReleased,
-          cornerHeld: keys.has('KeyZ'),
-          loopHeld: keys.has('KeyL'),
-          cancelAbilities,
-          glidePitch: keys.has('KeyS') ? 1 : keys.has('KeyW') ? -1 : 0,
+          ...toTraversalInput(actions, forward, cameraAim),
           move: wish,
-          cameraForward: forward,
-          aimDirection: cameraAim,
-          jumpPressed: hero.traversal === 'spider' && jumpPressed,
-          rollPressed,
-          trickPressed: hoverTogglePressed,
-          jumpHeld: keys.has('Space'),
-          swingPressed:
-            hero.traversal === 'spider' &&
-            pointerPressed &&
-            !traversal.swingNeedsRelease,
+          jumpPressed: hero.traversal === 'spider' && !raceInputLocked && jumpPressed,
+          rollPressed: !raceInputLocked && rollPressed,
+          glidePressed: !raceInputLocked && glidePressed,
+          wallCrawlPressed: !raceInputLocked && wallCrawlPressed,
           swingHeld,
+          swingPressed: hero.traversal === 'spider' && pointerPressed && !traversal.swingNeedsRelease,
           swingReleased: hero.traversal === 'spider' && pointerReleased,
           zipPressed: hero.traversal === 'spider' && zipPressed,
-          zipStyle:
-            pointerZipActive && anchorCandidates.length === 0 ? 'air' : 'point',
-          zipHeld:
-            hero.traversal === 'spider' &&
-            (pointerZipActive || keys.has('KeyE')),
-          zipReleased:
-            hero.traversal === 'spider' && zipReleased && !pointerZipActive,
-          diveHeld: hero.traversal === 'spider' && keys.has('ShiftLeft'),
-          wallCrawlPressed: hero.traversal === 'spider' && wallCrawlPressed,
-          wallClimb: keys.has('KeyW') ? 1 : keys.has('KeyS') ? -1 : 0,
-          wallStrafe: keys.has('KeyD') ? 1 : keys.has('KeyA') ? -1 : 0,
-          pointerPressure: pointerHeld ? pointerPressure : undefined,
-          // Hold time manages reel-in. W/S steer; they no longer also winch/pay out.
-          reel: 0,
+          diveHeld: hero.traversal === 'spider' && actions.dive.held,
+          cancelAbilities,
         };
+        if (bossAtInput) frameInput.loopHeld = false;
         const exactWorld = repeatingWorlds.get(currentDistrict);
+        const bossResult = bosses.step(delta,{
+          position:traversal.position,velocity:traversal.velocity,grounded:traversal.grounded,traversalMode:traversal.mode,
+          attackPressed:!raceInputLocked&&bossAttackPressed,
+          heavyPressed:!raceInputLocked&&bossHeavyPressed,
+          launcherPressed:!raceInputLocked&&bossLauncherPressed,
+          grabPressed:!raceInputLocked&&bossGrabPressed,
+          dodgePressed:!raceInputLocked&&bossDodgePressed,
+          blockHeld:!raceInputLocked&&keys.has('KeyO'),
+          webPressed:!raceInputLocked&&bossWebPressed,
+          webHeld:!raceInputLocked&&keys.has('KeyH'),
+          tauntPressed:!raceInputLocked&&bossTauntPressed,
+        },bossWorld);
+        bossAttackPressed=bossHeavyPressed=bossLauncherPressed=bossGrabPressed=false;
+        bossDodgePressed=bossWebPressed=bossTauntPressed=false;
+        traversal.velocity.x+=bossResult.playerImpulse.x;
+        traversal.velocity.y+=bossResult.playerImpulse.y;
+        traversal.velocity.z+=bossResult.playerImpulse.z;
+        if(bossResult.events.some(event=>event.type==='death')) {
+          traversal.velocity={x:0,y:0,z:0};traversal.swing=null;traversal.zip=null;inputSystem.resetActions();
+        }
+        bossVisuals.update(
+          bosses.snapshot(),
+          delta,
+          avatar?.animator.webHands([new THREE.Vector3(), new THREE.Vector3()]) ?? [
+            player.position.clone().add(new THREE.Vector3(-.25, 1.3, 0)),
+            player.position.clone().add(new THREE.Vector3(.25, 1.3, 0)),
+          ],
+        );
+        renderer.domElement.dataset.boss=JSON.stringify(bosses.snapshot());
         if (
           exactWorld &&
           traversal.grounded &&
@@ -3383,6 +3732,7 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(
           featureQuery = { slingshotAnchors: null, cornerTarget: null };
           featureProbeAfter = 0;
         }
+        let predictiveAssistAcceleration: {x:number;y:number;z:number} | undefined;
         if (hero.traversal === 'spider' && exactWorld) {
           const assisted = stepSwingAssistance(
             swingAssistance,
@@ -3399,7 +3749,11 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(
             (origin, direction, maximum) =>
               exactWorld.raycast(origin, direction, maximum),
           );
-          Object.assign(traversal.velocity, assisted.velocity);
+          predictiveAssistAcceleration = {
+            x: (assisted.velocity.x - traversal.velocity.x) / Math.max(delta, .001),
+            y: (assisted.velocity.y - traversal.velocity.y) / Math.max(delta, .001),
+            z: (assisted.velocity.z - traversal.velocity.z) / Math.max(delta, .001),
+          };
           renderer.domElement.dataset.swingAssistance = assisted.active
             ? 'steering'
             : 'clear';
@@ -3426,11 +3780,11 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(
         }
         if (
           exactWorld &&
-          traversal.wallCrawlActive &&
+          (traversal.wallCrawlActive || traversal.wallRunActive) &&
           traversal.wall &&
           frameInput.wallClimb! > 0 &&
           !jumpPressed &&
-          (!swingHeld || traversal.swingNeedsRelease) &&
+          (traversal.wallRunActive || !swingHeld || traversal.swingNeedsRelease) &&
           !zipPressed
         ) {
           const target = findMantleTarget(
@@ -3445,8 +3799,11 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(
             traversal.wallRunActive = false;
           }
         }
-        windActive = applyWind(traversal, raceVisuals.lanes, delta);
+        const windAssist = sampleWindAssist(traversal, raceVisuals.lanes, delta);
+        windActive = windAssist.active;
         // Every substep resolves the actual mesh before the next force update.
+        const physicsStart = performance.now();
+        let collisionMs = 0;
         const simulationSteps = Math.max(1, Math.ceil(delta / (1 / 120)));
         const simulationDelta = delta / simulationSteps;
         const frameEvents: TraversalEvent[] = [];
@@ -3485,6 +3842,8 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(
             physicsInput,
             {
               ...featureQuery,
+              predictiveAssistAcceleration,
+              windAcceleration: windAssist.acceleration ?? undefined,
               externalCollision: Boolean(exactWorld),
               hasLineOfSight: exactWorld
                 ? (origin, target) => {
@@ -3529,11 +3888,13 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(
           if (exactWorld) {
             // Carry the post-force velocity into the impact redirect, not last frame's velocity.
             incomingVelocity.copy(traversal.velocity);
+            const collisionStart = performance.now();
             const hit = exactWorld.sweepCapsule(
               beforeMotion,
               traversal.position,
               traversal.velocity,
             );
+            collisionMs += performance.now() - collisionStart;
             const position = hit.position;
             const velocity = hit.velocity;
             meshWallContact = null;
@@ -3572,7 +3933,14 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(
                 traversal.grounded = false;
               }
             }
-            if (!wasGrounded && traversal.grounded) {
+            const willStreetSkim = Boolean(
+              traversal.swing &&
+              physicsInput.swingHeld &&
+              !physicsInput.diveHeld &&
+              Math.hypot(velocity.x, velocity.z) >= 7.5 &&
+              (traversal.swing.groundSkimSeconds ?? 0) < 0.48,
+            );
+            if (!wasGrounded && traversal.grounded && !willStreetSkim) {
               traversal.landingSeconds = 0.25;
               traversal.landingImpact = Math.max(0, -incomingVelocity.y);
               const landingState = { ...traversal, position, velocity };
@@ -3623,7 +3991,7 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(
               );
             const swing = traversal.swing;
             if (swing) {
-              const anchor = new THREE.Vector3().copy(swing.anchor);
+              const anchor = new THREE.Vector3().copy(swing.visualAnchor ?? swing.anchor);
               const line = anchor
                 .clone()
                 .sub(position.clone().add(new THREE.Vector3(0, 1.3, 0)));
@@ -3634,18 +4002,27 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(
               );
               const excess =
                 position.distanceTo(
-                  new THREE.Vector3().copy(swing.pivot ?? swing.anchor),
+                  new THREE.Vector3().copy(swing.simulationPivot ?? swing.pivot ?? swing.anchor),
                 ) - swing.ropeLength;
               const ropeTolerance = Math.max(0.25, swing.ropeLength * 0.01);
               const incompatibleContact = blocked && excess > ropeTolerance;
+              if (!obstruction && !traversal.grounded && !incompatibleContact)
+                resolveSwingContinuation(traversal, {}, physicsInput, traversalOverrides);
               if (obstruction || traversal.grounded || incompatibleContact) {
-                traversal.swing = null;
-                traversal.swingRetryAfter = traversal.elapsed + 0.2;
-                renderer.domElement.dataset.swingDetachReason = obstruction
-                  ? 'blocked-web'
-                  : traversal.grounded
-                    ? 'landed'
-                    : 'solid-rope-conflict';
+                const transition = resolveSwingContinuation(traversal, {
+                  obstruction: obstruction ? { point: obstruction.point, normal: obstruction.normal, id: 'mesh-corner' } : null,
+                  constraintBlocked: incompatibleContact,
+                  contact: meshWallContact,
+                  candidates: anchorCandidates.length ? anchorCandidates : collectAnchorCandidates(pointerNdc),
+                  hasLineOfSight: (origin, target) => {
+                    const ray = new THREE.Vector3().copy(target).sub(origin);
+                    const distance = ray.length();
+                    return !raycastWorld(new THREE.Vector3().copy(origin), ray.normalize(), Math.max(0, distance - .15));
+                  },
+                  dt: simulationDelta,
+                }, physicsInput, traversalOverrides, result.events);
+                renderer.domElement.dataset.swingTransition = transition;
+                if (transition === 'detach') renderer.domElement.dataset.swingDetachReason = 'no-valid-continuation';
               } else if (
                 excess > 0 &&
                 excess <= 0.5 &&
@@ -3720,6 +4097,8 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(
           traversal.velocity.y,
           traversal.velocity.z,
         );
+        telemetry.record('physics', performance.now() - physicsStart - collisionMs);
+        telemetry.record('collision', collisionMs);
         player.grounded = traversal.grounded;
         if (trial) {
           trial.distance += player.position.distanceTo(trial.previous);
@@ -3828,7 +4207,6 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(
         rollPressed = false;
         wallCrawlPressed = false;
         zipPressed = false;
-        zipReleased = false;
         pointerPressed = false;
         pointerReleased = false;
         glidePressed = false;
@@ -3843,6 +4221,7 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(
           player.position.copy(safeSpawn(home));
           player.velocity.set(0, 0, 0);
           player.grounded = true;
+          avatar?.root.position.copy(player.position);
           setTraversalKinematics(traversal, player.position, player.velocity);
           traversal.grounded = true;
           traversal.mode = 'idle';
@@ -3877,10 +4256,42 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(
           };
         } else if (player.grounded)
           landingPrediction = { time: 0, clear: false };
+        const animationStart = performance.now();
         updateAvatar(delta, elapsedTime, result.context);
+        telemetry.record('animation', performance.now() - animationStart);
+        if (exactWorld && elapsedTime >= trickProbeAt && player.velocity.length() > 20) {
+          trickProbeAt = elapsedTime + .12;
+          const direction = player.velocity.clone().setY(0).normalize();
+          const side = new THREE.Vector3(-direction.z, 0, direction.x);
+          const chest = player.position.clone().add(new THREE.Vector3(0, 1.1, 0));
+          trickClearance = {
+            left: raycastWorld(chest, side, 8)?.distance ?? 8,
+            right: raycastWorld(chest, side.clone().negate(), 8)?.distance ?? 8,
+          };
+        }
+        const trickAwards = tricks.update({
+          dt: delta, state: traversal, events: result.events,
+          groundY: localGroundY, contact: Boolean(meshWallContact),
+          impactSpeed: Math.max(0, lastTrickSpeed - player.velocity.length()),
+          clearance: trickClearance, animation: avatar?.animator.animationSample,
+        });
+        lastTrickSpeed = player.velocity.length();
+        trickQueue.push(...trickAwards);
+        if (trickQueue.length > 5) trickQueue.splice(0, trickQueue.length - 5);
+        if (trickQueue.length && elapsedTime - hudAnnouncementAt > 1.1) {
+          hudAnnouncement = trickQueue.shift()!;
+          hudAnnouncementAt = elapsedTime;
+        }
+        const missionView = missions.step(delta,{position:traversal.position,interact:interactPressed,score:tricks.score,alive:player.position.y>-20});
+        interactPressed = false;
+        missionVisuals.update(missionView, elapsedTime);
+        renderer.domElement.dataset.mission = missionView ? JSON.stringify(missionView) : '';
+        renderer.domElement.dataset.trickScore = String(tricks.score);
+        renderer.domElement.dataset.trickChain = String(tricks.chain);
+        renderer.domElement.dataset.flowMultiplier = tricks.multiplier.toFixed(1);
         if (race) {
           const point = player.position.toArray() as RacePoint;
-          race.tick(raceNow(), point);
+          race.tick(raceNow(), point, {mode:traversal.mode,speed:player.velocity.length(),verticalSpeed:player.velocity.y,events:result.events.map(e=>e.type),styleScore:tricks.score,wind:windActive});
           prepareRaceCourse();
           if (race.phase === 'racing') recorder?.capture(race.time);
           if (ghostRig && ghostRecord) {
@@ -3889,10 +4300,11 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(
             if (ghostRig.root.visible)
               poseGhost(ghostRig, ghostRecord, race.time);
           }
+          raceVisuals.setProgress(race.activeGateIds,race.completedGateIds);
           raceVisuals.update(point, elapsedTime);
           if (elapsedTime >= raceHudAt) {
             raceHudAt = elapsedTime + 0.1;
-            const finish = race.course?.finish;
+            const finish = race.currentGate?.position ?? race.course?.finish;
             const toGoal = finish
               ? new THREE.Vector3()
                   .fromArray(finish)
@@ -3911,6 +4323,17 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(
                 : raceMessage;
             callbacksRef.current.onRaceView?.({
               phase: race.phase,
+              target: race.currentGate?.position,
+              route: race.course ? raceRoutePoints(race.course,race.activeGateIds) : [],
+              gateIndex: race.splits.length,
+              gateCount: race.gateCount,
+              gateType: race.currentGate?.type,
+              missedGate: race.missedGate,
+              splits: race.splits,
+              splitDelta: race.splitDelta,
+              medal: race.medal,
+              styleScore: race.styleScore,
+              mode: ['countdown','racing','inviting'].includes(race.phase) ? race.course?.mode ?? selectedRaceMode : selectedRaceMode,
               time: race.time,
               countdown: Math.max(
                 0,
@@ -3927,8 +4350,8 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(
               participants: Math.max(1, race.participants.size),
               course: race.course,
               results: [...race.results]
-                .map(([id, time]) => ({ id, time }))
-                .sort((a, b) => a.time - b.time),
+                .map(([id, time]) => ({ id, time, score: race?.scores.get(id) ?? 0 }))
+                .sort((a, b) => raceResultValue(race?.course?.mode??'speed',a.time,a.score)-raceResultValue(race?.course?.mode??'speed',b.time,b.score)),
               ghost: Boolean(ghostRecord),
               wind: windActive,
               message: race.phase === 'racing' ? guidance : raceMessage,
@@ -3971,7 +4394,7 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(
         if (multiplayer && elapsedTime - lastNetworkBroadcast >= 0.125) {
           lastNetworkBroadcast = elapsedTime;
           multiplayer.publish({
-            suitId: props.suitId,
+            suitId: activeSuitId,
             position: [player.position.x, player.position.y, player.position.z],
             velocity: [player.velocity.x, player.velocity.y, player.velocity.z],
             yaw: player.facing,
@@ -3991,8 +4414,9 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(
           traversal.zip.targetId !== 'air-zip-no-anchor' &&
           elapsedTime < grappleLineUntil,
         );
-        webLine.visible = Boolean(traversal.swing || grappleLineVisible);
-        if (traversal.swing || grappleLineVisible) {
+        const webVisible = Boolean(traversal.swing || grappleLineVisible);
+        webLine.visible = webVisible && !webStrand;
+        if (webVisible) {
           const hand = avatar
             ? avatar.animator.webHand(new THREE.Vector3())
             : player.position.clone().add(new THREE.Vector3(0, 1.58, 0));
@@ -4000,8 +4424,16 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(
             traversal.swing?.anchor ??
             traversal.zip?.surfacePoint ??
             traversal.zip?.target;
-          if (webTarget)
-            webPositions.set([
+          if (webTarget) {
+            if (webStrand)
+              webStrand.update(
+                hand,
+                webTargetPoint.set(webTarget.x, webTarget.y, webTarget.z),
+                true,
+                result.context.webTension,
+              );
+            else
+              webPositions.set([
               hand.x,
               hand.y,
               hand.z,
@@ -4009,10 +4441,12 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(
               webTarget.y,
               webTarget.z,
             ]);
-          (
-            webGeometry.getAttribute('position') as THREE.BufferAttribute
-          ).needsUpdate = true;
-        }
+            (
+              webGeometry.getAttribute('position') as THREE.BufferAttribute
+            ).needsUpdate = true;
+          }
+        } else
+          webStrand?.update(player.position, player.position, false);
         const handOrigins = avatar
           ? ['leftHand', 'rightHand'].map(
               (role) =>
@@ -4029,27 +4463,20 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(
           Boolean(ability?.gliding),
         );
         renderer.domElement.dataset.flowChain = String(ability?.flow ?? 0);
-        abilityStatus.textContent = ability?.sling
-          ? `SLINGSHOT ${Math.round((100 * ability.sling.seconds) / 1.1)}% · release X`
-          : (ability?.chargeJump ?? 0) > 0
-            ? `CHARGE JUMP ${Math.round((100 * ability!.chargeJump) / 4)}% · release C`
-            : ability?.gliding
-              ? 'WEB WINGS · W dive / S climb · G close'
-              : ability?.loop
-                ? `LOOP ${Math.round((ability.loop.radians / (Math.PI * 2)) * 100)}%`
-                : traversal.swing
-                  ? `SWING ${Math.min(100, Math.round((traversal.swing.attachedSeconds / 1.2) * 100))}% · ${ability?.phase ?? 'arc'} · release / Space kick`
-                  : keys.has('KeyX')
-                    ? 'Slingshot requires support and two visible forward facades'
-                    : `G glide · C charge jump · X slingshot · Z+A/D corner · L dive loop`;
         const speed = result.context.speed;
+        // Camera yaw is the player's swing heading. Following velocity here
+        // feeds anchor-induced drift back into input and overrides mouse aim.
         const perched = avatarPose === 'perch' && player.grounded;
         const ironCamera = hero.traversal === 'ironman';
-        const distance = perched
+        const baseDistance = perched
           ? 5.2
           : ironCamera
             ? 5.4 + Math.min(speed / 72, 1) * 1.8
             : Math.min(14, result.context.camera.followDistance);
+        const experimentalCamera = callbacksRef.current.experimentalCamera === true;
+        const cameraZoom = clamp(callbacksRef.current.cameraZoom ?? 1, 1, 10);
+        const cameraZoomBlend = experimentalCamera ? (cameraZoom - 1) / 9 : 0;
+        const distance = Math.max(3.15, baseDistance * THREE.MathUtils.lerp(1, .42, cameraZoomBlend));
         const horizontalDistance = Math.cos(cameraPitch) * distance;
         const wallNormal = result.context.wallNormal
           ? new THREE.Vector3(
@@ -4099,17 +4526,19 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(
           wallCameraNormal
             .lerp(wallNormal, 1 - Math.exp(-10 * delta))
             .normalize();
-        const target = player.position
-          .clone()
-          .add(
-            new THREE.Vector3(
-              result.context.camera.lookAhead.x * (ironCamera ? 0.08 : 0.28),
-              1.35 +
-                result.context.camera.lookAhead.y *
-                  (reducedMotion ? 0.16 : 0.38),
-              result.context.camera.lookAhead.z * (ironCamera ? 0.08 : 0.28),
-            ),
-          );
+        const target = experimentalCamera
+          ? player.position.clone().add(new THREE.Vector3(0, 1.15, 0))
+          : player.position
+              .clone()
+              .add(
+                new THREE.Vector3(
+                  result.context.camera.lookAhead.x * (ironCamera ? 0.08 : 0.28),
+                  1.35 +
+                    result.context.camera.lookAhead.y *
+                      (reducedMotion ? 0.16 : 0.38),
+                  result.context.camera.lookAhead.z * (ironCamera ? 0.08 : 0.28),
+                ),
+              );
         if (perched && avatar) {
           // Collision-check the sightline to the actual crouched body, not to a
           // standing-height point above it. Otherwise a parapet can hide the
@@ -4148,6 +4577,49 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(
           target.lerp(wallTarget, wallCameraBlend);
           desired.lerp(wallDesired, wallCameraBlend);
         }
+        const combatCamera = bosses.snapshot();
+        const combatPlayerFocus = player.position
+          .clone()
+          .add(new THREE.Vector3(0, 1.35, 0));
+        const bossFocus = combatCamera
+          ? new THREE.Vector3().copy(combatCamera.position).add(
+              new THREE.Vector3(
+                0,
+                BOSS_DEFINITIONS[combatCamera.id].height * .48,
+                0,
+              ),
+            )
+          : null;
+        const combatSeparation = bossFocus
+          ? bossFocus.distanceTo(combatPlayerFocus)
+          : Infinity;
+        const combatSight = bossFocus
+          ? bossFocus.clone().sub(combatPlayerFocus)
+          : new THREE.Vector3();
+        const combatVisible = !bossFocus || !exactWorld || combatSeparation < 1 ||
+          !raycastWorld(combatPlayerFocus, combatSight.clone().normalize(), combatSeparation - .65);
+        combatCameraBlend = damp(
+          combatCameraBlend,
+          combatCamera?.status === 'active' && combatSeparation < 58 && combatVisible ? 1 : 0,
+          combatCamera?.cinematic ? 5.5 : 7,
+          delta,
+        );
+        if (bossFocus && combatCameraBlend > .001) {
+          const toBoss = bossFocus.clone().sub(combatPlayerFocus).normalize();
+          const shoulder = new THREE.Vector3(-toBoss.z, 0, toBoss.x);
+          const combatTarget = combatCamera?.cinematic
+            ? bossFocus.clone()
+            : combatPlayerFocus.clone().addScaledVector(toBoss, Math.min(1.4, combatSeparation * .1));
+          const combatDesired = combatCamera?.cinematic
+            ? bossFocus.clone().addScaledVector(toBoss, -8).addScaledVector(shoulder, 3).add(new THREE.Vector3(0, 2.8, 0))
+            : combatPlayerFocus.clone().addScaledVector(toBoss, -6.4).addScaledVector(shoulder, 1.55).add(new THREE.Vector3(0, 2.35, 0));
+          if (exactWorld) {
+            constrainCameraBoom(combatPlayerFocus, combatTarget, raycastWorld, .3);
+            constrainCameraBoom(combatTarget, combatDesired, raycastWorld, .42);
+          }
+          target.lerp(combatTarget, combatCameraBlend);
+          desired.lerp(combatDesired, combatCameraBlend);
+        }
         if (exactWorld) {
           // Look-ahead itself can cross a facade. Keep the focus on the player's
           // side before testing the boom, otherwise a legal exterior player can
@@ -4161,6 +4633,7 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(
             target.copy(center);
             let best = desired.clone(),
               bestScore = -Infinity;
+            const fallbackDistance = Math.max(2.8, distance);
             for (const turn of [
               0,
               0.55,
@@ -4175,11 +4648,15 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(
               const candidate = center
                 .clone()
                 .add(
-                  new THREE.Vector3(Math.sin(yaw) * 6, 2.2, Math.cos(yaw) * 6),
+                  new THREE.Vector3(
+                    Math.sin(yaw) * fallbackDistance,
+                    Math.max(1.55, fallbackDistance * .37),
+                    Math.cos(yaw) * fallbackDistance,
+                  ),
                 );
               constrainCameraBoom(center, candidate, raycastWorld);
               const clearance = candidate.distanceTo(center);
-              const score = Math.min(6, clearance) - Math.abs(turn) * 0.45;
+              const score = Math.min(fallbackDistance, clearance) - Math.abs(turn) * 0.45;
               if (score > bestScore) {
                 bestScore = score;
                 best = candidate;
@@ -4205,11 +4682,19 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(
           desired.distanceTo(target) > 2.4
         )
           camera.position.copy(desired);
+        const traversalFov = ironCamera
+          ? Math.min(68, result.context.camera.fov)
+          : result.context.camera.fov;
+        const cameraFov = experimentalCamera && combatCameraBlend <= .01
+          ? THREE.MathUtils.lerp(traversalFov, Math.max(48, traversalFov - 10), cameraZoomBlend)
+          : traversalFov;
         camera.fov = damp(
           camera.fov,
-          ironCamera
-            ? Math.min(68, result.context.camera.fov)
-            : result.context.camera.fov,
+          combatCameraBlend > .01
+            ? combatCamera?.cinematic
+              ? 52
+              : 59 + Math.min(5, combatSeparation / 20)
+            : cameraFov,
           7,
           delta,
         );
@@ -4219,7 +4704,7 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(
           reducedMotion
             ? 0
             : Math.max(-0.065, Math.min(0.065, result.context.camera.roll)) *
-                (1 - wallCameraBlend),
+                (1 - wallCameraBlend) * (1 - combatCameraBlend),
           5,
           delta,
         );
@@ -4250,27 +4735,88 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(
         );
 
         hudAccumulator += delta;
-        fpsAccumulator += delta;
+        fpsAccumulator += rawDelta;
         fpsFrames += 1;
         if (fpsAccumulator > 0.7) {
           measuredFps = Math.round(fpsFrames / fpsAccumulator);
           fpsFrames = 0;
           fpsAccumulator = 0;
-          if (!performanceScaled && elapsedTime > 4 && measuredFps < 46) {
-            performanceScaled = true;
-            renderer.shadowMap.enabled = false;
-            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 0.82));
-            renderer.domElement.dataset.performanceMode = 'latency';
-            resize();
-          }
+
         }
         if (hudAccumulator > 0.15) {
           const groundY = groundYAt(player.position);
+          const slingCharge = traversal.advanced?.sling
+            ? Math.min(
+                1,
+                traversal.advanced.sling.seconds /
+                  ADVANCED_TUNING.slingChargeSeconds,
+              )
+            : 0;
+          const jumpCharge = Math.min(
+            1,
+            (traversal.advanced?.chargeJump ?? 0) /
+              ADVANCED_TUNING.chargeJumpSeconds,
+          );
+          const swingCharge = traversal.swing
+            ? Math.min(1, traversal.swing.attachedSeconds / 1.35)
+            : 0;
+          const charge = Math.max(slingCharge, jumpCharge, swingCharge);
+          const calloutPoint = player.position
+            .clone()
+            .add(new THREE.Vector3(0, 1.45, 0))
+            .project(camera);
+          const horizontalMotion = player.velocity.clone();
+          horizontalMotion.y = 0;
+          if (horizontalMotion.lengthSq() < 1) {
+            horizontalMotion.set(
+              Math.sin(player.facing),
+              0,
+              Math.cos(player.facing),
+            );
+          } else horizontalMotion.normalize();
+          const projectedMotion = player.position
+            .clone()
+            .add(new THREE.Vector3(0, 1.45, 0))
+            .addScaledVector(horizontalMotion, 4)
+            .project(camera);
+          const calloutX = THREE.MathUtils.clamp(
+            (calloutPoint.x * 0.5 + 0.5) * 100,
+            14,
+            86,
+          );
+          const calloutY = THREE.MathUtils.clamp(
+            (1 - (calloutPoint.y * 0.5 + 0.5)) * 100,
+            28,
+            76,
+          );
+          const motionToRight = projectedMotion.x > calloutPoint.x + 0.015;
+          const calloutSide =
+            calloutX < 35
+              ? 'right'
+              : calloutX > 65
+                ? 'left'
+                : motionToRight
+                  ? 'left'
+                  : 'right';
           callbacksRef.current.onHud({
+            boss: bosses.snapshot(), mission: missions.view(), activityMessage, trickScore: tricks.score, flowMultiplier: tricks.multiplier,
             speed: Math.round(speed * 3.6),
             altitude: Math.max(0, Math.round(player.position.y - groundY)),
             fps: measuredFps,
             swinging: Boolean(traversal.swing),
+            mode: traversal.mode,
+            charge,
+            chargeLabel:
+              slingCharge > 0
+                ? 'SLINGSHOT CHARGE'
+                : jumpCharge > 0
+                  ? 'CHARGE JUMP'
+                  : swingCharge > 0
+                    ? 'WEB TENSION'
+                    : '',
+            announcement:
+              elapsedTime - hudAnnouncementAt < 2.6 ? hudAnnouncement : null,
+            callout: { x: calloutX, y: calloutY, side: calloutSide },
           });
           renderer.domElement.dataset.playerPosition = [
             player.position.x,
@@ -4316,13 +4862,34 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(
           renderer.domElement.dataset.cameraDistance = camera.position
             .distanceTo(player.position)
             .toFixed(2);
+          renderer.domElement.dataset.cameraMode = experimentalCamera ? 'experimental' : 'default';
+          renderer.domElement.dataset.cameraZoom = cameraZoom.toFixed(0);
           renderer.domElement.dataset.cameraPosition = camera.position
             .toArray()
             .map((n) => n.toFixed(2))
             .join(',');
           hudAccumulator = 0;
         }
+        if (quality.update(delta, rawFrameMs, document.visibilityState === 'visible')) {
+          const q = quality.settings;
+          for (const stream of districtStreams.values()) stream.horizon.detailScale = q.farDetail;
+          weather.setDensity(q.weatherDensity);
+          raceVisuals.setParticleDensity(q.particleDensity);
+          speedBlur.setResolutionScale(q.postprocessScale);
+          renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.25) * q.resolutionScale);
+          resize();
+          renderer.domElement.dataset.qualityTier = String(q.level);
+        }
+        const renderStart = performance.now();
+        renderer.info.autoReset = false;
+        renderer.info.reset();
         speedBlur.render(renderer, scene, camera);
+        telemetry.record('render', performance.now() - renderStart);
+        telemetry.setRenderCounters({drawCalls: renderer.info.render.calls, triangles: renderer.info.render.triangles, textures: renderer.info.memory.textures, geometries: renderer.info.memory.geometries});
+        if (elapsedTime >= telemetryAt) {
+          telemetryAt = elapsedTime + 1;
+          renderer.domElement.dataset.telemetry = JSON.stringify(telemetry.snapshot());
+        }
       };
 
       const setup = async () => {
@@ -4333,7 +4900,11 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(
             .add(new THREE.Vector3(0, 3.68, 10));
           camera.lookAt(initialSpawn.x, 1.4, initialSpawn.z);
           tick();
-          await Promise.all([loadAvatar(), loadDistrict(initialDistrict)]);
+          await Promise.all([
+            loadAvatar(),
+            loadWebVisual(),
+            loadDistrict(initialDistrict),
+          ]);
           if (disposed) return;
           player.position.copy(safeSpawn(initialDistrict));
           cameraYaw = spawnViewYaw(
@@ -4344,6 +4915,7 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(
           player.facing = cameraYaw;
           player.velocity.set(0, 0, 0);
           player.grounded = true;
+          avatar?.root.position.copy(player.position);
           setTraversalKinematics(traversal, player.position, player.velocity);
           traversal.grounded = true;
           traversal.mode = 'idle';
@@ -4395,9 +4967,15 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(
       return () => {
         disposed = true;
         weather.dispose();
+        missionVisuals.dispose();
+        bossVisuals.dispose();
+        bossLoadingGeneration++;
+        activityActionRef.current = () => undefined;
         for (const stream of districtStreams.values()) stream.horizon.dispose();
         trialPanel?.remove();
-        abilityStatus.remove();
+        webStrand?.dispose();
+        webGeometry.dispose();
+        (webLine.material as THREE.Material).dispose();
         extraTethers.dispose();
         cancelAnimationFrame(frameId);
         resizeObserver.disconnect();
@@ -4426,12 +5004,13 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(
         raceVisuals.dispose();
         removeGhost();
         raceActionRef.current = () => undefined;
+        switchSuitRef.current = () => undefined;
         speedBlur.dispose();
         renderer.dispose();
         renderer.domElement.remove();
         travelRef.current = () => undefined;
       };
-    }, [props.districtId, props.suitId]);
+    }, []);
 
     return <div ref={mountRef} className="game-mount" />;
   },

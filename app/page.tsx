@@ -1,15 +1,7 @@
 'use client';
 
-import {
-  Activity,
-  Gauge,
-  Move3d,
-  Navigation,
-  Play,
-  Radio,
-  Rotate3d,
-} from 'lucide-react';
-import { lazy, Suspense, useEffect, useState, useRef } from 'react';
+import { Play } from 'lucide-react';
+import { lazy, Suspense, useEffect, useState, useRef, type CSSProperties } from 'react';
 import Image from 'next/image';
 import { RaceHud } from '@/components/game/RaceHud';
 import { emptyRaceView } from '@/lib/race-session';
@@ -19,7 +11,8 @@ import type {
   MapPlayer,
 } from '@/components/game/SpiderGame';
 import { SpideyTracker } from '@/components/game/SpideyTracker';
-import SuitShowroom from '@/components/game/SuitShowroom';
+import { SpiderHud } from '@/components/game/SpiderHud';
+import { ActivityHud } from '@/components/game/ActivityHud';
 import {
   DISTRICTS,
   SUITS,
@@ -36,10 +29,21 @@ import {
   type PlayerProgress,
 } from '@/lib/progression';
 
-import { SKY_PRESETS, type SkyPreset } from '@/lib/city-weather';
+import type { SkyPreset } from '@/lib/city-weather';
 
 const SpiderGame = lazy(() => import('@/components/game/SpiderGame'));
 type Phase = 'select' | 'loading' | 'game';
+type MapTransition = {
+  district: DistrictId;
+  stage: 'loading' | 'reveal';
+  returnPhase: 'select' | 'game';
+};
+
+const MAP_LOADING_ACCENTS: Partial<Record<DistrictId, string>> = {
+  'new-york-city': '#d92d50',
+  'procedural-city': '#e9a85a',
+  'cyberpunk-city': '#b638ff',
+};
 
 export default function Home() {
   const gameRef = useRef<SpiderGameHandle>(null);
@@ -47,10 +51,16 @@ export default function Home() {
   const [mapPlayers, setMapPlayers] = useState<MapPlayer[]>([]);
   const [sky, setSky] = useState<SkyPreset>('golden');
   const [night, setNight] = useState(false);
+  const [experimentalCamera, setExperimentalCamera] = useState(false);
+  const [cameraZoom, setCameraZoom] = useState(1);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const [selected, setSelected] = useState<SuitId>('miguel');
-  const [lobbyEngaged] = useState(true);
   const [selectedMap, setSelectedMap] = useState<DistrictId>('new-york-city');
-  const [phase, setPhase] = useState<Phase>('select');
+  const [phase, setPhase] = useState<Phase>('loading');
+  const [menuLeaving, setMenuLeaving] = useState(false);
+  const [mapTransition, setMapTransition] = useState<MapTransition | null>(null);
+  const mapTransitionRef = useRef<MapTransition | null>(null);
+  const transitionTimers = useRef<number[]>([]);
   const [status, setStatus] = useState('Waiting for suit selection');
   const [progress, setProgress] = useState(0);
   const [trackerOpen, setTrackerOpen] = useState(false);
@@ -64,15 +74,16 @@ export default function Home() {
     altitude: 0,
     fps: 60,
     swinging: false,
+    mode: 'idle',
+    charge: 0,
+    chargeLabel: '',
+    announcement: null,
+    callout: { x: 50, y: 55, side: 'right' },
   });
   const [online, setOnline] = useState<{
     count: number;
     status: MultiplayerStatus;
   }>({ count: 1, status: 'connecting' });
-  const [, setShowroomStatus] = useState({
-    message: 'Opening warehouse',
-    progress: 0,
-  });
   const [playerProgress, setPlayerProgress] = useState<PlayerProgress>(() =>
     typeof window === 'undefined' ? emptyProgress() : readProgress(),
   );
@@ -100,136 +111,88 @@ export default function Home() {
     return () => window.removeEventListener('keydown', onKey);
   }, [phase]);
 
+  useEffect(() => () => {
+    transitionTimers.current.forEach((timer) => window.clearTimeout(timer));
+  }, []);
+
   const enterCity = () => {
     if (!isSuitUnlocked(activeSuit, playerProgress)) return;
-    setLoadedDistricts(new Set());
-    setCurrentDistrict(selectedMap);
-    setStatus(
-      `Preparing ${activeSuit.name} for ${DISTRICTS.find((city) => city.id === selectedMap)?.name}`,
-    );
-    setProgress(1);
-    setPhase('loading');
+    setMenuLeaving(true);
+    transitionTimers.current.push(window.setTimeout(() => {
+      setPhase('game');
+      setMenuLeaving(false);
+    }, 720));
   };
 
-  const selectMap = (district: DistrictId) => {
+  const selectSuit = (id: SuitId) => {
+    if (id === activeSuit.id) return;
+    const suit = SUITS.find((item) => item.id === id);
+    if (!suit || !isSuitUnlocked(suit, playerProgress)) return;
+    setStatus(`Switching to ${suit.name}`);
+    gameRef.current?.switchSuit(id);
+    setSelected(id);
+  };
+
+  const selectMap = (district: DistrictId, returnPhase: 'select' | 'game' = phase === 'game' ? 'game' : 'select') => {
+    if (district === currentDistrict || mapTransitionRef.current) return;
+    const transition: MapTransition = { district, stage: 'loading', returnPhase };
+    mapTransitionRef.current = transition;
+    setMapTransition(transition);
     setSelectedMap(district);
-    if (district === 'cyberpunk-city' && sky !== 'snow' && sky !== 'blizzard')
-      setSky('snow');
+    setLoadedDistricts(new Set());
+    setStatus(`Streaming ${DISTRICTS.find((item) => item.id === district)?.name ?? 'city'}`);
+    setProgress(1);
+    gameRef.current?.travelTo(district);
   };
 
   const travelTo = (district: DistrictId) => {
-    if (district === 'cyberpunk-city' && sky !== 'snow' && sky !== 'blizzard')
-      setSky('snow');
-    setSelectedMap(district);
-    setCurrentDistrict(district);
-    setLoadedDistricts(new Set());
-    setStatus(
-      `Opening ${DISTRICTS.find((item) => item.id === district)?.name ?? 'City'}`,
-    );
-    setProgress(1);
-    setPhase('loading');
     setTrackerOpen(false);
+    selectMap(district, 'game');
   };
 
-  if (phase === 'select') {
-    return (
-      <main
-        className={`launch-screen ${lobbyEngaged ? 'is-hero-focused' : ''}`}
-      >
-        <SuitShowroom
-          selected={selected}
-          engaged={lobbyEngaged}
-          progress={playerProgress}
-          onSelect={(id) => {
-            const suit = SUITS.find((item) => item.id === id);
-            if (suit && isSuitUnlocked(suit, playerProgress)) setSelected(id);
-          }}
-          onEngage={() => undefined}
-          onStatus={(message, nextProgress) =>
-            setShowroomStatus({ message, progress: Math.round(nextProgress) })
-          }
-        />
-        <section className="home-suit-panel" aria-label="Choose Spider-Man">
-          <div className="suit-grid" aria-label="Choose Spider-Man">
-            {SUITS.map((suit) => (
-              <button
-                key={suit.id}
-                type="button"
-                data-selected={suit.id === selected}
-                onClick={() => setSelected(suit.id)}
-                aria-label={`Select ${suit.name}`}
-              >
-                <Image
-                  src={`/assets/previews/suits/${suit.id}.png`}
-                  alt=""
-                  width={180}
-                  height={180}
-                  unoptimized
-                />
-                <span>{suit.name}</span>
-              </button>
-            ))}
-          </div>
-        </section>
-        <section
-          className="home-launch-panel"
-          aria-label="Choose map and start game"
-        >
-          <div className="home-selected-suit">
-            <small>Selected suit</small>
-            <h1>{activeSuit.name}</h1>
-          </div>
-          <div className="home-map-grid" aria-label="Choose map">
-            {DISTRICTS.map((city) => (
-              <button
-                key={city.id}
-                type="button"
-                data-selected={city.id === selectedMap}
-                onClick={() => selectMap(city.id)}
-              >
-                <Image
-                  src={city.preview}
-                  alt=""
-                  width={320}
-                  height={180}
-                  unoptimized
-                />
-                <span>{city.name}</span>
-              </button>
-            ))}
-          </div>
-          <button className="enter-city" type="button" onClick={enterCity}>
-            <Play aria-hidden="true" /> Start Game
-          </button>
-        </section>
-        <p className="home-disclaimer">
-          This website is a non-commercial fan site and is not affiliated with,
-          authorized, or endorsed by Marvel Entertainment or Disney.
-        </p>
-      </main>
-    );
-  }
-
   return (
-    <main className="game-shell">
+    <main className={`game-shell${settingsOpen ? ' is-paused' : ''}${phase === 'select' ? ' is-home' : ''}`}>
       <Suspense fallback={null}>
         <SpiderGame
           ref={gameRef}
           sky={sky}
           night={night}
+          experimentalCamera={experimentalCamera}
+          cameraZoom={cameraZoom}
+          paused={settingsOpen || phase !== 'game' || Boolean(mapTransition)}
           onRaceView={setRaceView}
           onMapPlayers={setMapPlayers}
-          key={`${selected}:${selectedMap}`}
-          suitId={selected}
+          suitId={activeSuit.id}
           districtId={selectedMap}
-          onReady={() => setPhase('game')}
+          onReady={() => setPhase('select')}
           onStatus={(message, nextProgress) => {
             setStatus(message);
             setProgress(Math.round(nextProgress));
+            const transition = mapTransitionRef.current;
+            if (transition && /unavailable|could not/i.test(message)) {
+              mapTransitionRef.current = null;
+              setMapTransition(null);
+              setSelectedMap(currentDistrict);
+            }
           }}
           onHud={setHud}
           onLoadedDistricts={setLoadedDistricts}
-          onDistrictChange={setCurrentDistrict}
+          onDistrictChange={(district) => {
+            setCurrentDistrict(district);
+            if (district === 'cyberpunk-city') setSky('blizzard');
+            const transition = mapTransitionRef.current;
+            if (transition?.stage === 'loading' && transition.district === district) {
+              const revealing: MapTransition = { ...transition, stage: 'reveal' };
+              mapTransitionRef.current = revealing;
+              setMapTransition(revealing);
+              setProgress(100);
+              setPhase(transition.returnPhase);
+              transitionTimers.current.push(window.setTimeout(() => {
+                mapTransitionRef.current = null;
+                setMapTransition(null);
+              }, 650));
+            }
+          }}
           onOnlineCount={(count, networkStatus) =>
             setOnline({ count, status: networkStatus })
           }
@@ -237,7 +200,50 @@ export default function Home() {
         />
       </Suspense>
 
-      {phase === 'loading' && (
+      {phase === 'select' && (
+        <div className={`live-home-menu${menuLeaving ? ' is-leaving' : ''}`}>
+          <section className="home-suit-panel" aria-label="Choose Spider-Man">
+            <div className="suit-grid" aria-label="Choose Spider-Man">
+              {SUITS.map((suit) => (
+                <button key={suit.id} type="button"
+                  data-selected={suit.id === activeSuit.id}
+                  onClick={() => selectSuit(suit.id)}
+                  aria-label={`Select ${suit.name}`}>
+                  <Image src={`/assets/previews/suits/${suit.id}.png`} alt="" width={180} height={180} unoptimized />
+                  <span>{suit.name}</span>
+                </button>
+              ))}
+            </div>
+          </section>
+          <section className="home-launch-panel" aria-label="Choose map and start game">
+            <div className="home-selected-suit"><small>Selected suit</small><h1>{activeSuit.name}</h1></div>
+            <div className="home-map-grid" aria-label="Choose map">
+              {DISTRICTS.map((city) => (
+                <button key={city.id} type="button" data-selected={city.id === currentDistrict}
+                  data-loading={mapTransition?.district === city.id}
+                  disabled={Boolean(mapTransition)}
+                  style={{
+                    '--map-load-progress': `${mapTransition?.district === city.id ? (mapTransition.stage === 'reveal' ? 100 : progress) : 0}%`,
+                    '--map-load-color': MAP_LOADING_ACCENTS[city.id] ?? '#55e9fa',
+                  } as CSSProperties}
+                  onClick={() => selectMap(city.id, 'select')}>
+                  <Image src={city.preview} alt="" width={320} height={180} unoptimized />
+                  <span>{city.name}</span>
+                  {mapTransition?.district === city.id && (
+                    <output>{mapTransition.stage === 'reveal' ? 'READY' : `${Math.max(1, progress)}%`}</output>
+                  )}
+                </button>
+              ))}
+            </div>
+            <button className="enter-city" type="button" onClick={enterCity}>
+              <Play aria-hidden="true" /> Play
+            </button>
+          </section>
+          <p className="home-disclaimer">This website is a non-commercial fan site and is not affiliated with, authorized, or endorsed by Marvel Entertainment or Disney.</p>
+        </div>
+      )}
+
+      {phase === 'loading' && !mapTransition && (
         <section
           className="loading-screen"
           aria-live="polite"
@@ -265,188 +271,47 @@ export default function Home() {
 
       {phase === 'game' && (
         <>
-          <div className="world-options">
-            <label>
-              Sky
-              <select
-                aria-label="Sky and snow"
-                value={sky}
-                onChange={(event) => setSky(event.target.value as SkyPreset)}
-              >
-                {Object.entries(SKY_PRESETS)
-                  .filter(
-                    ([id]) =>
-                      currentDistrict !== 'cyberpunk-city' ||
-                      id === 'snow' ||
-                      id === 'blizzard',
-                  )
-                  .map(([id, preset]) => (
-                    <option key={id} value={id}>
-                      {preset.label}
-                    </option>
-                  ))}
-              </select>
-            </label>
-          </div>
           <RaceHud
             view={raceView}
             action={(action) => gameRef.current?.raceAction(action)}
             night={night}
             onNight={() => setNight((value) => !value)}
+            sky={sky}
+            onSky={setSky}
+            district={currentDistrict}
+            experimentalCamera={experimentalCamera}
+            onExperimentalCamera={setExperimentalCamera}
+            cameraZoom={cameraZoom}
+            onCameraZoom={setCameraZoom}
+            open={settingsOpen}
+            onOpenChange={setSettingsOpen}
           />
-          <header className="game-topbar">
-            <div className="game-brand">
-              <strong>
-                {activeSuit.traversal === 'ironman' ? 'Iron Man' : 'SpiderMan'}
-              </strong>
-            </div>
-            <div className="district-readout">
-              <Navigation aria-hidden="true" />
-              <span>
-                <small>Current sector</small>
-                <strong>{activeDistrict.name}</strong>
-              </span>
-            </div>
-            <div
-              className={`stream-state ${online.status === 'online' ? '' : 'busy'}`}
-            >
-              <Radio aria-hidden="true" />
-              <span>
-                {online.status === 'online'
-                  ? `${online.count} ${online.count === 1 ? 'player' : 'players'} online`
-                  : online.status === 'error'
-                    ? 'Solo · network unavailable'
-                    : online.status === 'disabled'
-                      ? 'Solo skyline'
-                      : 'Connecting players'}
-              </span>
-            </div>
-          </header>
+          <ActivityHud hud={hud} action={(action) => gameRef.current?.activityAction(action)} />
+          <SpiderHud
+            suitId={activeSuit.id}
+            suitName={activeSuit.name}
+            districtName={activeDistrict.name}
+            hud={hud}
+            online={online}
+            ironMan={activeSuit.traversal === 'ironman'}
+            onSuitChange={(id) => {
+              selectSuit(id);
+            }}
+          />
 
-          <aside className="telemetry" aria-label="Traversal telemetry">
-            <div>
-              <Gauge aria-hidden="true" />
-              <span>
-                <strong>{hud.speed}</strong>
-                <small>km/h</small>
-              </span>
-            </div>
-            <div>
-              <Move3d aria-hidden="true" />
-              <span>
-                <strong>{hud.altitude}</strong>
-                <small>meters</small>
-              </span>
-            </div>
-            <div>
-              <Activity aria-hidden="true" />
-              <span>
-                <strong>{hud.fps}</strong>
-                <small>fps</small>
-              </span>
-            </div>
-          </aside>
-
-          <div className={`swing-indicator ${hud.swinging ? 'active' : ''}`}>
-            <span className="web-orb" />
-            <div>
-              <small>Web line</small>
-              <strong>{hud.swinging ? 'Attached' : 'Ready'}</strong>
-            </div>
-          </div>
-          <div className="reticle" aria-hidden="true">
-            <span />
-            <i />
-          </div>
-
-          <aside className="controls-card">
-            <div>
-              <kbd>WASD</kbd>
-              <span>Move</span>
-            </div>
-            <div>
-              <kbd>Mouse</kbd>
-              <span>Click game to capture · look / aim</span>
-            </div>
-            <div>
-              <kbd>Esc</kbd>
-              <span>Release mouse</span>
-            </div>
-            <div>
-              <kbd>Space</kbd>
-              <span>
-                {activeSuit.traversal === 'ironman'
-                  ? 'Repulsor ascent'
-                  : 'Jump / double jump'}
-              </span>
-            </div>
-            <div>
-              <kbd>Click</kbd>
-              <span>
-                {activeSuit.traversal === 'ironman'
-                  ? 'Tap cruise / hold boost'
-                  : 'Tap zip · hold swing'}
-              </span>
-            </div>
-            <div>
-              <kbd>E</kbd>
-              <span>
-                {activeSuit.traversal === 'ironman'
-                  ? 'Toggle cruise'
-                  : 'Point launch (optional)'}
-              </span>
-            </div>
-            {activeSuit.traversal === 'ironman' && (
-              <div>
-                <kbd>F</kbd>
-                <span>Hover / free fall</span>
-              </div>
-            )}
-            <div>
-              <kbd>Shift</kbd>
-              <span>
-                {activeSuit.traversal === 'ironman' ? 'Descend' : 'Dive'}
-              </span>
-            </div>
-            {activeSuit.traversal === 'spider' && (
-              <div>
-                <kbd>Q</kbd>
-                <span>Crawl / release wall</span>
-              </div>
-            )}
-            <div>
-              <kbd>G</kbd>
-              <span>Web wings · W dive / S climb</span>
-            </div>
-            <div>
-              <kbd>C</kbd>
-              <span>Hold to charge jump (4s)</span>
-            </div>
-            <div>
-              <kbd>X</kbd>
-              <span>Hold slingshot · aim and release</span>
-            </div>
-            <div>
-              <kbd>R</kbd>
-              <span>Roll · F for aerial tricks</span>
-            </div>
-            <div>
-              <kbd>M</kbd>
-              <span>City tracker</span>
-            </div>
-            <Rotate3d aria-hidden="true" />
-          </aside>
-
-          <SpideyTracker
+          {!hud.boss && <SpideyTracker
             players={mapPlayers}
-            finish={raceView.course?.finish ?? null}
+            finish={raceView.target ?? raceView.course?.finish ?? null}
+            route={raceView.route ?? []}
             open={trackerOpen}
             current={currentDistrict}
             loaded={loadedDistricts}
             onClose={() => setTrackerOpen(false)}
             onOpen={() => setTrackerOpen(true)}
             onTravel={travelTo}
-          />
+            loadingDistrict={mapTransition?.district ?? null}
+            loadingProgress={mapTransition?.stage === 'reveal' ? 100 : progress}
+          />}
         </>
       )}
     </main>

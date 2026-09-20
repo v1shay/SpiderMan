@@ -83,6 +83,7 @@ export class CityWeather {
     this.flakes.visible = false;
     scene.add(this.flakes);
   }
+  setDensity(fraction: number) { this.flakes.geometry.setDrawRange(0, Math.round(3000 * THREE.MathUtils.clamp(fraction, .2, 1))); }
   apply(root: THREE.Object3D) {
     root.traverse((o) => {
       if (!(o instanceof THREE.Mesh)) return;

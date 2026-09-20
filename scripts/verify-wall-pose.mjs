@@ -30,7 +30,14 @@ async function load(model) {
   );
 }
 let checks = 0;
-for (const suit of SUITS.filter((suit) => suit.traversal === 'spider')) {
+const requestedSuits = new Set(
+  (process.env.SUIT_IDS ?? '').split(',').map((id) => id.trim()).filter(Boolean),
+);
+for (const suit of SUITS.filter(
+  (suit) =>
+    suit.traversal === 'spider' &&
+    (!requestedSuits.size || requestedSuits.has(suit.id)),
+)) {
   const gltf = await load(suit.model),
     root = gltf.scene;
   const clips = suitAnimationClips(gltf.animations, suit);
@@ -119,7 +126,7 @@ for (const suit of SUITS.filter((suit) => suit.traversal === 'spider')) {
         .normalize();
       assert.ok(
         up.y > 0.93 && surfaceUp.y > 0.995,
-        `${suit.id}: sideways crawl ${up.toArray().join(',')}`,
+        `${suit.id}: sideways crawl ${up.toArray().join(',')} (${animator.activeClip})`,
       );
       let bodyDepth = Infinity,
         footDepth = Infinity,

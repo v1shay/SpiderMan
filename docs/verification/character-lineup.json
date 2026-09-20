@@ -4,6 +4,7 @@
     "clips": 63,
     "samples": 806,
     "worstLimbDirection": 0.9999999999999993,
+    "worstSegment": "leftarm->leftforearm",
     "maximumRelativeSkinSpan": 1.5490336974992263,
     "danceRelativeSkinSpan": 1.1547661233778859,
     "passed": true
@@ -13,6 +14,7 @@
     "clips": 63,
     "samples": 806,
     "worstLimbDirection": 0.999999105292326,
+    "worstSegment": "leftforearm->lefthand",
     "maximumRelativeSkinSpan": 1.4899845184353149,
     "danceRelativeSkinSpan": 1.2960155264880926,
     "passed": true
@@ -22,6 +24,7 @@
     "clips": 63,
     "samples": 806,
     "worstLimbDirection": 0.9999991052007036,
+    "worstSegment": "leftforearm->lefthand",
     "maximumRelativeSkinSpan": 1.5272166407681207,
     "danceRelativeSkinSpan": 1.3125308763485681,
     "passed": true
@@ -31,17 +34,19 @@
     "clips": 63,
     "samples": 806,
     "worstLimbDirection": 0.9999991054171149,
+    "worstSegment": "leftforearm->lefthand",
     "maximumRelativeSkinSpan": 1.4884543636709102,
     "danceRelativeSkinSpan": 1.1882789048082631,
     "passed": true
   },
   {
-    "id": "mocap-spider",
+    "id": "homecoming-tech",
     "clips": 63,
     "samples": 806,
-    "worstLimbDirection": 0.9999991053114937,
-    "maximumRelativeSkinSpan": 1.457103327541153,
-    "danceRelativeSkinSpan": 1.0300566818337729,
+    "worstLimbDirection": 0.9999991053150427,
+    "worstSegment": "leftforearm->lefthand",
+    "maximumRelativeSkinSpan": 1.4749944510287634,
+    "danceRelativeSkinSpan": 1.2864124042881782,
     "passed": true
   },
   {
@@ -49,6 +54,7 @@
     "clips": 63,
     "samples": 806,
     "worstLimbDirection": 0.9999991053977413,
+    "worstSegment": "leftforearm->lefthand",
     "maximumRelativeSkinSpan": 1.5188996686901504,
     "danceRelativeSkinSpan": 1.167735103185002,
     "passed": true
@@ -58,17 +64,19 @@
     "clips": 63,
     "samples": 806,
     "worstLimbDirection": 0.9999991054092496,
+    "worstSegment": "leftforearm->lefthand",
     "maximumRelativeSkinSpan": 1.47924251195538,
     "danceRelativeSkinSpan": 1.393938174710091,
     "passed": true
   },
   {
-    "id": "symbiote-tobey",
+    "id": "symbiote-ps5",
     "clips": 63,
     "samples": 806,
-    "worstLimbDirection": 0.9999991053514421,
-    "maximumRelativeSkinSpan": 1.4936100777573391,
-    "danceRelativeSkinSpan": 1.3123163719326354,
+    "worstLimbDirection": 0.9999991053702839,
+    "worstSegment": "leftforearm->lefthand",
+    "maximumRelativeSkinSpan": 1.5769715471995185,
+    "danceRelativeSkinSpan": 1.2392023036544466,
     "passed": true
   },
   {
@@ -76,8 +84,39 @@
     "clips": 63,
     "samples": 806,
     "worstLimbDirection": 0.9999991053007188,
+    "worstSegment": "leftforearm->lefthand",
     "maximumRelativeSkinSpan": 1.481656691036926,
     "danceRelativeSkinSpan": 1.1602929185482527,
+    "passed": true
+  },
+  {
+    "id": "pavitr-prabhakar",
+    "clips": 63,
+    "samples": 806,
+    "worstLimbDirection": 0.9999991055513056,
+    "worstSegment": "leftforearm->lefthand",
+    "maximumRelativeSkinSpan": 2.517409135491844,
+    "danceRelativeSkinSpan": 2.227240292032667,
+    "passed": true
+  },
+  {
+    "id": "spider-woman-atsv",
+    "clips": 63,
+    "samples": 806,
+    "worstLimbDirection": 0.987252338978223,
+    "worstSegment": "rightupleg->rightleg",
+    "maximumRelativeSkinSpan": 1.4335947104913962,
+    "danceRelativeSkinSpan": 1.230119314387239,
+    "passed": true
+  },
+  {
+    "id": "classic-suit",
+    "clips": 63,
+    "samples": 806,
+    "worstLimbDirection": 0.9999991053256805,
+    "worstSegment": "leftforearm->lefthand",
+    "maximumRelativeSkinSpan": 1.5067843702067294,
+    "danceRelativeSkinSpan": 1.2728026618010084,
     "passed": true
   }
 ]

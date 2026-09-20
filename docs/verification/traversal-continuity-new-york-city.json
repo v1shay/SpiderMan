@@ -1,0 +1,136 @@
+{
+  "map": "new-york-city",
+  "triangles": 310129,
+  "textureDecoding": false,
+  "simulationHz": 120,
+  "trials": [
+    {
+      "trial": "central-street",
+      "frames": 1920,
+      "start": [
+        16,
+        0.169,
+        16
+      ],
+      "end": [
+        -87.084,
+        103.299,
+        65.538
+      ],
+      "distance": 284.851,
+      "maxHeight": 103.299,
+      "maxSpeed": 53.35,
+      "groundedReleases": 5,
+      "airtimeSeconds": 15.208,
+      "swingSeconds": 8.592,
+      "longestAttachmentSeconds": 1.883,
+      "immediateDetaches": 0,
+      "stalledHeldFrames": 0,
+      "maximumConsecutiveStallFrames": 0,
+      "contacts": 1919,
+      "wallFrames": 714,
+      "penetrationFrames": 0,
+      "assistanceFrames": 332,
+      "probes": 572,
+      "anchorSearches": 80,
+      "meanAnchorCandidates": 2.2,
+      "events": {
+        "jump": 4,
+        "web-attached": 10,
+        "land": 2,
+        "web-released": 1,
+        "wall-contact": 1
+      },
+      "detaches": {},
+      "detachSamples": [],
+      "sampleFailures": [],
+      "cpuFrameMeanMs": 0.219,
+      "cpuFrameP95Ms": 0.533
+    },
+    {
+      "trial": "cross-street",
+      "frames": 720,
+      "start": [
+        16,
+        0.169,
+        -16
+      ],
+      "end": [
+        78.925,
+        18.934,
+        -66.491
+      ],
+      "distance": 113.643,
+      "maxHeight": 18.934,
+      "maxSpeed": 39.012,
+      "groundedReleases": 2,
+      "airtimeSeconds": 5.292,
+      "swingSeconds": 4.2,
+      "longestAttachmentSeconds": 0.983,
+      "immediateDetaches": 0,
+      "stalledHeldFrames": 0,
+      "maximumConsecutiveStallFrames": 0,
+      "contacts": 220,
+      "wallFrames": 89,
+      "penetrationFrames": 0,
+      "assistanceFrames": 162,
+      "probes": 241,
+      "anchorSearches": 8,
+      "meanAnchorCandidates": 8.25,
+      "events": {
+        "jump": 3,
+        "web-attached": 5,
+        "land": 1,
+        "web-released": 1
+      },
+      "detaches": {},
+      "detachSamples": [],
+      "sampleFailures": [],
+      "cpuFrameMeanMs": 0.229,
+      "cpuFrameP95Ms": 0.528
+    },
+    {
+      "trial": "unrendered-repeat-tile",
+      "frames": 720,
+      "start": [
+        2592,
+        0.169,
+        -1450.035
+      ],
+      "end": [
+        2463.515,
+        80.009,
+        -1400.125
+      ],
+      "distance": 194.313,
+      "maxHeight": 80.009,
+      "maxSpeed": 74.947,
+      "groundedReleases": 0,
+      "airtimeSeconds": 6,
+      "swingSeconds": 3.65,
+      "longestAttachmentSeconds": 2.667,
+      "immediateDetaches": 0,
+      "stalledHeldFrames": 0,
+      "maximumConsecutiveStallFrames": 0,
+      "contacts": 418,
+      "wallFrames": 138,
+      "penetrationFrames": 0,
+      "assistanceFrames": 100,
+      "probes": 238,
+      "anchorSearches": 13,
+      "meanAnchorCandidates": 2.231,
+      "events": {
+        "jump": 1,
+        "web-attached": 2,
+        "web-released": 1,
+        "double-jump": 1,
+        "wall-contact": 1
+      },
+      "detaches": {},
+      "detachSamples": [],
+      "sampleFailures": [],
+      "cpuFrameMeanMs": 0.165,
+      "cpuFrameP95Ms": 0.345
+    }
+  ]
+}

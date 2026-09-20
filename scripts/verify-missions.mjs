@@ -1,0 +1,13 @@
+import assert from 'node:assert/strict';
+import {MissionSystem,createCityMission} from '../lib/mission-system.ts';
+const mission=new MissionSystem(),points=[{x:0,y:0,z:0},{x:50,y:10,z:0},{x:100,y:20,z:0}];
+const signals={position:points[0],interact:false,score:0,alive:true};
+mission.start(createCityMission('courier',points));
+mission.step(.1,signals);assert.equal(mission.view().step,2);
+mission.step(.1,{...signals,position:points[2]});assert.equal(mission.view().step,2,'Cannot skip checkpoint');
+mission.step(.1,{...signals,position:points[1]});mission.step(.1,{...signals,position:points[2]});assert.equal(mission.view().status,'complete');
+mission.retry();mission.step(111,signals);assert.equal(mission.view().status,'failed');
+mission.start(createCityMission('rescue',points));mission.step(.1,signals);mission.step(.1,signals);assert.equal(mission.view().step,2);mission.step(.1,{...signals,interact:true});assert.equal(mission.view().step,3);
+mission.start(createCityMission('style',points),100);mission.step(.1,signals);mission.step(.1,{...signals,score:1099});assert.equal(mission.view().step,2);mission.step(.1,{...signals,score:1100});assert.equal(mission.view().step,3);
+assert.throws(()=>mission.start({id:'bad',name:'bad',seconds:10,reward:0,nodes:[{id:'a',kind:'reach',label:'a',next:'missing'}]}));
+console.log('PASS missions: ordered objectives, completion, retry, timer, interact range, relative score, invalid graph.');

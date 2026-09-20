@@ -14,6 +14,7 @@ import { IronManAnimationGraph } from './ironman-animation.ts';
 import { SymbioteAnimationGraph } from './symbiote-animation.ts';
 import { MuaSpiderAnimationGraph } from './mua-spider-animation.ts';
 import { ContextualAnimationGraph } from './contextual-animation.ts';
+import type { PlayerCombatAction } from './combat-system.ts';
 
 const canonical = (name: string) =>
   name.toLowerCase().replace(/[^a-z0-9]/g, '');
@@ -58,6 +59,7 @@ export type AvatarMotion = {
   trickRequest?: number;
   moveForward?: number;
   moveStrafe?: number;
+  combat?: {action: PlayerCombatAction; actionElapsed:number;actionDuration:number;activeStart:number;activeEnd:number;comboIndex:number;blocking:boolean};
 };
 
 /** One source of state/clip transitions for the showroom and playable avatar. */
@@ -106,6 +108,8 @@ export class AvatarAnimator {
   private swingUp?: THREE.AnimationClip;
   private overlays: { bone: THREE.Bone; before: THREE.Quaternion }[] = [];
   activeClip = 'procedural';
+  private clipSequence = 0;
+  get animationSample() { return { name: this.activeClip, progress: this.current ? Math.min(1, this.current.time / Math.max(.001, this.current.getClip().duration)) : 0, sequence: this.clipSequence }; }
   contactError = 0;
   supportMode: 'soles' | 'body' = 'soles';
   get cruiseBlend() {
@@ -486,7 +490,74 @@ export class AvatarAnimator {
     this.stateTime += delta;
     this.pose = motion.pose;
     this.root.position.y = this.baseY;
-    const native =
+    const combat = motion.combat;
+    const combatSets: Partial<Record<PlayerCombatAction, readonly (readonly string[])[]>> = {
+      light: [
+        ['mixamopunching', 'mixamobigbodyblow'],
+        ['mixamofistfighta', 'mixamoflyingkneepunchcombo'],
+        ['mixamobigbodyblow'],
+        ['mixamoflyingkneepunchcombo'],
+      ],
+      heavy: [
+        ['mixamokicking', 'mixamodropkick'],
+        ['mixamohurricanekick', 'mixamospinflipkick'],
+        ['mixamospinflipkick'],
+        ['mixamodropkick'],
+      ],
+      launcher: [
+        ['mixamoflipkick'],
+        ['mixamoinverteddoublekicktokipup'],
+      ],
+      airLight: [
+        ['mixamoflyingkneepunchcombo'],
+        ['mixamobutterflytwirl', 'mixamobigbodyblow'],
+      ],
+      airHeavy: [
+        ['mixamodropkick'],
+        ['mixamospinflipkick', 'mixamohurricanekick'],
+      ],
+      grab: [
+        ['mixamoflyingshoulderthrow'],
+        ['mixamograbandslam'],
+      ],
+      webShot: [['mixamoshooting']],
+      webPull: [['mixamoshooting']],
+      block: [
+        ['mixamobodyblock', 'mixamoblock'],
+        ['mixamoblock', 'mixamobodyblock'],
+      ],
+      taunt: [['mixamotaunt']],
+      hit: [
+        ['mixamoreceiveuppercuttotheface', 'mixamogettinghitbackwards'],
+        ['mixamogettingthrown', 'mixamogettinghitbackwards'],
+        ['mixamowallcrash', 'mixamogettinghitbackwards'],
+      ],
+      defeated: [['mixamodefeated', 'mixamogettingthrown']],
+      dodge: [
+        ['mixamocorkscrewevade', 'mixamoquickrolltorun'],
+        ['mixamoaerialevade', 'mixamoruntorolling'],
+        ['mixamocorkscrewkipup', 'mixamoquickrolltorun'],
+        ['mixamoquickrolltorun', 'mixamoruntorolling'],
+      ],
+    };
+    const choices = combat ? combatSets[combat.action] : undefined;
+    const combatNames = choices?.[combat!.comboIndex % choices.length] ?? [];
+    const combatClip = combatNames.length ? findClip(this.clips,combatNames) : undefined;
+    const combatPhase = combat && combat.actionDuration > 0 ? THREE.MathUtils.clamp(combat.actionElapsed / combat.actionDuration,0,1) : 0;
+    // Strike contact is mapped to the simulation's active window, with authored
+    // anticipation and recovery retained on either side of the hit interval.
+    const contactStart = combat ? combat.activeStart / Math.max(.001,combat.actionDuration) : 0;
+    const contactEnd = combat ? combat.activeEnd / Math.max(.001,combat.actionDuration) : 1;
+    const strike = Boolean(combat && ['light','heavy','launcher','airLight','airHeavy','grab'].includes(combat.action));
+    const heldPose = combat?.action === 'block' || combat?.action === 'webPull';
+    const clipPhase = strike
+      ? combatPhase < contactStart ? combatPhase / Math.max(.001,contactStart) * .38
+        : combatPhase < contactEnd ? .38 + (combatPhase-contactStart) / Math.max(.001,contactEnd-contactStart) * .22
+        : .6 + (combatPhase-contactEnd) / Math.max(.001,1-contactEnd) * .4
+      : heldPose ? Math.min(.72, combatPhase % 1)
+        : combatPhase;
+    const combatBodySupport = Boolean(combat && ['airLight','airHeavy','grab','hit','defeated'].includes(combat.action));
+    const native = (combatClip ? {clip:combatClip,loop:THREE.LoopOnce,rate:0,time:clipPhase*combatClip.duration,bodySupport:combatBodySupport} : null) ??
       this.contextual?.select(delta, motion) ??
       this.pavitr?.select(delta, motion) ??
       this.ironman?.select(delta, motion) ??
@@ -519,6 +590,7 @@ export class AvatarAnimator {
         action.setEffectiveWeight(1).fadeIn(0.16).play();
       }
       this.current = action;
+      this.clipSequence++;
     }
     if (action) {
       const rate =
@@ -798,5 +870,15 @@ export class AvatarAnimator {
     return this.root
       .getWorldPosition(target)
       .add(new THREE.Vector3(0, 1.45, 0));
+  }
+
+  webHands(targets: [THREE.Vector3, THREE.Vector3]) {
+    this.root.parent?.updateMatrixWorld(true);
+    return (['leftHand', 'rightHand'] as const).map((role, index) => {
+      const hand = this.bones.find((entry) => entry.role === role)?.bone;
+      return hand
+        ? hand.getWorldPosition(targets[index])
+        : this.root.getWorldPosition(targets[index]).add(new THREE.Vector3(index ? .28 : -.28, 1.45, 0));
+    }) as [THREE.Vector3, THREE.Vector3];
   }
 }

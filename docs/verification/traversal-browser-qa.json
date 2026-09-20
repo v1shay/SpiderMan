@@ -1,0 +1,12 @@
+{
+  "date": "2026-09-17",
+  "url": "http://localhost:3000/?traversalTest=1",
+  "method": "agent-browser real UI clicks and built-in traversal test controls; read-only DOM telemetry; no injected runtime state",
+  "street": {"seconds":16,"distanceMeters":494.8,"peakSpeedMetersPerSecond":74.8,"peakHeightMeters":100.7,"airbornePercent":100,"attachments":6,"contactFrames":116,"penetrationChecks":73,"penetrations":0},
+  "wallAerial": {"seconds":7.02,"frames":129,"modes":["jump","fall","wallCrawl","land","wallJump","doubleJump","roll","run","idle"],"animationClips":10,"penetrations":0,"wallJumpSpeedMetersPerSecond":16.87},
+  "browserErrors": [],
+  "countdownHold": {"status":"not established by browser attempt","observed":"Restart was already racing at 700ms; pointerLocked false; no rope. Pure input/countdown regression passes; lead should repeat actual pointer capture and hold on final build."},
+  "performance": {"frameP50Ms":33.4,"frameP95Ms":66.7,"physicsP95Ms":1.2,"collisionP95Ms":1.1,"renderCpuP95Ms":4.9,"drawCalls":214,"triangles":4385367,"caveat":"Concurrent development browsers and tests were running. Not a clean single-window performance comparison."},
+  "screenshot": "/tmp/spider-traversal-live.png",
+  "sessionClosed": true
+}

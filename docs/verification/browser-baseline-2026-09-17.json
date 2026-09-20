@@ -1,0 +1,7 @@
+{
+  "url": "http://localhost:3000/?traversalTest=1",
+  "scenario": "Metro City, 2099, stationary highest-rooftop spawn, golden sky",
+  "samples": 360,
+  "frameMs": { "p50": 16.7, "p95": 16.8, "p99": 16.8 },
+  "notes": "Browser requestAnimationFrame intervals, vsync-limited. CPU/GPU subsystem timings were not instrumented before this task; no unsupported subsystem comparison is implied. Street trial was exploratory during concurrent implementation and is not an isolated before/after benchmark."
+}

@@ -11,7 +11,7 @@ globalThis.window = {
   localStorage: { getItem: key => store.get(key) ?? null, setItem: (key, value) => store.set(key, value) },
   dispatchEvent: () => true,
 };
-const locked = SUITS.find(suit => suit.id === 'spider-woman');
+const locked = SUITS.find(suit => suit.id === 'spider-woman-atsv');
 assert.equal(isSuitUnlocked(locked, emptyProgress()), false);
 for (let i = 0; i < 49; i++) addSwingAttachment();
 assert.equal(readProgress().swingAttachments, 49);
@@ -21,7 +21,14 @@ addSwingAttachment();
 assert.equal(isSuitUnlocked(locked, readProgress()), true);
 assert.equal(swingsRemaining(locked, readProgress()), 0);
 for (const suit of SUITS) assert.ok(fs.existsSync(new URL(`../public${suit.model}`, import.meta.url)), suit.model);
-for (const old of ['advanced', 'classic', 'ps4']) {
+for (const old of [
+  'advanced',
+  'classic',
+  'ps4',
+  'advanced-2',
+  'playstation',
+  'symbiote-advanced',
+]) {
   assert.equal(fs.existsSync(new URL(`../public/assets/suits/${old}.glb`, import.meta.url)), false);
 }
 
@@ -49,7 +56,7 @@ tracks.push(new THREE.VectorKeyframeTrack('mixamorigHips.position', [0, 1], [0, 
 const [clip] = poseOnlyClips([new THREE.AnimationClip('Run', 1, tracks)]);
 assert.ok(clip.tracks.some(track => track.name === 'LeftArm.position'));
 assert.ok(!clip.tracks.some(track => track.name.includes('Hips.position')));
-const playstation = SUITS.find(suit => suit.id === 'playstation');
+const playstation = { ...SUITS[0], id: 'playstation' };
 const [stand] = suitAnimationClips([new THREE.AnimationClip('Jump', 1, tracks)], playstation);
 assert.equal(stand.name, 'stand');
 assert.equal(stand.duration, 1);

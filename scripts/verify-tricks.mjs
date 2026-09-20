@@ -1,0 +1,17 @@
+import assert from 'node:assert/strict';
+import { TrickSystem } from '../lib/trick-system.ts';
+import { createTraversalState } from '../lib/traversal-physics.ts';
+const system=new TrickSystem();
+const state=createTraversalState({x:0,y:40,z:0},{x:30,y:0,z:0});
+state.mode='freefall';state.grounded=false;
+const sample=(dt,events=[],extra={})=>system.update({dt,state,events,groundY:0,contact:false,...extra});
+assert.equal(sample(.1,[],{animation:{name:'mixamo:Backflip',progress:.1,sequence:1}}).length,0,'Starting a flip does not award it');
+assert.equal(sample(.1,[],{animation:{name:'mixamo:Backflip',progress:.9,sequence:1}})[0].label,'BACKFLIP');
+assert.equal(sample(.1,[],{animation:{name:'mixamo:Backflip',progress:.95,sequence:1}}).length,0,'Same flip never scores twice');
+assert.equal(sample(.1,[],{clearance:{left:1,right:5}}).filter(x=>x.label==='THREAD THE NEEDLE').length,1);
+assert.equal(sample(.1,[],{clearance:{left:1,right:5}}).length,0,'Narrow opening cooldown');
+sample(.1,[],{contact:true,impactSpeed:30});assert.equal(system.chain,0,'Hard impact resets combo');
+state.mode='glide';for(let i=0;i<50;i++)sample(.1);assert.ok(system.score>300);
+state.velocity={x:0,y:0,z:0};for(let i=0;i<20;i++)sample(.1);assert.equal(system.chain,0,'Stall resets');
+state.mode='wallRun';state.velocity={x:0,y:0,z:20};const wall=[];for(let i=0;i<10;i++)wall.push(...sample(.1));assert.ok(wall.some(a=>a.label==='WALL RUN'));
+console.log('PASS physical tricks: completed flip, cooldown, narrow passage, hard impact, glide duration, stall, wall distance.');

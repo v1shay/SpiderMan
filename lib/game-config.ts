@@ -4,17 +4,21 @@ export type SuitId =
   | 'miles-animated'
   | 'no-way-home'
   | 'tobey'
-  | 'symbiote-tobey'
   | 'mocap-spider'
   | 'classic-spider'
+  | 'classic-suit'
+  | 'homecoming-tech'
+  | 'symbiote-ps5'
   | 'spider-rigged'
   | 'miles'
   | 'miguel'
   | 'pavitr'
+  | 'pavitr-prabhakar'
   | 'playstation'
   | 'symbiote'
   | 'iron-spider'
   | 'spider-woman'
+  | 'spider-woman-atsv'
   | 'mua-spider'
   | 'venom'
   | 'ironman';
@@ -154,31 +158,64 @@ const suitArchive: readonly SuitConfig[] = [
 ] as const;
 
 // All selectable suits use the shared 2099 contextual animation graph.
-export const SUITS: readonly SuitConfig[] = (
-  [
+export const SUITS: readonly SuitConfig[] = [
+  ...(
+    [
     ['miguel', '2099'],
     ['miles-new', 'Across the Spider-Verse'],
     ['miles-animated', 'Into the Spider-Verse'],
     ['no-way-home', 'No Way Home'],
-    ['mocap-spider', 'Homecoming'],
+    ['homecoming-tech', 'Homecoming'],
     ['classic-spider', 'Alt Homecoming'],
     ['tobey', 'Spider-Man (2002)'],
-    ['symbiote-tobey', 'Spider-Man 3'],
+    ['symbiote-ps5', 'Symbiote Suit'],
     ['amazing', 'The Amazing Spider-Man'],
-  ] as const
-).map(([id, name]) =>
-  id === 'miguel'
-    ? { ...suitArchive.find((suit) => suit.id === 'miguel')!, name }
-    : {
-        id,
-        name,
-        universe: 'Spider-Verse',
-        model: `/assets/suits/${id}.glb`,
-        modelYaw: Math.PI,
-        animationSource: `/assets/animations/mixamo-${id}.glb`,
-        traversal: 'spider' as const,
-      },
-);
+    ] as const
+  ).map(([id, name]) =>
+    id === 'miguel'
+      ? { ...suitArchive.find((suit) => suit.id === 'miguel')!, name }
+      : {
+          id,
+          name,
+          universe: 'Spider-Verse',
+          model: `/assets/suits/${id}.glb`,
+          modelYaw: Math.PI,
+          animationSource: `/assets/animations/mixamo-${id}.glb`,
+          traversal: 'spider' as const,
+        },
+  ),
+  ...([
+  {
+    id: 'pavitr-prabhakar',
+    name: 'Pavitr Prabhakar',
+    universe: 'Mumbattan',
+    model: '/assets/suits/pavitr-prabhakar.glb',
+    modelYaw: Math.PI,
+    visualScale: .82,
+    animationSource: '/assets/animations/mixamo-pavitr-prabhakar.glb',
+    traversal: 'spider',
+  },
+  {
+    id: 'spider-woman-atsv',
+    name: 'Spider-Woman',
+    universe: 'Spider-Verse',
+    model: '/assets/suits/spider-woman-atsv.glb',
+    modelYaw: Math.PI,
+    animationSource: '/assets/animations/mixamo-spider-woman-atsv.glb',
+    unlockSwings: 50,
+    traversal: 'spider',
+  },
+  {
+    id: 'classic-suit',
+    name: 'Classic Spider-Man',
+    universe: 'Earth-616',
+    model: '/assets/suits/classic-suit.glb',
+    modelYaw: Math.PI,
+    animationSource: '/assets/animations/mixamo-classic-suit.glb',
+    traversal: 'spider',
+  },
+  ] satisfies readonly SuitConfig[]),
+];
 
 export type DistrictId =
   | 'procedural-city'

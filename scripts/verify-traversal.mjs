@@ -103,23 +103,26 @@ test('web line-of-sight accepts first surface but rejects targets behind it', ()
   assert.equal(traversalLineOfSight(v(0, 4), v(12, 4), [wall]), false);
 });
 
-test('occluded swing detaches without a boost or unchecked rope teleport', () => {
+test('occluded swing continues at a real corner without boost or teleport', () => {
   const state = createTraversalState(v(0, 4), v());
   state.swing = { anchor: v(10, 20), anchorId: 'blocked', ropeLength: 4, maximumLength: 4, attachedSeconds: 1, tension: 1, pressure: .5 };
   const result = stepTraversal(state, { swingHeld: true }, { groundY: -100, colliders: [wall] }, 1 / 120,
     { ...inert, swingSpring: 0, swingDamping: 0, swingPumpAcceleration: 0, swingSteerAcceleration: 0, swingReelSpeed: 0 });
-  assert.equal(result.state.swing, null);
+  assert.ok(result.state.swing);
+  assert.equal(result.state.swing.continuation, 'corner');
   assert.ok(result.state.position.x < 1 && outside(result.state, wall));
-  assert.ok(result.events.some((event) => event.type === 'web-released' && event.strength === 0));
+  assert.ok(result.events.some((event) => event.type === 'corner-tether'));
+  assert.equal(result.events.some(event => event.type === 'web-released'), false);
 });
 
-test('capsule-blocked rope correction loses to a wall even with clear centerline', () => {
+test('capsule-blocked rope correction defers to geometry without immediate detach', () => {
   const edge = box('rope-edge', v(3, 0, .2), v(4, 30, 3));
   const state = createTraversalState(v(0, 4), v());
   state.swing = { anchor: v(10, 4), ropeLength: 3, maximumLength: 3, attachedSeconds: 1, tension: 1, pressure: .5 };
   const result = stepTraversal(state, { swingHeld: true }, { groundY: -100, colliders: [edge] }, 1 / 120,
     { ...inert, swingSpring: 0, swingDamping: 0, swingPumpAcceleration: 0, swingSteerAcceleration: 0, swingReelSpeed: 0 });
-  assert.equal(result.state.swing, null);
+  assert.ok(result.state.swing || result.state.wallRunActive || result.state.wallCrawlActive);
+  assert.equal(result.events.some(event => event.type === 'web-released'), false);
   assert.ok(outside(result.state, edge));
   assert.ok(result.state.position.x <= 3 - defaults.playerRadius);
 });
