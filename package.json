@@ -40,7 +40,8 @@
     "test:missions": "node --experimental-strip-types scripts/verify-missions.mjs",
     "test:racing": "node --experimental-strip-types scripts/verify-racing.mjs",
     "test:combat": "node --experimental-strip-types scripts/verify-combat.mjs",
-    "import:combat": "node scripts/import-combat-animations.mjs source-assets/mixamo-combat"
+    "import:combat": "node scripts/import-combat-animations.mjs source-assets/mixamo-combat",
+    "test:controller": "node --experimental-strip-types scripts/verify-controller.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "2.112.4",

@@ -26,6 +26,7 @@ import {
   type RacePoint,
 } from '@/lib/race-session';
 import { sampleRaceInput } from '@/lib/race-input';
+import { loadControllerSettings, readController } from '@/lib/controller';
 import { InputSystem, toTraversalInput } from '@/lib/input-system';
 import { TraversalTelemetry } from '@/lib/telemetry';
 import { RenderQualityManager } from '@/lib/render-quality';
@@ -1123,6 +1124,14 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(
       loader.setMeshoptDecoder(MeshoptDecoder);
       const inputSystem = new InputSystem();
       const keys = inputSystem.raw.keys;
+      let controllerSettings = loadControllerSettings();
+      let controllerIndex: number | null = null;
+      let menuHeld = false;
+      const onControllerSettings = (event: Event) => {
+        controllerSettings = (event as CustomEvent).detail;
+      };
+      window.addEventListener('controller-settings', onControllerSettings);
+
       const telemetry = new TraversalTelemetry();
       const quality = new RenderQualityManager();
       const tricks = new TrickSystem();
@@ -3313,8 +3322,8 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(
           timeToLanding: landingPrediction.time,
           trickClearance: landingPrediction.clear,
           trickRequest,
-          moveForward: keys.has('KeyW') ? 1 : keys.has('KeyS') ? -1 : 0,
-          moveStrafe: keys.has('KeyD') ? 1 : keys.has('KeyA') ? -1 : 0,
+          moveForward: (keys.has('KeyW') ? 1 : keys.has('KeyS') ? -1 : 0) + inputSystem.controllerMove.y,
+          moveStrafe: (keys.has('KeyD') ? 1 : keys.has('KeyA') ? -1 : 0) + inputSystem.controllerMove.x,
           grounded: player.grounded,
           speed:
             mode === 'wallCrawl' || mode === 'wallRun'
@@ -3376,7 +3385,25 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(
         const rawFrameMs = Math.max(0, timestamp - lastFrameTime);
         const visualDelta = Math.min(Math.max(rawFrameMs / 1000, 0), 0.1);
         visualTime += visualDelta;
+        const pads = Array.from(navigator.getGamepads?.() ?? []);
+        let pad = pads.find(p => p?.connected && p.index === controllerIndex) ?? null;
+        const activePad = pads.find(p => p?.connected && (p.buttons.some(b => b.pressed || b.value > .55) || p.axes.some(a => Math.abs(a) > .3)));
+        if (activePad) pad = activePad;
+        controllerIndex = pad?.index ?? null;
+        const menu = Boolean(pad?.buttons[9]?.pressed);
+        if (menu && !menuHeld && document.hasFocus()) window.dispatchEvent(new Event('controller-pause'));
+        menuHeld = menu;
         const paused = callbacksRef.current.paused === true;
+        const controller = readController(document.hasFocus() && !paused ? pad : null, controllerSettings, bosses.snapshot()?.status === 'active', traversal.grounded);
+        inputSystem.setController(controller.held, controller.moveX, controller.moveY);
+        if (pad && !paused && document.hasFocus()) {
+          inputSystem.gainFocus();
+          cameraYaw -= controller.lookX * controllerSettings.sensitivity * visualDelta;
+          cameraYaw = Math.atan2(Math.sin(cameraYaw), Math.cos(cameraYaw));
+          cameraPitch = clamp(cameraPitch + controller.lookY * controllerSettings.sensitivity * visualDelta, -1.12, 1.22);
+          if (controller.held.size || Math.abs(controller.lookX) + Math.abs(controller.lookY) > 0) pointerNdc.set(0, 0);
+        }
+
         const requestedSky = callbacksRef.current.sky ?? 'golden';
         const effectiveSky =
           currentDistrict === 'cyberpunk-city'
@@ -3525,6 +3552,15 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(
         chargeJumpReleased ||= actions.chargeJump.released;
         slingshotReleased ||= actions.slingshot.released;
         cancelAbilities ||= actions.cancelAbilities;
+        if (actions.trick.pressed && controller.held.has('trick')) trickRequest++;
+        bossAttackPressed ||= actions.attack.pressed;
+        bossHeavyPressed ||= actions.heavy.pressed;
+        bossLauncherPressed ||= actions.launcher.pressed;
+        bossGrabPressed ||= actions.grab.pressed;
+        bossDodgePressed ||= actions.dodge.pressed;
+        bossWebPressed ||= actions.web.pressed;
+        bossTauntPressed ||= actions.taunt.pressed;
+        interactPressed ||= actions.interact.pressed;
         hoverTogglePressed ||= actions.trick.pressed;
         cruiseTogglePressed ||= actions.pointLaunch.pressed;
         const forward = bossAtInput?.status === 'active' && bossAtInput.cinematic !== 'intro'
@@ -3533,10 +3569,8 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(
         const right = new THREE.Vector3(-forward.z, 0, forward.x);
         const wish = new THREE.Vector3();
         if (!raceInputLocked) {
-          if (keys.has('KeyW')) wish.add(forward);
-          if (keys.has('KeyS')) wish.sub(forward);
-          if (keys.has('KeyD')) wish.add(right);
-          if (keys.has('KeyA')) wish.sub(right);
+          wish.addScaledVector(forward, actions.moveY);
+          wish.addScaledVector(right, actions.moveX);
         }
         if (wish.lengthSq() > 1) wish.normalize();
         const hero = getSuit(activeSuitId);
@@ -3596,9 +3630,9 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(
             {
               hoverToggle: hoverTogglePressed,
               cruiseToggle: cruiseTogglePressed,
-              ascend: !raceInputLocked && keys.has('Space'),
+              ascend: !raceInputLocked && actions.jump.held,
               ascendPressed: !raceInputLocked && jumpPressed,
-              descend: !raceInputLocked && keys.has('ShiftLeft'),
+              descend: !raceInputLocked && actions.dive.held,
               boost: !raceInputLocked && pointerHeld,
               aim: cameraAim,
             },
@@ -3668,9 +3702,9 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(
           launcherPressed:!raceInputLocked&&bossLauncherPressed,
           grabPressed:!raceInputLocked&&bossGrabPressed,
           dodgePressed:!raceInputLocked&&bossDodgePressed,
-          blockHeld:!raceInputLocked&&keys.has('KeyO'),
+          blockHeld:!raceInputLocked&&actions.block.held,
           webPressed:!raceInputLocked&&bossWebPressed,
-          webHeld:!raceInputLocked&&keys.has('KeyH'),
+          webHeld:!raceInputLocked&&actions.web.held,
           tauntPressed:!raceInputLocked&&bossTauntPressed,
         },bossWorld);
         bossAttackPressed=bossHeavyPressed=bossLauncherPressed=bossGrabPressed=false;
@@ -3696,8 +3730,8 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(
           !traversal.mantle &&
           !traversal.swing &&
           !traversal.zip &&
-          !keys.has('KeyC') &&
-          !keys.has('KeyX')
+          !actions.chargeJump.held &&
+          !actions.slingshot.held
         ) {
           const target = probeLowObstacle(exactWorld, traversal.position, wish);
           if (target) {
@@ -3710,7 +3744,7 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(
           }
         }
 
-        if (exactWorld && (keys.has('KeyX') || keys.has('KeyZ'))) {
+        if (exactWorld && (actions.slingshot.held || actions.corner.held)) {
           if (elapsedTime >= featureProbeAfter) {
             featureProbeAfter = elapsedTime + 0.08;
             featureQuery = probeAdvancedWorld(
@@ -3718,8 +3752,8 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(
               traversal.position,
               traversal.velocity,
               forward,
-              keys.has('KeyX'),
-              keys.has('KeyZ')
+              actions.slingshot.held,
+              actions.corner.held
                 ? keys.has('KeyD')
                   ? 1
                   : keys.has('KeyA')
@@ -3743,7 +3777,7 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(
               swinging: Boolean(
                 traversal.swing && swingHeld && !traversal.advanced?.loop,
               ),
-              diving: keys.has('ShiftLeft'),
+              diving: actions.dive.held,
               desiredDirection: wish.lengthSq() > 0.01 ? wish : forward,
             },
             (origin, direction, maximum) =>
@@ -4988,6 +5022,7 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(
           document.exitPointerLock();
         renderer.domElement.removeEventListener('contextmenu', onContextMenu);
         window.removeEventListener('mouseup', onPointerUp);
+        window.removeEventListener('controller-settings', onControllerSettings);
         window.removeEventListener('keydown', onKeyDown);
         window.removeEventListener('keyup', onKeyUp);
         window.removeEventListener('blur', clearKeys);

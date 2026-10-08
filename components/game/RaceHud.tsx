@@ -1,4 +1,5 @@
 'use client';
+import ControllerSettings from './ControllerSettings';
 import { Camera, Flag, Moon, Play, Settings, Sun, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { formatRaceTime, type RaceView } from '@/lib/race-session';
@@ -129,6 +130,7 @@ export function RaceHud({
 
             <div className="pause-settings-scroll">
               {settingsTab === 'gameplay' ? <>
+                <ControllerSettings />
                 <section aria-labelledby="race-settings-heading">
                   <h2 id="race-settings-heading">Race</h2>
                   <div className="settings-action-grid">

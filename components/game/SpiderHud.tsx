@@ -2,7 +2,9 @@
 
 import Image from 'next/image';
 import { Radio } from 'lucide-react';
-import { useState, type CSSProperties } from 'react';
+import { buttonName, controllerName, loadControllerSettings } from '@/lib/controller';
+import type { InputAction } from '@/lib/input-system';
+import { useEffect, useState, type CSSProperties } from 'react';
 import type { GameHud } from './SpiderGame';
 import type { MultiplayerStatus } from '@/lib/multiplayer';
 import { SUITS, type SuitId } from '@/lib/game-config';
@@ -119,6 +121,19 @@ export function SpiderHud({
   onSuitChange,
 }: Props) {
   const [switcherOpen, setSwitcherOpen] = useState(false);
+  const [controller, setController] = useState<{ family: string; settings: ReturnType<typeof loadControllerSettings> } | null>(null);
+  useEffect(() => {
+    const poll = () => {
+      const pad = Array.from(navigator.getGamepads?.() ?? []).find(p => p?.connected);
+      setController(pad ? { family: controllerName(pad.id), settings: loadControllerSettings() } : null);
+    };
+    const timer = window.setInterval(poll, 500);
+    return () => window.clearInterval(timer);
+  }, []);
+  const binding = (key: string) => {
+    const action = ({ Space: 'jump', Click: 'swing', C: 'chargeJump', X: 'slingshot', G: 'glide', E: 'pointLaunch', Q: 'wallCrawl', F: 'trick', R: 'roll', K: 'attack', L: 'heavy', I: 'launcher', U: 'grab', O: 'block', J: 'dodge', H: 'web', Y: 'taunt' } as Record<string, InputAction>)[key];
+    return controller && action ? controller.settings.bindings[action].map(b => buttonName(b, controller.family)).join(' + ') || 'Unbound' : key;
+  };
   const move = recommendedMove(hud, ironMan);
   const health = Math.ceil(hud.boss?.playerHealth ?? 100);
   const abilityLevel = Math.max(
@@ -167,19 +182,19 @@ export function SpiderHud({
         <output className={`boss-combat-cue stage-${boss.attack?.stage ?? 'idle'}`} aria-live="polite">
           {boss.cinematic === 'intro' && <small>ENCOUNTER</small>}
           <strong>{boss.cinematic === 'intro' ? boss.name : warning}</strong>
-          {boss.attack && <span>{boss.attack.stage === 'startup' ? 'READ THE TELL' : boss.attack.stage === 'recovery' ? 'STRIKE · K' : 'J · EVADE'}</span>}
+          {boss.attack && <span>{boss.attack.stage === 'startup' ? 'READ THE TELL' : boss.attack.stage === 'recovery' ? `STRIKE · ${binding('K')}` : `${binding('J')} · EVADE`}</span>}
         </output>
         <aside className="boss-controls" aria-label="Combat controls">
-          <strong><span>{prompt.label}</span><kbd>{prompt.key}</kbd></strong>
+          <strong><span>{prompt.label}</span><kbd>{binding(prompt.key)}</kbd></strong>
           <div className="boss-control-grid">
-            <span><kbd>K</kbd> light</span>
-            <span><kbd>L</kbd> heavy</span>
-            <span><kbd>I</kbd> launch</span>
-            <span><kbd>U</kbd> grab</span>
-            <span><kbd>O</kbd> block</span>
-            <span><kbd>J</kbd> dodge</span>
-            <span><kbd>H</kbd> web pull</span>
-            <span><kbd>Y</kbd> taunt</span>
+            <span><kbd>{binding('K')}</kbd> light</span>
+            <span><kbd>{binding('L')}</kbd> heavy</span>
+            <span><kbd>{binding('I')}</kbd> launch</span>
+            <span><kbd>{binding('U')}</kbd> grab</span>
+            <span><kbd>{binding('O')}</kbd> block</span>
+            <span><kbd>{binding('J')}</kbd> dodge</span>
+            <span><kbd>{binding('H')}</kbd> web pull</span>
+            <span><kbd>{binding('Y')}</kbd> taunt</span>
           </div>
         </aside>
       </div>
@@ -235,7 +250,7 @@ export function SpiderHud({
 
       <aside className="recommended-move" aria-label="Recommended move">
         <span>{move.label}</span>
-        <kbd>{move.key}</kbd>
+        <kbd>{binding(move.key)}</kbd>
       </aside>
 
       {hud.announcement && (

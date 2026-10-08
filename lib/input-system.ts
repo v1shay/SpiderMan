@@ -28,6 +28,8 @@ export const ACTION_BINDINGS = {
   loop: ['KeyL'],
   reelIn: ['KeyV'],
   reelOut: ['KeyB'],
+  attack: ['KeyK'], heavy: ['KeyL'], launcher: ['KeyI'], grab: ['KeyU'],
+  dodge: ['KeyJ'], block: ['KeyO'], web: ['KeyH'], taunt: ['KeyY'], interact: ['KeyN'],
 } as const;
 
 export type InputAction = keyof typeof ACTION_BINDINGS;
@@ -61,6 +63,11 @@ export class InputSystem {
     buttons: new Set(),
     focused: true,
   };
+  controllerHeld = new Set<InputAction>();
+  controllerMove = { x: 0, y: 0 };
+  setController(held: Set<InputAction>, x = 0, y = 0): void {
+    this.controllerHeld = held; this.controllerMove = { x, y };
+  }
   private previous = new Set<InputAction>();
   private presses = new Set<string>();
   private releases = new Set<string>();
@@ -119,7 +126,7 @@ export class InputSystem {
       const permitted = enabled && !policy.disabledActions?.has(action);
       const bindings: readonly string[] = ACTION_BINDINGS[action];
       const held =
-        permitted && bindings.some((code) => physicalHeld(this.raw, code));
+        permitted && (this.controllerHeld.has(action) || bindings.some((code) => physicalHeld(this.raw, code)));
       const wasHeld = this.previous.has(action);
       // Preserve a down/up occurring between frames. Paused taps are consumed,
       // whereas held buttons create a fresh rising edge on the first GO frame.
@@ -138,9 +145,9 @@ export class InputSystem {
       if (!permitted && wasHeld) cancelAbilities = true;
     }
     result.enabled = enabled;
-    result.moveX = Number(result.moveRight.held) - Number(result.moveLeft.held);
+    result.moveX = Math.max(-1, Math.min(1, Number(result.moveRight.held) - Number(result.moveLeft.held) + (enabled ? this.controllerMove.x : 0)));
     result.moveY =
-      Number(result.moveForward.held) - Number(result.moveBack.held);
+      Math.max(-1, Math.min(1, Number(result.moveForward.held) - Number(result.moveBack.held) + (enabled ? this.controllerMove.y : 0)));
     result.pointerPressure = result.swing.held
       ? this.raw.pointerPressure
       : undefined;

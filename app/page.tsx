@@ -54,6 +54,11 @@ export default function Home() {
   const [experimentalCamera, setExperimentalCamera] = useState(false);
   const [cameraZoom, setCameraZoom] = useState(1);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  useEffect(() => {
+    const toggle = () => setSettingsOpen(value => !value);
+    window.addEventListener('controller-pause', toggle);
+    return () => window.removeEventListener('controller-pause', toggle);
+  }, []);
   const [selected, setSelected] = useState<SuitId>('miguel');
   const [selectedMap, setSelectedMap] = useState<DistrictId>('new-york-city');
   const [phase, setPhase] = useState<Phase>('loading');
