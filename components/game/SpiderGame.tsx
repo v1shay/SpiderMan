@@ -3389,6 +3389,7 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(
         let pad = pads.find(p => p?.connected && p.index === controllerIndex) ?? null;
         const activePad = pads.find(p => p?.connected && (p.buttons.some(b => b.pressed || b.value > .55) || p.axes.some(a => Math.abs(a) > .3)));
         if (activePad) pad = activePad;
+        if (!pad && controllerIndex !== null) inputSystem.disconnectController();
         controllerIndex = pad?.index ?? null;
         const menu = Boolean(pad?.buttons[9]?.pressed);
         if (menu && !menuHeld && document.hasFocus()) window.dispatchEvent(new Event('controller-pause'));

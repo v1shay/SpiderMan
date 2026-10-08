@@ -68,6 +68,10 @@ export class InputSystem {
   setController(held: Set<InputAction>, x = 0, y = 0): void {
     this.controllerHeld = held; this.controllerMove = { x, y };
   }
+  disconnectController(): void {
+    this.setController(new Set());
+    this.resetActions();
+  }
   private previous = new Set<InputAction>();
   private presses = new Set<string>();
   private releases = new Set<string>();
