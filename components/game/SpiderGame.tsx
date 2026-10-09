@@ -25,6 +25,7 @@ import {
   type RaceView,
   type RacePoint,
 } from '@/lib/race-session';
+import { loadSwingProfile, sanitizeSwingProfile, swingProfileConfig, swingProfileFingerprint } from '@/lib/swing-profile';
 import { sampleRaceInput } from '@/lib/race-input';
 import { loadControllerSettings, readController } from '@/lib/controller';
 import { InputSystem, toTraversalInput } from '@/lib/input-system';
@@ -1124,6 +1125,11 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(
       loader.setMeshoptDecoder(MeshoptDecoder);
       const inputSystem = new InputSystem();
       const keys = inputSystem.raw.keys;
+      let swingProfile = loadSwingProfile();
+      let swingConfig = swingProfileConfig(swingProfile);
+      let raceSwingConfig: Partial<TraversalConfig> | null = null;
+      const onSwingProfile = (event: Event) => { swingProfile = sanitizeSwingProfile((event as CustomEvent).detail); swingConfig = swingProfileConfig(swingProfile); };
+      window.addEventListener('swing-profile-change',onSwingProfile);
       let controllerSettings = loadControllerSettings();
       let controllerIndex: number | null = null;
       let menuHeld = false;
@@ -1353,6 +1359,7 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(
           world = repeatingWorlds.get(currentDistrict);
         if (!world) return;
         raceCourseId = course.id;
+        raceSwingConfig = course.swingProfile ? swingProfileConfig(course.swingProfile) : null;
         raceBest = readBest(course.id);
         race.bestSplits = readBestRun(course.id)?.splits ?? [];
         raceVisuals.setCourse(course, world);
@@ -1747,6 +1754,14 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(
         if (edgeX && edgeZ)
           desired.add(tileKey(centerX + edgeX, centerZ + edgeZ));
 
+        // Keep the destination map tile ready before any racer gets there.
+        // Geometry is shared with the main city; only the finish tile is pinned.
+        if (race?.course && race.course.mapId === district && ['inviting','invited','countdown','racing'].includes(race.phase)) {
+          const goal = race.course.finish;
+          const goalX = Math.round((goal[0]-config.position[0])/stream.tileWidth);
+          const goalZ = Math.round((goal[2]-config.position[2])/stream.tileDepth);
+          desired.add(tileKey(goalX,goalZ));
+        }
         let changed = false;
         for (const tile of Array.from(stream.tiles.values())) {
           if (desired.has(tileKey(tile.x, tile.z))) continue;
@@ -3063,7 +3078,7 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(
           },
           started: () => {
             if (avatar) recorder = new GhostRecorder(avatar);
-            raceMessage = 'GO · pass each cyan gate';
+            raceMessage = 'GO · reach the finish beacon';
           },
           finished: (course, time) => {
             recorder?.capture(time);
@@ -3109,7 +3124,7 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(
               const value = JSON.parse(
                 localStorage.getItem('2099-last-course') ?? 'null',
               );
-              if (validRaceCourse(value) && value.gates?.length && value.mapId === currentDistrict) previous = value;
+              if (validRaceCourse(value) && !value.gates?.length && value.mapId === currentDistrict) previous = value;
             } catch {
               /* storage is optional */
             }
@@ -3127,10 +3142,13 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(
                     world.depth,
                     action === 'daily' ? dailyRaceSeed(currentDistrict) : crypto.getRandomValues(new Uint32Array(1))[0],
                     action === 'daily' ? -1 : lastRaceSide >= 0 ? lastRaceSide : (previous?.side ?? -1),
-                    {sample:createRaceGeometrySampler(world),mode:selectedRaceMode,mapId:currentDistrict},
+                    {sample:createRaceGeometrySampler(world),mode:'speed',mapId:currentDistrict},
                   );
             } catch { raceMessage='No clear course here · move to another rooftop and retry';activityMessage=raceMessage;return; }
             bossLoadingGeneration++;bosses.stop();missions.stop();
+            const sharedProfile = action === 'pb' && course.swingProfile ? sanitizeSwingProfile(course.swingProfile) : sanitizeSwingProfile(swingProfile);
+            const routeId = course.id.split(':physics-')[0];
+            course = {...course,id:`${routeId}:physics-${swingProfileFingerprint(sharedProfile)}`,mode:'speed',swingProfile:sharedProfile};
             if (race.invite(course, raceNow(), peers, crypto.randomUUID())) {
               lastRaceSide = course.side;
               raceCourseId = '';
@@ -3679,7 +3697,9 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(
                   zipDamping: 3.6,
                   zipMaximumSpeed: 66,
                 };
-        traversalOverrides.cameraMotionScale = reducedMotion ? 0 : 1;
+        if (hero.traversal === 'spider') Object.assign(traversalOverrides,raceSwingConfig && race && ['inviting','invited','countdown','racing'].includes(race.phase) ? raceSwingConfig : swingConfig);
+        traversalOverrides.cameraMotionScale = reducedMotion ? 0 : traversalOverrides.cameraMotionScale ?? 1;
+        renderer.domElement.dataset.swingProfile = swingProfile.name;
         const frameInput: TraversalInput = {
           ...toTraversalInput(actions, forward, cameraAim),
           move: wish,
@@ -3774,6 +3794,12 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(
             {
               position: traversal.position,
               velocity: traversal.velocity,
+              tuning: traversalOverrides,
+              trajectoryVelocity: traversal.swing ? {
+                x: traversal.velocity.x + (traversal.swing.anchor.x - traversal.position.x) * .12,
+                y: traversal.velocity.y - (traversalOverrides.gravity ?? 29) * .18,
+                z: traversal.velocity.z + (traversal.swing.anchor.z - traversal.position.z) * .12,
+              } : undefined,
               dt: delta,
               swinging: Boolean(
                 traversal.swing && swingHeld && !traversal.advanced?.loop,
@@ -3880,6 +3906,13 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(
               predictiveAssistAcceleration,
               windAcceleration: windAssist.acceleration ?? undefined,
               externalCollision: Boolean(exactWorld),
+              swingPathClear: exactWorld && traversalOverrides.profiledSwing
+                ? (from,to) => {
+                  const origin = new THREE.Vector3(from.x,from.y+.9,from.z);
+                  const ray = new THREE.Vector3(to.x,to.y+.9,to.z).sub(origin);
+                  const range = ray.length();
+                  return range < .01 || !exactWorld.raycast(origin,ray.normalize(),range);
+                } : undefined,
               hasLineOfSight: exactWorld
                 ? (origin, target) => {
                     const direction = new THREE.Vector3()
@@ -4356,9 +4389,10 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(
                     ? 'TURN LEFT'
                     : 'TURN RIGHT'
                 : raceMessage;
+            const raceSnapshot = race;
             callbacksRef.current.onRaceView?.({
               phase: race.phase,
-              target: race.currentGate?.position,
+              target: race.currentGate?.position ?? race.course?.finish,
               route: race.course ? raceRoutePoints(race.course,race.activeGateIds) : [],
               gateIndex: race.splits.length,
               gateCount: race.gateCount,
@@ -4384,6 +4418,10 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(
               distance: finish ? Math.round(raceDistance(point, finish)) : 0,
               participants: Math.max(1, race.participants.size),
               course: race.course,
+              standings: [...raceSnapshot.participants].map(id => {
+                const position = id === raceSnapshot.id ? point : remoteStates.get(id)?.position;
+                return {id,self:id === raceSnapshot.id,distance:position && raceSnapshot.course ? Math.round(raceDistance(position,raceSnapshot.course.finish)) : null,time:raceSnapshot.results.get(id) ?? null};
+              }).sort((a,b) => a.time !== null && b.time !== null ? a.time-b.time : a.time !== null ? -1 : b.time !== null ? 1 : (a.distance ?? Infinity)-(b.distance ?? Infinity)),
               results: [...race.results]
                 .map(([id, time]) => ({ id, time, score: race?.scores.get(id) ?? 0 }))
                 .sort((a, b) => raceResultValue(race?.course?.mode??'speed',a.time,a.score)-raceResultValue(race?.course?.mode??'speed',b.time,b.score)),
@@ -5023,6 +5061,7 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(
           document.exitPointerLock();
         renderer.domElement.removeEventListener('contextmenu', onContextMenu);
         window.removeEventListener('mouseup', onPointerUp);
+        window.removeEventListener('swing-profile-change',onSwingProfile);
         window.removeEventListener('controller-settings', onControllerSettings);
         window.removeEventListener('keydown', onKeyDown);
         window.removeEventListener('keyup', onKeyUp);

@@ -153,6 +153,7 @@ export function windLanes(
   course: RaceCourse,
   world: RepeatingMeshWorld,
 ): WindLane[] {
+  if (!course.gates?.length) return [];
   const start = new THREE.Vector3().fromArray(course.start),
     end = new THREE.Vector3().fromArray(course.finish),
     direction = end.clone().sub(start).setY(0).normalize();
@@ -284,11 +285,13 @@ export class RaceWorldVisuals {
   private particleDensity = 1;
   lanes: WindLane[] = [];
   constructor(scene: THREE.Scene) {
+    this.goal.name = 'race-destination';
     this.root.add(this.goal);
     const ring = new THREE.Mesh(
       new THREE.TorusGeometry(8, 0.18, 8, 48),
       new THREE.MeshBasicMaterial({
         color: '#74fff1',
+        depthTest: false,
         transparent: true,
         opacity: 0.9,
       }),
@@ -346,6 +349,10 @@ export class RaceWorldVisuals {
     this.goal.visible = true;
     this.route.visible = true;
     this.goal.position.fromArray(course.finish);
+    const radius = course.finishRadius ?? 9;
+    this.goal.children[0].scale.setScalar(radius/8);
+    this.goal.children[0].quaternion.setFromUnitVectors(new THREE.Vector3(0,0,1),new THREE.Vector3().fromArray(course.start).sub(this.goal.position).normalize());
+    this.goal.children[2].scale.setScalar(radius/9);
     this.lanes = windLanes(course, world);
     for (const group of this.windMeshes) disposeObject(group);
     this.windMeshes = [];

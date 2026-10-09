@@ -3714,3 +3714,17 @@ small,
   .boss-mode .duelist-portrait{width:52px;height:52px;flex-basis:52px}
   .boss-mode .boss-combat-cue{top:88px}.boss-mode .boss-controls{right:16px;bottom:18px;width:min(300px,68vw)}
 }
+
+.swing-profile-settings details { margin: 10px 0; border-top: 1px solid #ffffff20; padding-top: 10px; }
+.swing-profile-settings summary { cursor: pointer; color: #7eeeff; font-weight: 700; padding: 8px 0; }
+.swing-profile-settings p, .swing-profile-settings output { font-size: 12px; color: #b4c8d6; line-height: 1.6; }
+.swing-profile-field { display: grid; grid-template-columns: 1fr 66px; gap: 8px; margin: 18px 0; }
+.swing-profile-field > span { grid-column: 1 / -1; }
+.swing-profile-field b { display: block; font-size: 13px; }
+.swing-profile-field small { display: block; color: #a0b8c8; font-size: 11px; line-height: 1.5; }
+.swing-profile-field input[type=range] { width: 100%; accent-color: #54e8fa; }
+.swing-profile-field input[type=number] { width: 66px; background: #071925; border: 1px solid #ffffff30; border-radius: 5px; color: white; padding: 5px; }
+.swing-profile-settings input[type=text], .swing-profile-settings input:not([type]) { min-width: 0; width: 160px; }
+
+.race-live-standings { display: grid; gap: 4px; margin-top: 8px; font-size: 10px; }
+.race-live-standings > div { display: flex; gap: 16px; justify-content: space-between; }

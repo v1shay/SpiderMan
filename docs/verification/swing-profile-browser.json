@@ -1,0 +1,11 @@
+{
+  "controls": 44,
+  "street": "Run street swing trialRun rooftop swing trialRun wall / aerial sequenceRun landing roll sequenceVerify blur colorStop trial\n\nComplete: {\"map\":\"new-york-city\",\"seconds\":16,\"distance\":266.5,\"peakSpeed\":35.3,\"peakHeight\":20.4,\"airbornePercent\":99,\"attachments\":8,\"contactFrames\":19,\"penetrationChecks\":74,\"penetrations\":0,\"penetrationDetails\":[]}",
+  "data": {
+    "phase": "racing",
+    "finish": "-729.6478150685629,176.5089569091797,-4.8757435480753575",
+    "tiles": "2",
+    "profile": "Friendly Neighborhood"
+  },
+  "errors": []
+}

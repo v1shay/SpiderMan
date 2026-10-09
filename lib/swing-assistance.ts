@@ -1,8 +1,11 @@
+import type { TraversalConfig } from './traversal-physics.ts';
 /** Pure, deterministic velocity assistance; collision always owns position. */
 export type AssistanceVector = { x: number; y: number; z: number };
 export type AssistanceProbe = (origin: AssistanceVector, direction: AssistanceVector, maximum: number) =>
   { distance: number; normal: AssistanceVector } | null;
 export type SwingAssistanceInput = {
+  tuning?: Partial<TraversalConfig>;
+  trajectoryVelocity?: AssistanceVector;
   position: AssistanceVector;
   velocity: AssistanceVector;
   dt: number;
@@ -71,8 +74,10 @@ export function stepSwingAssistance(state: SwingAssistanceState, input: SwingAss
   state.probeCount = 0;
   const dt = clamp(Number.isFinite(input.dt) ? input.dt : 0, 0, .05);
   state.elapsed += dt;
+  const tuning = input.tuning;
+  const strength = tuning?.swingAvoidance ?? 1;
   const speed = Math.hypot(input.velocity.x, input.velocity.z);
-  if (!input.swinging || input.diving || speed < 6 || !Number.isFinite(speed + input.velocity.y) || dt === 0) {
+  if (strength <= 0 || !input.swinging || input.diving || speed < 6 || !Number.isFinite(speed + input.velocity.y) || dt === 0) {
     state.threatened = false;
     state.nextProbeAt = state.elapsed;
     state.turnSide = 0;
@@ -92,7 +97,7 @@ export function stepSwingAssistance(state: SwingAssistanceState, input: SwingAss
     || wx * state.sampledWish.x + wz * state.sampledWish.z < .98;
   if (state.elapsed >= state.nextProbeAt || moved > 4 || changedHeading) {
     state.refreshes++;
-    state.nextProbeAt = state.elapsed + .1;
+    state.nextProbeAt = state.elapsed + (tuning?.profiledSwing ? .075 : .1);
     copy(state.sampledPosition, input.position);
     state.sampledForward.x = fx; state.sampledForward.y = 0; state.sampledForward.z = fz;
     state.sampledWish.x = wx; state.sampledWish.z = wz;
@@ -101,7 +106,7 @@ export function stepSwingAssistance(state: SwingAssistanceState, input: SwingAss
     // Faster traversal needs more than one reaction-time of visibility. This is
     // deliberately generous at the high-assist default, but it still follows
     // real raycast clearance and never moves the capsule itself.
-    const maximum = clamp(speed * 1.7, 24, 145);
+    const maximum = clamp(speed * (tuning?.swingAvoidanceLookAhead ?? 1.7), 24, 145);
     const slope = clamp(input.velocity.y / speed, -1.5, 1.5);
     const normalization = 1 / Math.hypot(1, slope);
     state.distance = maximum;
@@ -111,7 +116,7 @@ export function stepSwingAssistance(state: SwingAssistanceState, input: SwingAss
     const direction = state.direction;
     // Five parallel rays cover torso, feet, head and both shoulders. A single
     // center ray misses corner scrapes and thin geometry above/below the chest.
-    for (let sample = 0; sample < 7; sample++) {
+    for (let sample = 0; sample < (input.trajectoryVelocity ? 8 : 7); sample++) {
       const side = sample === 3 ? -radius : sample === 4 ? radius : 0;
       const y = sample === 1 ? radius : sample === 2 ? height - radius : height * .5;
       origin.x = input.position.x - fz * side;
@@ -126,6 +131,11 @@ export function stepSwingAssistance(state: SwingAssistanceState, input: SwingAss
         direction.x = fx * Math.cos(angle) - fz * Math.sin(angle);
         direction.y = 0;
         direction.z = fx * Math.sin(angle) + fz * Math.cos(angle);
+      }
+      if (sample === 7 && input.trajectoryVelocity) {
+        const planned = input.trajectoryVelocity;
+        const size = Math.hypot(planned.x,planned.y,planned.z);
+        if (size > .01) { direction.x = planned.x/size; direction.y = planned.y/size; direction.z = planned.z/size; }
       }
       const hit = probe(origin, direction, maximum);
       state.probeCount++;
@@ -151,9 +161,10 @@ export function stepSwingAssistance(state: SwingAssistanceState, input: SwingAss
         const dx = fx * cos - fz * sin;
         const dz = fx * sin + fz * cos;
         let clearance = maximum;
-        for (const sideOffset of [-radius - .35, 0, radius + .35]) {
+        const samples = tuning?.profiledSwing ? [[-radius-.35,height*.5],[0,height*.5],[radius+.35,height*.5],[0,radius],[0,height-radius]] : [[-radius-.35,height*.5],[0,height*.5],[radius+.35,height*.5]];
+        for (const [sideOffset, probeHeight] of samples) {
           origin.x = input.position.x - dz * sideOffset;
-          origin.y = input.position.y + height * .5;
+          origin.y = input.position.y + probeHeight;
           origin.z = input.position.z + dx * sideOffset;
           direction.x = dx; direction.y = 0; direction.z = dz;
           const hit = probe(origin, direction, maximum);
@@ -182,15 +193,15 @@ export function stepSwingAssistance(state: SwingAssistanceState, input: SwingAss
   const urgency = clamp(1 - clearance / Math.max(1, state.distance), 0, 1);
   // Start rotating early. If there is too little turning room, shed speed
   // progressively while turning; never teleport or reflect off the facade.
-  const maximumTurn = Math.min(2.6, 78 / speed) * (.8 + urgency * .2) * dt;
+  const maximumTurn = Math.min(tuning?.swingAvoidanceTurnRate ?? 2.6, (tuning?.swingAvoidanceAcceleration ?? 78) / speed) * strength * (.8 + urgency * .2) * dt;
   const turn = clamp(targetAngle, -maximumTurn, maximumTurn);
   const collisionTime = clearance / speed;
   const normalLength = Math.hypot(state.avoidanceNormal.x, state.avoidanceNormal.z);
   const inward = normalLength > .01
     ? Math.max(0, -(fx * state.avoidanceNormal.x + fz * state.avoidanceNormal.z) / normalLength) : 0;
-  const safeSpeed = Math.sqrt(2 * 54 * Math.max(0, clearance - 1));
+  const safeSpeed = Math.sqrt(2 * (tuning?.swingAvoidanceBraking ?? 54) * Math.max(0, clearance - 1));
   const braking = collisionTime < .65 && inward > .55
-    ? Math.min(54 * dt, Math.max(0, speed - safeSpeed)) : 0;
+    ? Math.min((tuning?.swingAvoidanceBraking ?? 54) * strength * dt, Math.max(0, speed - safeSpeed)) : 0;
   const correctedSpeed = Math.max(0, speed - braking);
   const cos = Math.cos(turn), sin = Math.sin(turn);
   const dx = fx * cos - fz * sin;

@@ -33,11 +33,11 @@ for(const config of DISTRICTS){
  for(const seed of [50,137,214]){
   const course=createRaceCourse(start,world.width,world.depth,seed,-1,{sample:sampled,mapId:config.id,mode:'combined'});
   assert.ok(validRaceCourse(course));
-  for(const gate of course.gates){
-   const position=new THREE.Vector3().fromArray(gate.position);assert.ok(world.isCapsuleClear(position,.5,2.05),`${config.id}/${seed}/${gate.id} inside geometry`);
-   if(gate.type==='wall-run')assert.ok([[1,0,0],[-1,0,0],[0,0,1],[0,0,-1]].some(d=>world.raycast(position,new THREE.Vector3(...d),2)),`${config.id}/${gate.id} lacks real facade`);
-  }
-  courses.push({seed,gates:course.gates.map(g=>({id:g.id,type:g.type,position:g.position,required:g.required})),finish:course.finish});
+  assert.equal(course.gates,undefined,'default race has exactly one destination');
+  const position=new THREE.Vector3().fromArray(course.finish);
+  assert.ok(world.isCapsuleClear(position,.5,2.05),`${config.id}/${seed} destination inside geometry`);
+  for(const [dx,dz] of [[-8,0],[8,0],[0,-8],[0,8]]) assert.ok(world.isCapsuleClear(position.clone().add(new THREE.Vector3(dx,0,dz)),.5,2.05),'finish approach volume must be clear');
+  courses.push({seed,finishRadius:course.finishRadius,finish:course.finish});
  }
  const report={map:config.id,triangles:world.query.triangleCount,generationMs:+(performance.now()-started).toFixed(2),courses};reports.push(report);
  console.log(`PASS ${config.name}: ${courses.length} courses, ${courses.flatMap(c=>c.gates).length} collision-clear actual-city gates (${report.generationMs}ms)`);

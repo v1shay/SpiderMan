@@ -1,4 +1,5 @@
 'use client';
+import SwingProfileSettings from './SwingProfileSettings';
 import ControllerSettings from './ControllerSettings';
 import { Camera, Flag, Moon, Play, Settings, Sun, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
@@ -100,6 +101,7 @@ export function RaceHud({
                   ? (gateLabel ?? view.message)
                   : view.message}
             </small>
+            {view.standings && ['racing','finished'].includes(view.phase) && <div className="race-live-standings" aria-label="Live race standings">{view.standings.slice(0,4).map((r,index) => <div key={r.id}><span>{index+1}. {r.self ? 'You' : `Spider ${r.id.slice(0,4)}`}</span><b>{r.time !== null ? formatRaceTime(r.time) : r.distance !== null ? `${r.distance} m` : 'Connecting'}</b></div>)}</div>}
             {mode !== 'speed' && (
               <em>{Math.round(view.styleScore ?? 0).toLocaleString()} STYLE</em>
             )}
@@ -130,6 +132,7 @@ export function RaceHud({
 
             <div className="pause-settings-scroll">
               {settingsTab === 'gameplay' ? <>
+                <SwingProfileSettings locked={busy || view.phase === 'invited'} />
                 <ControllerSettings />
                 <section aria-labelledby="race-settings-heading">
                   <h2 id="race-settings-heading">Race</h2>
@@ -147,16 +150,7 @@ export function RaceHud({
                       <button type="button" onClick={() => action('daily')}>Daily course</button>
                     )}
                   </div>
-                  {!busy && view.phase !== 'invited' && (
-                    <label className="settings-row"><span><b>Scoring mode</b><small>Choose how the race is judged</small></span>
-                      <select aria-label="Race scoring mode" value={mode}
-                        onChange={(event) => action(`mode-${event.target.value}` as RaceAction)}>
-                        <option value="speed">Speed</option>
-                        <option value="style">Style</option>
-                        <option value="combined">Speed + style</option>
-                      </select>
-                    </label>
-                  )}
+                  <p>One shared destination. Pick your route through the city. Everyone starts together and the first arrival wins.</p>
                 </section>
 
                 <section aria-labelledby="world-settings-heading">

@@ -3,7 +3,7 @@ import * as THREE from 'three';
 import fs from 'node:fs/promises';
 import {
   RaceSession,
-  createRaceCourse,
+  createCheckpointRaceCourse as createRaceCourse,
   validRacePacket,
   validRaceCourse,
   formatRaceTime,

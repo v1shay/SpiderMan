@@ -1,3 +1,4 @@
+import { sanitizeSwingProfile, type SavedSwingProfile } from './swing-profile.ts';
 export type RacePoint = [number, number, number];
 export type RaceMode = 'speed' | 'style' | 'combined';
 export type RaceGateType =
@@ -25,6 +26,8 @@ export type RaceGate = {
 };
 export type RaceParTimes = { gold: number; silver: number; bronze: number };
 export type RaceCourse = {
+  finishRadius?: number;
+  swingProfile?: SavedSwingProfile;
   id: string;
   start: RacePoint;
   finish: RacePoint;
@@ -67,6 +70,7 @@ export type RacePhase =
   | 'racing'
   | 'finished';
 export type RaceView = {
+  standings?: {id:string;self:boolean;distance:number|null;time:number|null}[];
   phase: RacePhase;
   time: number;
   countdown: number;
@@ -141,7 +145,26 @@ export function dailyRaceSeed(mapId: string, date = new Date()): number {
   return seed >>> 0;
 }
 
+/** Restore the original host-authored single destination from 6253b96.
+ * Resolve its volume against the repeating map before broadcasting it. */
 export function createRaceCourse(
+  start: RacePoint, width: number, depth: number, seed: number, previousSide = -1,
+  options: RaceCourseOptions = {},
+): RaceCourse {
+  let side = (seed >>> 0) % 4;
+  if (side === previousSide) side = (side + 1) % 4;
+  const span = clamp(Math.abs(side % 2 ? depth : width) * (2 + ((seed >>> 3) % 2)),640,2400);
+  const direction: RacePoint = [[1,0,0],[0,0,1],[-1,0,0],[0,0,-1]][side] as RacePoint;
+  const desired: RacePoint = [start[0]+direction[0]*span,start[1],start[2]+direction[2]*span];
+  const sampled = options.sample?.(desired,'free',12);
+  if (options.sample && !sampled) throw new Error('No clear race destination could be found. Try another start.');
+  const finish = sampled?.position ?? desired;
+  return {id:`destination-v1:${options.mapId ?? 'city'}:${seed >>> 0}:${start.map(n => n.toFixed(1)).join(',')}:${finish.map(n => n.toFixed(1)).join(',')}`,
+    start:[...start],finish:[...finish],side,seed:seed >>> 0,finishRadius:sampled?.radius ?? 12,mode:'speed',mapId:options.mapId,
+    parTimes:{gold:span/42*1000,silver:span/30*1000,bronze:span/20*1000}};
+}
+
+export function createCheckpointRaceCourse(
   start: RacePoint,
   width: number,
   depth: number,
@@ -334,6 +357,14 @@ export function validRaceCourse(value: unknown): value is RaceCourse {
           : !(p.gold >= p.silver && p.silver >= p.bronze)))
     )
       return false;
+  if (c.finishRadius !== undefined && (!Number.isFinite(c.finishRadius) || c.finishRadius < 2 || c.finishRadius > 40)) return false;
+  if (c.swingProfile !== undefined) {
+    if (!c.swingProfile || c.swingProfile.version !== 1 || typeof c.swingProfile.name !== 'string' || c.swingProfile.name.length > 48 || !c.swingProfile.values) return false;
+    const clean = sanitizeSwingProfile(c.swingProfile);
+    for (const [key,value] of Object.entries(c.swingProfile.values)) {
+      if (typeof value !== 'number' || !Number.isFinite(value) || value !== (clean.values as Record<string,unknown>)[key]) return false;
+    }
+  }
   if (c.gates === undefined) return true; // Old saved ghosts remain readable.
   if (!Array.isArray(c.gates) || c.gates.length < 2 || c.gates.length > 32)
     return false;
@@ -882,11 +913,18 @@ export class RaceSession {
           this.nearestGate < 50;
       }
     }
-    this.previousPosition = [...position];
-    this.previousTick = now;
+    const finishGate: RaceGate = {id:'destination',position:this.course.finish,radius:this.course.finishRadius ?? 9,type:'free',next:[],bonus:0};
+    const from = this.previousPosition ?? position;
+    const validTravel = raceDistance(from,position) <= Math.max(60,Math.max(0,now-this.previousTick)/1000*200);
+    const crossing = !gates?.length && validTravel ? gateCrossing(from,position,finishGate) : null;
     const reached = gates?.length
       ? this.activeGateIds.length === 0 && this.splits.length > 0
-      : raceDistance(position, this.course.finish) < 9;
+      : raceDistance(position,this.course.finish) < finishGate.radius || crossing !== null;
+    if (!gates?.length && this.course.finishRadius !== undefined && crossing !== null && this.time > 250) {
+      this.time = Math.max(0,this.previousTick-this.startAt+(now-this.previousTick)*crossing);
+    }
+    this.previousPosition = [...position];
+    this.previousTick = now;
     if (!this.completed && reached && this.time > 250) {
       this.completed = true;
       this.phase = 'finished';
