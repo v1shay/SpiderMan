@@ -35,7 +35,7 @@ export default function ControllerSettings() {
   return <section aria-labelledby="controller-settings-heading">
     <h2 id="controller-settings-heading">Controller</h2>
     <output>{status}</output>
-    <p>Left stick moves · Right stick looks · Menu / Options pauses. Xbox and PlayStation labels match the same physical buttons. Bluetooth and USB use the same layout.</p>
+    <p>Left stick moves · Right stick looks · Menu / Options pauses. Xbox and PlayStation labels match the same physical buttons. Bluetooth and USB use the same layout. RT/R2 swings; A/Cross jumps off the web or zips in free air; LT/L2 aims; LT+RT / L2+R2 grapples to a point; LS/L3 dives.</p>
     <label className="settings-row"><span><b>Stick dead zone</b><small>{Math.round(settings.deadzone * 100)}% · increase for stick drift</small></span><input aria-label="Controller dead zone" type="range" min="0.05" max="0.4" step="0.01" value={settings.deadzone} onChange={e => update({ ...settings, deadzone: Number(e.target.value) })} /></label>
     <label className="settings-row"><span><b>Camera sensitivity</b><small>{settings.sensitivity.toFixed(1)}</small></span><input aria-label="Controller camera sensitivity" type="range" min="0.3" max="6" step="0.1" value={settings.sensitivity} onChange={e => update({ ...settings, sensitivity: Number(e.target.value) })} /></label>
     <label aria-label="Invert controller camera Y" className="settings-row"><span><b>Invert camera Y</b></span><input type="checkbox" checked={settings.invertY} onChange={e => update({ ...settings, invertY: e.target.checked })} /></label>

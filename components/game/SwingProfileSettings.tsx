@@ -13,7 +13,7 @@ export default function SwingProfileSettings({ locked = false }: { locked?: bool
   const groups = [...new Set(SWING_PARAMETERS.map(p => p.group))];
   return <section aria-labelledby="swing-profile-heading" className="swing-profile-settings">
     <h2 id="swing-profile-heading">Your swing profile</h2>
-    <p>Start with assisted, rounded swings or build your own. Look up or down to shape the arc. Release on the upswing for height; jump off the web for an extra kick.</p>
+    <p>Start with assisted, rounded swings or build your own. Look up or down to shape the arc. Jump at the bottom for speed, or on the upswing for height. Keep holding swing to catch the next web. Jump in free air to zip; hold Alt or LT/L2 to aim at a perch.</p>
     {locked && <output>Finish or leave the race to change your profile. Everyone races with the host&apos;s profile.</output>}
     <fieldset disabled={locked} style={{border:0,padding:0,margin:0}}>
       <label className="settings-row"><span><b>Preset</b><small>Changes apply when you resume</small></span><select aria-label="Swing profile preset" value={profile.preset} onChange={e => update(swingPreset(e.target.value as SwingPreset))}>

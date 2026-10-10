@@ -1,0 +1,15 @@
+{
+  "controls": 49,
+  "aim": {
+    "scale": "0.35",
+    "target": "mesh:268223:1.4:-11.7"
+  },
+  "street": "Run street swing trialRun rooftop swing trialRun wall / aerial sequenceRun landing roll sequenceVerify blur colorStop trial\n\nComplete: {\"map\":\"new-york-city\",\"seconds\":16,\"distance\":375.6,\"peakSpeed\":72.5,\"peakHeight\":72.6,\"airbornePercent\":99,\"attachments\":9,\"contactFrames\":104,\"penetrationChecks\":77,\"penetrations\":0,\"penetrationDetails\":[]}",
+  "data": {
+    "phase": "countdown",
+    "finish": "6.352184931437174,176.5089569091797,-884.4968553615089",
+    "tiles": "2",
+    "profile": "Friendly Neighborhood"
+  },
+  "errors": []
+}

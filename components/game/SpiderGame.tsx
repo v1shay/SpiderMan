@@ -80,6 +80,7 @@ import {
   runTraversalPhysicsSelfTests,
   setTraversalKinematics,
   stepTraversalInPlace,
+  chooseZipTarget,
   refreshTraversalContext,
   acceptTraversalWallContact,
   resolveSwingContinuation,
@@ -1284,6 +1285,8 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(
       scene.add(webLine);
       let webStrand: WebStrand | null = null;
       const webTargetPoint = new THREE.Vector3();
+      const perchAimMarker = new THREE.Mesh(new THREE.RingGeometry(.65,.85,32),new THREE.MeshBasicMaterial({color:0xffffff,side:THREE.DoubleSide,depthTest:false}));
+      perchAimMarker.visible = false; perchAimMarker.renderOrder = 50; scene.add(perchAimMarker);
       const extraTethers = new TraversalTetherVisual(scene);
       const resize = () => {
         const width = Math.max(1, mount.clientWidth);
@@ -2315,9 +2318,9 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(
         inputSystem.setPressure(pointerPressure);
       };
 
-      const collectAnchorCandidates = (ndc: THREE.Vector2) => {
+      const collectAnchorCandidates = (ndc: THREE.Vector2, zipDirection?: THREE.Vector3) => {
         if (
-          elapsedTime - anchorSearchAt < 0.08 &&
+          !zipDirection && elapsedTime - anchorSearchAt < 0.08 &&
           anchorSearchPosition.distanceToSquared(player.position) < 4 &&
           anchorSearchAim.distanceToSquared(ndc) < 0.002 &&
           !zipPressed
@@ -2372,6 +2375,14 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(
               weight,
             });
           };
+          if (zipDirection && zipDirection.lengthSq() > .02) {
+            const heading = zipDirection.clone().normalize();
+            const side = new THREE.Vector3(-heading.z,0,heading.x);
+            for (const y of [.08,.3,.65]) for (const x of [0,-.4,.4]) {
+              const direction = heading.clone().addScaledVector(side,x); direction.y = y;
+              addSurface(raycastWorld(chest,direction.normalize(),150),1.3);
+            }
+          }
           for (const [x, y, weight] of [
             [ndc.x, ndc.y, 1.35],
             [ndc.x - 0.16, ndc.y + 0.15, 0.95],
@@ -3476,7 +3487,10 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(
           Math.max(rawFrameMs / 1000, 0),
           0.1,
         );
-        const delta = rawDelta * (bosses.snapshot()?.timeScale ?? 1);
+        const aiming = inputSystem.raw.focused && (keys.has('AltLeft') || keys.has('AltRight') || controller.held.has('aim'));
+        const aimScale = aiming && onlinePeerCount === 0 && (!race || ['free','finished'].includes(race.phase)) && !bosses.snapshot() ? swingConfig.traversalAimTimeScale ?? .35 : 1;
+        const delta = rawDelta * (bosses.snapshot()?.timeScale ?? 1) * aimScale;
+        renderer.domElement.dataset.aimTimeScale = String(aimScale);
         elapsedTime += delta;
         atmosphere.update(
           visualTime,
@@ -3614,12 +3628,16 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(
             swingHeld &&
             !traversal.swingNeedsRelease &&
             (!traversal.advanced?.gliding || pointerPressed)) ||
-            zipPressed);
+            zipPressed || actions.aim.held || (actions.jump.pressed && !traversal.grounded && !traversal.swing));
         const anchorStart = performance.now();
         const anchorCandidates = needsAnchor
-          ? collectAnchorCandidates(targetNdc)
+          ? collectAnchorCandidates(targetNdc,actions.jump.pressed && !traversal.grounded && !traversal.swing && !swingHeld ? wish : undefined)
           : [];
         if (needsAnchor) telemetry.record('anchor', performance.now() - anchorStart);
+        const aimTarget = actions.aim.held ? chooseZipTarget(traversal,{aimDirection:cameraAim,zipStyle:'point'},{anchorCandidates}, {...SPIDER_TRAVERSAL_FEEL,...swingConfig} as TraversalConfig) : undefined;
+        perchAimMarker.visible = Boolean(aimTarget);
+        if (aimTarget) { perchAimMarker.position.copy(aimTarget.point); perchAimMarker.quaternion.copy(camera.quaternion); perchAimMarker.scale.setScalar(Math.max(1,player.position.distanceTo(aimTarget.point) * .025)); }
+        renderer.domElement.dataset.aimTarget = aimTarget?.id ?? '';
         if (
           needsAnchor &&
           swingHeld &&
@@ -3756,7 +3774,7 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(
         ) {
           const target = probeLowObstacle(exactWorld, traversal.position, wish);
           if (target) {
-            traversal.mantle = { target, elapsed: 0, lowObstacle: true };
+            traversal.mantle = { target, elapsed: 0, lowObstacle: true, exitVelocity: traversalOverrides.profiledSwing ? {x:traversal.velocity.x,y:2,z:traversal.velocity.z} : undefined };
             traversal.wall = null;
             traversal.wallRunActive = false;
             traversal.wallCrawlActive = false;
@@ -3775,9 +3793,9 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(
               forward,
               actions.slingshot.held,
               actions.corner.held
-                ? keys.has('KeyD')
+                ? actions.moveX > .15
                   ? 1
-                  : keys.has('KeyA')
+                  : actions.moveX < -.15
                     ? -1
                     : 0
                 : 0,
@@ -3843,8 +3861,7 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(
           exactWorld &&
           (traversal.wallCrawlActive || traversal.wallRunActive) &&
           traversal.wall &&
-          frameInput.wallClimb! > 0 &&
-          !jumpPressed &&
+          (frameInput.wallClimb! > 0 || swingHeld && traversal.velocity.y > 1) &&
           (traversal.wallRunActive || !swingHeld || traversal.swingNeedsRelease) &&
           !zipPressed
         ) {
@@ -3855,9 +3872,13 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(
             (point) => exactWorld.isCapsuleClear(point),
           );
           if (target) {
-            traversal.mantle = { target, elapsed: 0 };
-            traversal.wallCrawlActive = false;
-            traversal.wallRunActive = false;
+            const overRoof = new THREE.Vector3().copy(traversal.wall.normal).negate();
+            if (jumpPressed && traversalOverrides.profiledSwing) frameInput.roofExitDirection = overRoof;
+            else {
+              const carry = Math.max(12,Math.min(traversalOverrides.maximumSpeed ?? 78,Math.hypot(traversal.velocity.x,traversal.velocity.y,traversal.velocity.z) * (traversalOverrides.traversalFlowRetention ?? .9)));
+              traversal.mantle = { target, elapsed: 0, exitVelocity: traversalOverrides.profiledSwing && traversal.wallRunActive ? {x:overRoof.x * carry,y:7,z:overRoof.z * carry} : undefined };
+              traversal.wallCrawlActive = false; traversal.wallRunActive = false;
+            }
           }
         }
         const windAssist = sampleWindAssist(traversal, raceVisuals.lanes, delta);
@@ -5047,6 +5068,7 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(
         for (const stream of districtStreams.values()) stream.horizon.dispose();
         trialPanel?.remove();
         webStrand?.dispose();
+        perchAimMarker.geometry.dispose(); (perchAimMarker.material as THREE.Material).dispose();
         webGeometry.dispose();
         (webLine.material as THREE.Material).dispose();
         extraTethers.dispose();

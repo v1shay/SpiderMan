@@ -104,6 +104,8 @@ export interface TraversalInput {
   aimDirection?: Vector3Like;
   jumpPressed?: boolean;
   jumpHeld?: boolean;
+  /** Only supplied after a supported, capsule-clear roof exit probe. */
+  roofExitDirection?: Vector3Like;
   rollPressed?: boolean;
   trickPressed?: boolean;
   swingPressed?: boolean;
@@ -177,6 +179,7 @@ export interface SwingRuntime {
 
 export interface ZipRuntime {
   airDash?: boolean;
+  contextual?: boolean;
   target: Vector3Like;
   surfacePoint?: Vector3Like;
   direction?: Vector3Like;
@@ -234,7 +237,7 @@ export interface TraversalState {
   wallCarrySpeed?: number;
   wallCarryUntil?: number;
   actionSequence?: number;
-  mantle: { target: Vector3Like; elapsed: number; lowObstacle?: boolean } | null;
+  mantle: { target: Vector3Like; elapsed: number; lowObstacle?: boolean; exitVelocity?: Vector3Like } | null;
   swingNeedsRelease?: boolean;
   swingResumeAfterWall?: boolean;
   /** One ground push-off per cooldown, never a per-frame hovering force. */
@@ -314,6 +317,10 @@ export interface TraversalConfig {
   swingLaunchUp?: number;
   swingJumpKick?: number;
   swingReleaseChargeSeconds?: number;
+  traversalAirZip?: number;
+  traversalFlowRetention?: number;
+  swingJumpForwardKick?: number;
+  traversalAimTimeScale?: number;
   swingAvoidance?: number;
   swingAvoidanceLookAhead?: number;
   swingAvoidanceTurnRate?: number;
@@ -678,7 +685,7 @@ function chooseSwingAnchor(
   return winner;
 }
 
-function chooseZipTarget(
+export function chooseZipTarget(
   state: TraversalState,
   input: TraversalInput,
   environment: TraversalEnvironment,
@@ -686,8 +693,8 @@ function chooseZipTarget(
 ): WebAnchorCandidate | null {
   const colliders = environment.anchorColliders ?? environment.colliders ?? [];
   const candidates = (environment.zipTargets ?? environment.anchorCandidates ?? []).filter((candidate) =>
-    candidate.lineOfSight !== false && traversalLineOfSight(state.position, candidate.point, colliders));
-  const aim = input.aimDirection ?? input.cameraForward ?? input.move ?? vector(0, 0.1, -1);
+    candidate.id !== 'sky-fallback' && candidate.lineOfSight !== false && traversalLineOfSight(state.position, candidate.point, colliders) && (!environment.hasLineOfSight || environment.hasLineOfSight(add(state.position,vector(0,1.3,0)),candidate.point)));
+  const aim = config.profiledSwing && input.zipStyle === 'air' && length(input.move ?? vector()) > .15 ? input.move! : input.aimDirection ?? input.cameraForward ?? input.move ?? vector(0, 0.1, -1);
   return selectTraversalAnchor(
     state.position,
     aim,
@@ -777,9 +784,9 @@ function releaseSwing(
   if (config.profiledSwing) {
     const held = saturate((swing.attachedSeconds - .06) / (config.swingReleaseChargeSeconds ?? 1.1));
     const upward = saturate(state.velocity.y / 18);
-    const lift = config.swingReleaseLift * held * (.2 + upward * .8) + (input.jumpPressed ? config.swingJumpKick ?? 5 : 0);
+    const lift = config.swingReleaseLift * held * (.2 + upward * .8) + (input.jumpPressed ? (config.swingJumpKick ?? 5) * (.2 + upward * .8) : 0);
     const direction = normalize(horizontal(state.velocity), normalize(horizontal(input.cameraForward ?? vector(0,0,-1))));
-    const forwardBoost = config.swingReleaseBoost * held * (.4 + upward * .6);
+    const forwardBoost = config.swingReleaseBoost * held * (.4 + upward * .6) + (input.jumpPressed ? (config.swingJumpForwardKick ?? 7) * held * (1 - upward) : 0);
     state.velocity = add(state.velocity, add(scale(direction,forwardBoost),vector(0,lift,0)));
     const speed = length(state.velocity);
     if (speed > config.maximumSpeed) state.velocity = scale(state.velocity,config.maximumSpeed/speed);
@@ -839,7 +846,7 @@ function releaseSwing(
   events.push(event('web-released', state, { anchorId: releasedAnchor, strength: releasedStrength }));
 }
 
-function startZip(state: TraversalState, target: WebAnchorCandidate, config: TraversalConfig, events: TraversalEvent[], input: TraversalInput): void {
+function startZip(state: TraversalState, target: WebAnchorCandidate, config: TraversalConfig, events: TraversalEvent[], input: TraversalInput, contextual = false): void {
   if (config.arcadeTraversal && input.zipStyle === 'air') {
     if (config.advancedTraversal) {
       const advanced = state.advanced ?? (state.advanced = createAdvancedRuntime());
@@ -847,9 +854,15 @@ function startZip(state: TraversalState, target: WebAnchorCandidate, config: Tra
       advanced.zipAfter = state.elapsed + ADVANCED_TUNING.zipCooldown;
       advanced.gliding = false; advanced.corner = null; advanced.loop = null; advanced.pulse = .7;
     }
-    const direction = normalize(horizontal(input.aimDirection ?? input.cameraForward ?? subtract(target.point, state.position)),
+    const direction = normalize(horizontal(config.profiledSwing && length(input.move ?? vector()) > .15 ? input.move! : input.aimDirection ?? input.cameraForward ?? subtract(target.point, state.position)),
       normalize(horizontal(input.cameraForward ?? state.velocity), vector(0, 0, -1)));
-    state.zip = { airDash: true, target: copy(target.point), surfacePoint: copy(target.point), direction,
+    if (config.profiledSwing) {
+      // A deliberate stick zip can make a sharp turn or U-turn; a real web
+      // target was validated before entering this branch. Preserve momentum.
+      const retained = Math.min(config.zipMaximumSpeed, length(horizontal(state.velocity)) * (config.traversalFlowRetention ?? .9));
+      state.velocity = add(scale(direction,retained),vector(0,state.velocity.y,0));
+    }
+    state.zip = { airDash: true, contextual, target: copy(target.point), surfacePoint: copy(target.point), direction,
       targetId: target.id, elapsed: 0, startingDistance: distance(state.position, target.point), targetKind: target.kind };
     state.swing = null;
     state.swingNeedsRelease = true;
@@ -1413,12 +1426,12 @@ export function acceptTraversalWallContact(
   state.wallCrawlActive = !state.wallRunActive;
   state.grounded = false;
   if (state.wallRunActive && config.arcadeTraversal) {
-    state.wall.runEntrySpeed = Math.min(config.advancedTraversal ? 26 : config.maximumSpeed, length(incoming));
+    state.wall.runEntrySpeed = Math.min(config.profiledSwing ? config.maximumSpeed : config.advancedTraversal ? 26 : config.maximumSpeed, length(incoming) * (config.profiledSwing ? config.traversalFlowRetention ?? .9 : 1));
     if (config.advancedTraversal) {
-      state.wallCarrySpeed = Math.min(config.maximumSpeed, length(incoming)); state.wallCarryUntil = state.elapsed + 3;
+      state.wallCarrySpeed = Math.min(config.maximumSpeed, length(incoming) * (config.profiledSwing ? config.traversalFlowRetention ?? .9 : 1)); state.wallCarryUntil = state.elapsed + 3;
     }
     state.velocity = arcadeWallRunVelocity(incoming, normal, input.cameraForward ?? incoming,
-      state.wall.runEntrySpeed, config.advancedTraversal ? 26 : config.maximumSpeed, config.wallRunSpeed, config.wallRunLift, input.wallClimb);
+      state.wall.runEntrySpeed, config.profiledSwing ? config.maximumSpeed : config.advancedTraversal ? 26 : config.maximumSpeed, config.wallRunSpeed, config.wallRunLift, input.wallClimb);
     state.actionSequence = (state.actionSequence ?? 0) + 1;
     if (wasSwinging) state.swingReleaseSeconds = 0;
     return true;
@@ -1458,10 +1471,10 @@ function applyWallTraversal(
         const requested = recovering ? scale(side, state.advanced?.wallRecoverySide ?? 1)
           : add(scale(side, strafe), vector(0, climb, 0));
         const current = reject(state.velocity, normal);
-        const desired = length(requested) > .1 ? scale(normalize(requested), recovering ? 12 : climb && !strafe ? 16 : 22)
-          : scale(normalize(current, side), Math.min(22, length(current)));
+        const desired = length(requested) > .1 ? scale(normalize(requested), recovering ? 12 : config.profiledSwing ? Math.max(config.wallRunSpeed,Math.min(config.maximumSpeed,length(current) * Math.exp(-.18 * delta))) : climb && !strafe ? 16 : 22)
+          : scale(normalize(current, side), Math.min(config.profiledSwing ? config.maximumSpeed : 22, length(current)));
         state.velocity = add(lerpVector(current, desired, 1 - Math.exp(-6 * delta)), scale(normal, -.8));
-        wall.runEntrySpeed = Math.min(26, length(state.velocity));
+        wall.runEntrySpeed = Math.min(config.profiledSwing ? config.maximumSpeed : 26, length(state.velocity));
         state.wallCarrySpeed = Math.max(length(state.velocity), (state.wallCarrySpeed ?? 0) * Math.exp(-.18 * delta));
         state.grounded = false;
         return;
@@ -1882,20 +1895,23 @@ function stepTraversalTick(
   }
   if (config.advancedTraversal && input.jumpPressed && state.swing) {
     releaseSwing(state, input, config, events);
-    state.swingNeedsRelease = true;
+    state.swingNeedsRelease = config.profiledSwing ? false : true;
+    if (config.profiledSwing) state.swingRetryAfter = state.elapsed + .28;
     state.jumpBufferSeconds = 0;
     input = { ...input, jumpPressed: false };
   }
   if ((input.swingReleased || input.swingHeld === false) && state.swing) releaseSwing(state, input, config, events);
 
+  const contextualAirZip = Boolean(config.profiledSwing && (config.traversalAirZip ?? 1) && input.jumpPressed && !input.swingHeld && !state.grounded && state.coyoteSeconds <= 0 && !state.swing && !state.zip && !state.wall && !state.mantle && state.perchSeconds <= 0 && state.airSeconds > .08);
+  if (contextualAirZip) { input = {...input,jumpPressed:false,zipPressed:true,zipHeld:true,zipStyle:'air'}; state.jumpBufferSeconds = 0; }
   if (input.zipPressed && !state.zip) {
     const target = chooseZipTarget(state, input, environment, config)
-      ?? (config.advancedTraversal && input.zipStyle === 'air'
+      ?? (config.advancedTraversal && !config.profiledSwing && input.zipStyle === 'air'
         ? { id: 'air-zip-no-anchor', point: add(state.position, scale(normalize(horizontal(input.cameraForward ?? vector(0, 0, -1))), 40)), kind: 'generic' as const }
         : null);
-    if (target) startZip(state, target, config, events, input);
+    if (target) startZip(state, target, config, events, input, contextualAirZip);
   }
-  if ((input.zipReleased || input.zipHeld === false) && state.zip && !input.jumpPressed) {
+  if ((input.zipReleased || input.zipHeld === false && !state.zip?.contextual) && state.zip && !input.jumpPressed) {
     const targetId = state.zip.targetId;
     state.zip = null;
     events.push(event('zip-cancelled', state, { anchorId: targetId }));
@@ -1909,7 +1925,9 @@ function stepTraversalTick(
     const normal = normalize(horizontal(state.wall.normal));
     const inherited = reject(state.velocity, normal);
     const along = normalize(reject(horizontal(move), normal));
-    state.velocity = add(inherited, scale(normal, config.wallJumpOutSpeed));
+    state.velocity = input.roofExitDirection && config.profiledSwing
+      ? add(scale(normalize(horizontal(input.roofExitDirection)),Math.max(config.pointLaunchSpeed, length(state.velocity) * (config.traversalFlowRetention ?? .9))),vector(0,Math.max(config.wallJumpUpSpeed,inherited.y)))
+      : add(inherited, scale(normal, config.wallJumpOutSpeed));
     state.velocity = add(state.velocity, scale(along, 2.5));
     state.velocity.y = Math.max(inherited.y, config.wallJumpUpSpeed);
     state.wallDetachUntil = state.elapsed + .4;
@@ -2001,10 +2019,12 @@ function stepTraversalTick(
     resolveSwingContinuation(state, { dt: delta }, input, config, events);
   }
   if (state.mantle && distance(state.position, state.mantle.target) < .09) {
+    const exitVelocity = state.mantle.exitVelocity;
     state.mantle = null;
     state.wallCrawlActive = false;
-    state.velocity = vector();
-    state.perchSeconds = .2;
+    state.velocity = config.profiledSwing && exitVelocity ? copy(exitVelocity) : vector();
+    state.perchSeconds = exitVelocity ? 0 : .2;
+    if (exitVelocity) { state.grounded = false; state.wallDetachUntil = state.elapsed + .3; state.swingNeedsRelease = false; state.swingRetryAfter = state.elapsed + .2; }
   }
   if (state.zip && !state.zip.airDash) {
     const zip = state.zip;
@@ -2123,13 +2143,13 @@ function prepareAdvancedInput(state: TraversalState, input: TraversalInput, envi
     }
   } else if (!input.slingshotHeld && !input.slingshotReleased) a.sling = null;
   if (a.corner && (!input.cornerHeld || !visible(a.corner.anchor) || state.swing || state.zip || state.mantle)) a.corner = null;
-  if (input.cornerHeld && !a.corner && !a.gliding && !state.grounded && !state.zip && !state.wallRunActive
+  if (input.cornerHeld && !a.corner && !a.gliding && !state.grounded && !state.zip && (!state.wallRunActive || config.profiledSwing)
     && !state.wallCrawlActive && !state.mantle && state.elapsed >= a.cornerAfter && length(horizontal(state.velocity)) >= 16) {
     const target = environment.cornerTarget;
     if (target && target.anchor.id !== 'sky-fallback' && target.anchor.lineOfSight !== false
       && distance(chest, target.anchor.point) <= 18 && visible(target.anchor.point)) {
       a.corner = { anchor: copy(target.anchor.point), direction: normalize(horizontal(target.direction)), seconds: 0 };
-      state.swing = null; state.swingNeedsRelease = true; a.loop = null; a.cornerAfter = state.elapsed + .9; a.pulse = .55;
+      state.swing = null; state.wallRunActive = false; state.wall = null; state.wallDetachUntil = state.elapsed + .4; state.swingNeedsRelease = true; a.loop = null; a.cornerAfter = state.elapsed + .9; a.pulse = .55;
       events.push(event('corner-tether', state, { anchorId: target.anchor.id }));
     }
   }

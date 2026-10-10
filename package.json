@@ -44,7 +44,8 @@
     "test:controller": "node --experimental-strip-types scripts/verify-controller.mjs",
     "test:swing-profile": "node --experimental-strip-types scripts/verify-swing-profile.mjs && node --experimental-strip-types scripts/verify-profiled-building-avoidance.mjs",
     "test:destination-race": "node --experimental-strip-types scripts/verify-destination-race.mjs",
-    "test:race-city": "node --experimental-strip-types scripts/verify-race-city-courses.mjs"
+    "test:race-city": "node --experimental-strip-types scripts/verify-race-city-courses.mjs",
+    "test:video-traversal": "node --experimental-strip-types scripts/verify-video-traversal.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "2.112.4",

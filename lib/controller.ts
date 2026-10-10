@@ -2,8 +2,8 @@ import type { InputAction } from './input-system';
 
 export const CONTROLLER_DEFAULTS: Record<InputAction, number[]> = {
   moveForward: [], moveBack: [], moveLeft: [], moveRight: [],
-  swing: [7], zip: [6, 7], pointLaunch: [6, 0], jump: [0],
-  dive: [11], roll: [1], trick: [2], wallCrawl: [6, 3], glide: [3],
+  aim: [6], swing: [7], zip: [6, 7], pointLaunch: [6, 0], jump: [0],
+  dive: [10], roll: [1], trick: [2], wallCrawl: [6, 3], glide: [3],
   chargeJump: [7, 0], slingshot: [4, 6], corner: [7, 1], loop: [4, 7],
   reelIn: [12], reelOut: [13], attack: [2], heavy: [4, 2], launcher: [4, 0],
   grab: [3], dodge: [1], block: [4], web: [5], taunt: [15], interact: [14],
