@@ -1044,7 +1044,7 @@ function applyFlowSwing(state: TraversalState, input: TraversalInput, environmen
     const tangentWish = normalize(flowTangent(heading,radial),normalize(physical,wish));
     const forwardArc = dot(normalize(physical,tangentWish),tangentWish) > -.1;
     if ((forwardArc || speed < 6) && speed < target) requests.push({priority:'comfort',deltaVelocity:scale(
-      speed < 6 ? tangentWish : normalize(flowTangent(physical,radial),tangentWish), Math.min(config.swingPumpAcceleration ?? FLOW.pumpAcceleration,(target-speed)*2.4)*delta)});
+      speed < 6 ? tangentWish : normalize(flowTangent(physical,radial),tangentWish), Math.min(FLOW.pumpAcceleration,config.swingPumpAcceleration ?? FLOW.pumpAcceleration,(target-speed)*2.4)*delta)});
     // Natural descent may exceed cruise; taper gently rather than clipping
     // momentum each catch. Dives and authored launches have higher allowances.
     if (speed > target + 12) requests.push({priority:'comfort',deltaVelocity:scale(normalize(physical),

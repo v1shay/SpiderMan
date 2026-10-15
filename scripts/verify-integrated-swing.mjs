@@ -10,6 +10,7 @@ import { probeWallFeet } from '../lib/wall-surface.ts';
 import { createSwingAssistanceState, stepSwingAssistance } from '../lib/swing-assistance.ts';
 import { createTraversalState, stepTraversalInPlace, setTraversalKinematics, refreshTraversalContext, acceptTraversalWallContact, resolveSwingContinuation, commitAdvancedMotion } from '../lib/traversal-physics.ts';
 
+import { probeLowObstacle } from '../lib/traversal-feature-world.ts';
 import { ADVANCED_TRAVERSAL_CONFIG as config } from '../lib/traversal-advanced.ts';
 
 // Geometry/physics integration, not texture or browser FPS verification. This
@@ -99,6 +100,16 @@ function simulate(world, route, name) {
         searches++; anchorCount += cachedAnchors.length;
       }
       candidates = cachedAnchors;
+    }
+    // Match SpiderGame's existing grounded parkour probe. Omitting this used
+    // to report a swing stall when the route had actually reached a roof prop.
+    if (state.grounded && !state.mantle && !state.swing && !state.zip) {
+      const target = probeLowObstacle(world, state.position, forward);
+      if (target) {
+        state.mantle = {target,elapsed:0,lowObstacle:true,exitVelocity:{x:state.velocity.x,y:2,z:state.velocity.z}};
+        state.wall = null; state.wallRunActive = false; state.wallCrawlActive = false;
+        state.grounded = false; state.actionSequence = (state.actionSequence ?? 0) + 1;
+      }
     }
     const assisted = stepSwingAssistance(assistance, { position: state.position, velocity: state.velocity, dt,
       swinging: Boolean(state.swing && held), diving: false, desiredDirection: forward },

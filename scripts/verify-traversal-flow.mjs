@@ -73,6 +73,13 @@ test('ordinary swinging cannot automatically take control to perform a loop',()=
  s.swing={anchor:v(0,80),ropeLength:30,maximumLength:30,attachedSeconds:.3,tension:1,pressure:1};
  step(s,{swingHeld:true,cameraForward:f});assert.equal(s.advanced.loop,null);
 });
+test('a depleted catch hands off before it becomes a stationary pendulum',()=>{
+ const s=createTraversalState(v(0,40));
+ s.swing={anchor:v(0,80),anchorId:'spent',simulationPivot:v(0,80),ropeLength:40,maximumLength:40,attachedSeconds:1,tension:1,pressure:1};
+ let releases=0;
+ for(let i=0;i<42;i++)releases+=step(s,{swingHeld:true,cameraForward:f},empty,{...config,swingPumpAcceleration:0}).events.filter(e=>e.type==='web-released').length;
+ assert.equal(releases,1);assert.equal(s.swing,null);assert.ok(s.velocity.y< -4);
+});
 test('releases choose varied complete flips only with clearance and airtime',()=>{
  const names=['Swinging','Backflip','Front Flip','Front Twist Flip','Running Forward Flip','Run To Flip','Butterfly Twirl','Aerial Evade','Corkscrew Evade','Big Jump','Falling'];
  const graph=new ContextualAnimationGraph(names.map(name=>new THREE.AnimationClip('mixamo:'+name,1,[])));

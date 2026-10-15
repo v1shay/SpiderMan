@@ -9,6 +9,9 @@ assert.equal(invalid.values.maximumSpeed,130);assert.equal(invalid.values.gravit
 assert.deepEqual(sanitizeSwingProfile(JSON.parse(JSON.stringify(profile))),profile);
 assert.deepEqual(sanitizeSwingProfile({version:2}),profile);
 assert.equal(new Set(SWING_PARAMETERS.map(p=>p.key)).size,SWING_PARAMETERS.length);
+const oldFriendly={...profile,flowVersion:undefined,values:{...profile.values,swingLaunchUp:16}};
+assert.equal(sanitizeSwingProfile(oldFriendly).values.swingLaunchUp,8,'old default profiles migrate to the rebuilt takeoff');
+assert.equal(sanitizeSwingProfile({...oldFriendly,preset:'custom'}).values.swingLaunchUp,16,'explicit custom profiles remain user-controlled');
 function run(overrides={},aimY=0){
  let state=createTraversalState(v(0,25,0));state.velocity=v(0,-6,-28);
  let low=Infinity,high=-Infinity,peak=0,release=null;
@@ -16,7 +19,7 @@ function run(overrides={},aimY=0){
   const result=stepTraversal(state,{swingHeld:true,cameraForward:v(0,0,-1),aimDirection:v(0,aimY,-1)},
    {groundY:0,anchorCandidates:[{id:'building',point:v(20,60,-30)}]},1/120,{...config,...overrides});state=result.state;
   low=Math.min(low,state.position.y);high=Math.max(high,state.position.y);peak=Math.max(peak,Math.hypot(state.velocity.x,state.velocity.y,state.velocity.z));
-  release??=result.events.find(e=>e.reason==='apex-handoff');
+  release??=result.events.find(e=>e.reason==='apex-handoff'||e.reason==='arc-handoff');
   assert.ok(Object.values(state.position).every(Number.isFinite));
  }
  return {state,low,high,peak,release};
@@ -34,7 +37,7 @@ for(const preset of ['friendly','physical','acrobat'])assert.ok(run(swingProfile
 const state=createTraversalState(v(0,25,0));state.velocity=v(0,12,-30);
 state.swing={anchor:v(10,60,-20),anchorId:'a',ropeLength:45,maximumLength:45,attachedSeconds:1.3,tension:.5,pressure:1};
 const launch=stepTraversal(state,{swingReleased:true,cameraForward:v(0,0,-1)},{groundY:0},1/120,config).state;
-assert.ok(launch.velocity.y>state.velocity.y && launch.velocity.y<35,'release lifts without a fixed huge launch floor');
+assert.ok(Math.abs(launch.velocity.y-(state.velocity.y-29/120))<.001,'normal release preserves the exit trajectory');
 const quiet=stepTraversal(state,{swingReleased:true,cameraForward:v(0,0,-1)},{groundY:0},1/120,{...config,swingReleaseLift:0,swingReleaseBoost:0}).state;
-assert.ok(quiet.velocity.y<launch.velocity.y,'release customization changes motion');
+assert.ok(Math.abs(quiet.velocity.y-launch.velocity.y)<.001,'flow release keeps vertical momentum; custom profiles retain their lift controls');
 console.log(JSON.stringify({passed:true,controls:SWING_PARAMETERS.length,rounded:{low:rounded.low,high:rounded.high,peak:rounded.peak},lookUp:up.high,lookDown:down.high}));

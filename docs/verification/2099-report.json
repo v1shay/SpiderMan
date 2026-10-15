@@ -2,7 +2,7 @@
   "passed": true,
   "sourceClips": 61,
   "generatedClips": 1,
-  "skinnedPoseSamples": 1953,
+  "skinnedPoseSamples": 2263,
   "animationVariety": [
     "mixamo:Front Flip",
     "mixamo:Backflip",
@@ -64,13 +64,6 @@
       "maxSkinnedSpan": 3.2
     },
     {
-      "clip": "mixamo:Big Body Blow",
-      "duration": 2.567,
-      "tracks": 65,
-      "samples": 31,
-      "maxSkinnedSpan": 3.041
-    },
-    {
       "clip": "mixamo:Big Jump",
       "duration": 2.367,
       "tracks": 65,
@@ -85,32 +78,11 @@
       "maxSkinnedSpan": 2.336
     },
     {
-      "clip": "mixamo:Butterfly Twirl",
-      "duration": 3.067,
-      "tracks": 65,
-      "samples": 31,
-      "maxSkinnedSpan": 3.147
-    },
-    {
       "clip": "mixamo:Corkscrew Evade",
       "duration": 2.5,
       "tracks": 65,
       "samples": 31,
       "maxSkinnedSpan": 2.546
-    },
-    {
-      "clip": "mixamo:Corkscrew Kip Up",
-      "duration": 2.767,
-      "tracks": 65,
-      "samples": 31,
-      "maxSkinnedSpan": 2.923
-    },
-    {
-      "clip": "mixamo:Drop Kick",
-      "duration": 2.9,
-      "tracks": 65,
-      "samples": 31,
-      "maxSkinnedSpan": 2.709
     },
     {
       "clip": "mixamo:Falling To Landing",
@@ -141,25 +113,11 @@
       "maxSkinnedSpan": 2.894
     },
     {
-      "clip": "mixamo:Flip Kick",
-      "duration": 2.8,
-      "tracks": 65,
-      "samples": 31,
-      "maxSkinnedSpan": 2.817
-    },
-    {
       "clip": "mixamo:Flying Knee Punch Combo",
       "duration": 2.667,
       "tracks": 65,
       "samples": 31,
       "maxSkinnedSpan": 2.846
-    },
-    {
-      "clip": "mixamo:Flying Shoulder Throw",
-      "duration": 3.7,
-      "tracks": 65,
-      "samples": 31,
-      "maxSkinnedSpan": 3.209
     },
     {
       "clip": "mixamo:Front Flip",
@@ -181,20 +139,6 @@
       "tracks": 65,
       "samples": 31,
       "maxSkinnedSpan": 2.859
-    },
-    {
-      "clip": "mixamo:Getting Thrown",
-      "duration": 4.333,
-      "tracks": 65,
-      "samples": 31,
-      "maxSkinnedSpan": 2.886
-    },
-    {
-      "clip": "mixamo:Grab And Slam",
-      "duration": 4.267,
-      "tracks": 65,
-      "samples": 31,
-      "maxSkinnedSpan": 2.795
     },
     {
       "clip": "mixamo:Happy Idle",
@@ -337,13 +281,6 @@
       "maxSkinnedSpan": 2.722
     },
     {
-      "clip": "mixamo:Spin Flip Kick",
-      "duration": 3.7,
-      "tracks": 65,
-      "samples": 31,
-      "maxSkinnedSpan": 2.915
-    },
-    {
       "clip": "mixamo:Standing Using Touchscreen Tablet",
       "duration": 33.133,
       "tracks": 65,
@@ -449,13 +386,6 @@
       "maxSkinnedSpan": 2.557
     },
     {
-      "clip": "mixamo:Wall Crash",
-      "duration": 2.467,
-      "tracks": 65,
-      "samples": 31,
-      "maxSkinnedSpan": 2.946
-    },
-    {
       "clip": "mixamo:Wall Run",
       "duration": 2.1,
       "tracks": 65,
@@ -496,6 +426,146 @@
       "tracks": 65,
       "samples": 31,
       "maxSkinnedSpan": 2.371
+    },
+    {
+      "clip": "mixamo:Shooting",
+      "duration": 1.167,
+      "tracks": 65,
+      "samples": 31,
+      "maxSkinnedSpan": 2.397
+    },
+    {
+      "clip": "mixamo:Block",
+      "duration": 2.867,
+      "tracks": 65,
+      "samples": 31,
+      "maxSkinnedSpan": 2.406
+    },
+    {
+      "clip": "mixamo:Body Block",
+      "duration": 3.433,
+      "tracks": 65,
+      "samples": 31,
+      "maxSkinnedSpan": 2.405
+    },
+    {
+      "clip": "mixamo:Punching",
+      "duration": 1.267,
+      "tracks": 65,
+      "samples": 31,
+      "maxSkinnedSpan": 2.58
+    },
+    {
+      "clip": "mixamo:Fist Fight A",
+      "duration": 4.667,
+      "tracks": 65,
+      "samples": 31,
+      "maxSkinnedSpan": 2.751
+    },
+    {
+      "clip": "mixamo:Kicking",
+      "duration": 2.167,
+      "tracks": 65,
+      "samples": 31,
+      "maxSkinnedSpan": 2.794
+    },
+    {
+      "clip": "mixamo:Hurricane Kick",
+      "duration": 1.833,
+      "tracks": 65,
+      "samples": 31,
+      "maxSkinnedSpan": 2.693
+    },
+    {
+      "clip": "mixamo:Receive Uppercut To The Face",
+      "duration": 1.233,
+      "tracks": 65,
+      "samples": 31,
+      "maxSkinnedSpan": 2.323
+    },
+    {
+      "clip": "mixamo:Taunt",
+      "duration": 2.833,
+      "tracks": 65,
+      "samples": 31,
+      "maxSkinnedSpan": 2.367
+    },
+    {
+      "clip": "mixamo:Defeated",
+      "duration": 6.733,
+      "tracks": 65,
+      "samples": 31,
+      "maxSkinnedSpan": 2.518
+    },
+    {
+      "clip": "mixamo:Flying Shoulder Throw",
+      "duration": 3.7,
+      "tracks": 65,
+      "samples": 31,
+      "maxSkinnedSpan": 3.209
+    },
+    {
+      "clip": "mixamo:Getting Thrown",
+      "duration": 4.333,
+      "tracks": 65,
+      "samples": 31,
+      "maxSkinnedSpan": 2.886
+    },
+    {
+      "clip": "mixamo:Spin Flip Kick",
+      "duration": 3.7,
+      "tracks": 65,
+      "samples": 31,
+      "maxSkinnedSpan": 2.915
+    },
+    {
+      "clip": "mixamo:Flip Kick",
+      "duration": 2.8,
+      "tracks": 65,
+      "samples": 31,
+      "maxSkinnedSpan": 2.817
+    },
+    {
+      "clip": "mixamo:Big Body Blow",
+      "duration": 2.567,
+      "tracks": 129,
+      "samples": 31,
+      "maxSkinnedSpan": 3.056
+    },
+    {
+      "clip": "mixamo:Corkscrew Kip Up",
+      "duration": 2.767,
+      "tracks": 129,
+      "samples": 31,
+      "maxSkinnedSpan": 2.934
+    },
+    {
+      "clip": "mixamo:Wall Crash",
+      "duration": 2.467,
+      "tracks": 129,
+      "samples": 31,
+      "maxSkinnedSpan": 2.951
+    },
+    {
+      "clip": "mixamo:Grab And Slam",
+      "duration": 4.267,
+      "tracks": 129,
+      "samples": 31,
+      "maxSkinnedSpan": 2.796
+    },
+    {
+      "clip": "mixamo:Butterfly Twirl",
+      "duration": 3.067,
+      "tracks": 129,
+      "samples": 31,
+      "maxSkinnedSpan": 3.145
+    },
+    {
+      "clip": "mixamo:Drop Kick",
+      "duration": 2.9,
+      "tracks": 129,
+      "samples": 31,
+      "maxSkinnedSpan": 2.724
     }
   ]
 }

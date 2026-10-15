@@ -58,13 +58,13 @@ export const SWING_PARAMETERS: readonly SwingParameter[] = [
   p('cameraMotionScale','Camera motion','Strength of swing camera movement; reduced motion still takes priority.','Camera',0,1.5,.05,.8),
 ];
 export type SwingPreset = 'friendly' | 'physical' | 'acrobat' | 'custom';
-export type SavedSwingProfile = { version: 1; name: string; preset: SwingPreset; values: Partial<TraversalConfig> };
+export type SavedSwingProfile = { version: 1; flowVersion?: 2; name: string; preset: SwingPreset; values: Partial<TraversalConfig> };
 export const PROFILE_STORAGE_KEY = 'spiderman-swing-profile-v1';
 export function swingPreset(preset: SwingPreset = 'friendly'): SavedSwingProfile {
   const values = Object.fromEntries(SWING_PARAMETERS.map(field => [field.key,field.value])) as Partial<TraversalConfig>;
   if (preset === 'physical') Object.assign(values,{swingAutoReattach:0,swingPayout:0,swingCameraSteering:0,swingAvoidance:.45,swingPumpAcceleration:18,swingHorizontalTension:1,swingReleaseBoost:0,swingReleaseLift:4});
   if (preset === 'acrobat') Object.assign(values,{swingPumpVerticalScale:1.45,swingReleaseLift:20,swingJumpKick:9,swingMaximumLength:72,swingCruiseSpeed:46});
-  return {version:1,name:preset === 'physical' ? 'Momentum' : preset === 'acrobat' ? 'Acrobat' : 'Friendly Neighborhood',preset,values};
+  return {version:1,flowVersion:2,name:preset === 'physical' ? 'Momentum' : preset === 'acrobat' ? 'Acrobat' : 'Friendly Neighborhood',preset,values};
 }
 export function sanitizeSwingProfile(value: unknown): SavedSwingProfile {
   const defaults = swingPreset();
@@ -73,8 +73,10 @@ export function sanitizeSwingProfile(value: unknown): SavedSwingProfile {
   if (saved.version !== 1) return defaults;
   const output = { ...defaults, name: typeof saved.name === 'string' ? saved.name.slice(0,48) : defaults.name,
     preset: ['friendly','physical','acrobat','custom'].includes(saved.preset ?? '') ? saved.preset! : 'custom' as SwingPreset };
+  const migrateFlow = (saved.preset === 'friendly' || saved.preset === 'acrobat') && saved.flowVersion !== 2;
+  if (migrateFlow) Object.assign(output,{...swingPreset(saved.preset),name:output.name});
   for (const field of SWING_PARAMETERS) {
-    const v = saved.values?.[field.key];
+    const v = migrateFlow ? undefined : saved.values?.[field.key];
     if (typeof v === 'number' && Number.isFinite(v)) (output.values as Record<string,number>)[field.key] = Math.max(field.min,Math.min(field.max,v));
   }
   output.values.swingMaximumLength = Math.max(output.values.swingMinimumLength!,output.values.swingMaximumLength!);

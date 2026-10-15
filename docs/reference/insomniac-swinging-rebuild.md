@@ -43,7 +43,7 @@ The flow solver blends incoming velocity toward the tangent while retaining kine
 
 ### Speed and steering
 
-Ordinary catch allowance starts around 38 m/s. Fast entry and dive energy can establish a larger allowance, up to 78 m/s. A motor helps below that allowance and a gradual taper handles excess ordinary swing speed; the existing overall cap still bounds launches and dives. This taper is our comfort choice, not a claimed copy of the sequel's momentum meter.
+Ordinary catch allowance starts around 38 m/s in the shared core and 42 m/s in the Friendly Neighborhood profile. Fast entry and dive energy can establish a larger allowance, up to 78 m/s. A motor helps below that allowance and a gradual taper handles excess ordinary swing speed; the existing overall cap still bounds launches and dives. This taper is our comfort choice, not a claimed copy of the sequel's momentum meter.
 
 The steering floor is shared across suits, increases through the trough, and blends in after attachment. Steering rotates existing velocity rather than adding sideways speed indefinitely. Collision correction receives priority in the shared impulse budget; steering and propulsion use the remaining allowance. Free-air directional input also rotates velocity, avoiding unbounded repeated forward acceleration.
 
@@ -69,3 +69,9 @@ Point grapples, buffered point launches, corner tethers, explicit dive-earned lo
 - `scripts/verify-advanced-traversal.mjs` and `scripts/verify-traversal-refinements.mjs`: connected abilities, releases, walls, geometry and bounds. Assertions that required the old charged-release floor and wall-speed refund now express the new behavior.
 
 Automated geometry checks establish collision and control properties. They cannot establish a perceptual one-to-one match to a commercial game. Browser input tests and screenshots are recorded separately in the verification report.
+
+## Integration with the newer profile controls
+
+The Friendly Neighborhood and Acrobat presets enable the flow solver. Explicit Momentum and Custom profiles retain the fully configurable physical solver, so adjusting its spring/slack controls remains meaningful. Profile fingerprints include the traversal engine revision and preset; old ghost times cannot silently compete under changed physics. Friendly takeoff uses a modest supported push-off. The newer geometry-backed directional zips, held-trigger swing-jump continuation, perch aim, roof exits, vault momentum and controller mappings remain intact. A depleted catch hands off before a stationary pendulum can trap held traversal.
+
+The final animation fidelity pass also found six inverted-leg Classic clips, including Butterfly Twirl. The repair regenerates those six from the calibrated reference motion and preserves the remaining 67 clips. All 12 rigs pass the original limb-direction and skin-bound thresholds after repair; this is an asset correction separate from velocity shaping.

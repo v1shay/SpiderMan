@@ -60,7 +60,8 @@ for (const suit of SUITS) {
   const model = await load(suit.model),
     library = await load(suit.animationSource),
     clips = retargetMixamoClips(library.animations, library.scene, model.scene);
-  assert.equal(clips.length, 63, suit.id);
+  assert.equal(clips.length, library.animations.length, suit.id);
+  assert.ok(clips.length >= 63, `${suit.id}: complete base animation library`);
   assert.equal(
     clips.filter((c) => c.name === `lobby:dance:${suit.id}`).length,
     1,
