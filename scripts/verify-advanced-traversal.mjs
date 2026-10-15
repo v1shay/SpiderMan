@@ -45,9 +45,10 @@ function releaseTrial(hold){
  while((s.position.y>=30||s.velocity.y>0)&&frames++<1500){step(s,{},empty,dt,{...config,airAcceleration:0});peak=Math.max(peak,s.position.y);}
  return {release,apexGain:peak-30,range:-s.position.z};
 }
-test('actual solver: longer charge raises apex and distance',()=>{
+test('normal release preserves its exit trajectory regardless of hold duration',()=>{
  const short=releaseTrial(.25),long=releaseTrial(1.2);logs.releases={short,long};
- assert.ok(long.apexGain>short.apexGain*2);assert.ok(long.range>short.range*1.5);
+ near(short.release.y,long.release.y);near(short.release.z,long.release.z);
+ assert.ok(long.release.y<0,'a descending release stays descending');
 });
 test('Space on a swing releases exactly once, not a release plus double jump',()=>{
  const s=createTraversalState(v(0,30),v(0,4,-35));s.airSeconds=1;
@@ -203,8 +204,8 @@ test('active wall run settles to a controllable pace for 2.5 seconds',()=>{
  s.wallApproach='swing';s.wallApproachUntil=10;
  acceptTraversalWallContact(s,contact,s.velocity,{cameraForward:f},config);const before=speed(s),start=s.position.y;
  const wall={min:v(.46,0,-1000),max:v(2,300,1000)};
- for(let i=0;i<300;i++)step(s,{swingHeld:true,cameraForward:f},{...empty,wallContact:contact,colliders:[wall]});
- assert.equal(s.mode,'wallRun');assert.ok(s.position.y-start>10);assert.ok(speed(s)<=26 && speed(s)>=18);logs.wallRun={gain:s.position.y-start,entrySpeed:before,exitSpeed:speed(s)};
+ for(let i=0;i<300;i++)step(s,{swingHeld:true,cameraForward:f,wallClimb:1},{...empty,wallContact:contact,colliders:[wall]});
+ assert.equal(s.mode,'wallRun');assert.ok(s.position.y-start>10);assert.ok(speed(s)<=48.01 && speed(s)>=18);logs.wallRun={gain:s.position.y-start,entrySpeed:before,exitSpeed:speed(s)};
 });
 test('30/60/120Hz agree for a glide using identical internal steps',()=>{
  const run=hz=>{const s=createTraversalState(v(0,300),v(0,-12,-50));for(let i=0;i<hz*2;i++)step(s,{glidePressed:i===0,cameraForward:f,glidePitch:.4},empty,1/hz);return s;};
@@ -284,7 +285,7 @@ test('corner query requires a clear swept turn and rejects a blocking corridor',
 });
 
 
-test('actual held swing: 0.25, 0.6 and 1.2 seconds gain progressively more altitude and range',()=>{
+test('release timing trades a descending catch for trough speed and upswing height',()=>{
  function run(hold){
   const s=createTraversalState(v(0,40),v(0,-5,-35));
   const env={...empty,anchorCandidates:[{id:'fixed-test-anchor',point:v(16,80,-25),kind:'facade'}]};
@@ -301,8 +302,11 @@ test('actual held swing: 0.25, 0.6 and 1.2 seconds gain progressively more altit
   return {holdSeconds:hold,apexAboveStartingHeight:peak-40,forwardDistance:-s.position.z,release};
  }
  logs.heldSwingTrials=[.25,.6,1.2].map(run);
+ assert.ok(logs.heldSwingTrials[0].release.velocity.y<0);
+ assert.ok(logs.heldSwingTrials[2].apexAboveStartingHeight>3);
+ assert.ok(Math.abs(logs.heldSwingTrials[1].release.velocity.z)>Math.abs(logs.heldSwingTrials[2].release.velocity.z));
  for(let i=1;i<logs.heldSwingTrials.length;i++){
-  assert.ok(logs.heldSwingTrials[i].apexAboveStartingHeight>logs.heldSwingTrials[i-1].apexAboveStartingHeight);
+  assert.ok(logs.heldSwingTrials[i].apexAboveStartingHeight>=logs.heldSwingTrials[i-1].apexAboveStartingHeight);
   assert.ok(logs.heldSwingTrials[i].forwardDistance>logs.heldSwingTrials[i-1].forwardDistance);
  }
 });

@@ -26,15 +26,17 @@ test('neutral glide descends gently; dive gains speed; pull-up spends kinetic en
  assert.ok(neutral.y<100&&neutral.y>75);assert.ok(dive.y<neutral.y);assert.ok(Math.hypot(...Object.values(dive.velocity))>Math.hypot(...Object.values(up.velocity)));
  for(const r of [neutral,dive,up])assert.ok(.5*Math.hypot(...Object.values(r.velocity))**2+29*r.y<=.5*50**2+29*100+1e-5);
 });
-test('fast wall arrival becomes controllable and carries speed into the next swing once',()=>{
+test('fast wall arrival keeps actual momentum and steers without a stored speed refund',()=>{
  const s=createTraversalState(v(.462,40),v(-50,30,-70)),contact={point:v(0,40),normal:v(1),feetTouching:true};
  s.wallApproach='swing';s.wallApproachUntil=10;
- assert.ok(acceptTraversalWallContact(s,contact,s.velocity,{cameraForward:f},config));assert.ok(speed(s)<=26.01);
+ assert.ok(acceptTraversalWallContact(s,contact,s.velocity,{cameraForward:f},config));
+ assert.ok(speed(s)>40&&speed(s)<=48.01);
  for(let i=0;i<120;i++)stepTraversalInPlace(s,{wallStrafe:-1,wallClimb:0,swingHeld:true,cameraForward:f},{groundY:-100,wallContact:contact},dt,config);
- assert.equal(s.mode,'wallRun');assert.ok(s.velocity.z>15);assert.ok(speed(s)<=26.01);
- const saved=s.wallCarrySpeed;assert.ok(saved>speed(s));s.swingNeedsRelease=false;
+ assert.equal(s.mode,'wallRun');assert.ok(s.velocity.z>15);assert.ok(speed(s)>27&&speed(s)<40);
+ assert.equal(s.wallCarrySpeed,0);s.swingNeedsRelease=false;
+ const before=speed(s);
  stepTraversalInPlace(s,{swingPressed:true,swingHeld:true,aimDirection:v(0,1,1),cameraForward:v(0,0,1)},{groundY:-100,wallContact:null,anchorCandidates:[{point:v(0,75,s.position.z+30),kind:'facade'}]},dt,config);
- assert.ok(s.swing);assert.ok(speed(s)>30);assert.equal(s.wallCarrySpeed,0);
+ assert.ok(s.swing);assert.ok(Math.abs(speed(s)-before)<2);assert.equal(s.wallCarrySpeed,0);
 });
 async function world(height,ceiling=false){const root=new THREE.Group();
  const box=new THREE.Mesh(new THREE.BoxGeometry(4,height,1),new THREE.MeshBasicMaterial());box.position.set(0,height/2,-1.5);root.add(box);

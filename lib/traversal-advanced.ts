@@ -28,6 +28,7 @@ export type AdvancedRuntime = {
 export const ADVANCED_TRAVERSAL_CONFIG = Object.freeze({
   ...SPIDER_TRAVERSAL_FEEL,
   advancedTraversal: true,
+  flowTraversal: true,
   maximumSpeed: 108,
   swingMaximumLength: 120,
   anchorMaximumDistance: 145,
@@ -104,7 +105,8 @@ export function catchVelocity(v: AVec, radial: AVec, forward: AVec, maximum: num
  * No bonus at <=60 ms; aim cannot flip horizontal travel on release.
  */
 export function advancedReleaseVelocity(v: AVec, seconds: number, radial: AVec,
-  forward: AVec, maximum: number, flow=0, jumpKick=false): AVec {
+  forward: AVec, maximum: number, flow=0, jumpKick=false,
+  forwardScale=1, liftScale=1): AVec {
   const input=limitFeelVelocity(v,maximum), t=Number.isFinite(seconds)?Math.max(0,seconds):0;
   const gate=smooth((t-.06)/.16);
   if(gate===0)return input;
@@ -112,8 +114,8 @@ export function advancedReleaseVelocity(v: AVec, seconds: number, radial: AVec,
   const n=aUnit(radial,{x:0,y:-1,z:0}), tangent=aReject(input,n);
   const timing=smooth(tangent.y/24)*smooth((-n.y+.15)/.45);
   const chain=aClamp(flow,0,ADVANCED_TUNING.chainMaximum)*.65;
-  const targetUp=ADVANCED_TUNING.shortReleaseUp+(ADVANCED_TUNING.chargedReleaseUp-ADVANCED_TUNING.shortReleaseUp)*charge
-    +timing*ADVANCED_TUNING.timingUpBonus+(jumpKick?3:0);
+  const targetUp=(ADVANCED_TUNING.shortReleaseUp+(ADVANCED_TUNING.chargedReleaseUp-ADVANCED_TUNING.shortReleaseUp)*charge
+    +timing*ADVANCED_TUNING.timingUpBonus+(jumpKick?3:0))*aClamp(liftScale,.65,1.4);
   // A quick release while descending keeps the dive instead of turning every
   // click into the same upward launch. Holding, trough timing and jump-kick
   // still earn the large aerial release.
@@ -121,7 +123,7 @@ export function advancedReleaseVelocity(v: AVec, seconds: number, radial: AVec,
   const y=input.y+Math.max(0,targetUp-input.y)*liftGate;
   const horizontalSpeed=Math.hypot(input.x,input.z);
   const boost=(ADVANCED_TUNING.shortReleaseForward+(ADVANCED_TUNING.chargedReleaseForward-ADVANCED_TUNING.shortReleaseForward)*charge
-    +timing*ADVANCED_TUNING.timingForwardBonus+chain+(jumpKick?3:0))*gate;
+    +timing*ADVANCED_TUNING.timingForwardBonus+chain+(jumpKick?3:0))*gate*aClamp(forwardScale,.65,1.45);
   const retained=Math.sqrt(Math.max(0,aLength(input)**2-y*y));
   const direction=aUnit(flat(input),aUnit(flat(forward)));
   return limitFeelVelocity({x:direction.x*Math.max(retained,horizontalSpeed+boost),y,z:direction.z*Math.max(retained,horizontalSpeed+boost)},maximum);

@@ -35,7 +35,7 @@ export const SWING_PARAMETERS: readonly SwingParameter[] = [
   p('airAcceleration','Air control','Steering power after releasing the web.','Control',0,28,1,10),
   p('diveGravityMultiplier','Dive gravity','Additional gravity while holding dive.','Control',1,3,.05,1.75),
   p('diveAcceleration','Dive push','Forward dive acceleration.','Control',0,30,1,11),
-  p('swingLaunchUp','Street takeoff height','One supported push-off when starting a swing from the ground.','Release',6,26,1,16),
+  p('swingLaunchUp','Street takeoff height','One supported push-off when starting a swing from the ground.','Release',6,26,1,8),
   p('swingReleaseBoost','Release forward boost','Small forward bonus; timing preserves your existing momentum.','Release',0,20,.5,4),
   p('swingReleaseLift','Release lift','Maximum added release lift; an upswing gets the best result.','Release',0,25,.5,12),
   p('swingJumpKick','Jump off the web','Extra lift when you jump out of a swing.','Release',0,15,.5,5),
@@ -93,14 +93,14 @@ export function saveSwingProfile(profile: SavedSwingProfile): SavedSwingProfile 
   return next;
 }
 export function swingProfileConfig(profile: SavedSwingProfile): Partial<TraversalConfig> {
-  return {...ADVANCED_TRAVERSAL_CONFIG,...sanitizeSwingProfile(profile).values,profiledSwing:true};
+  return {...ADVANCED_TRAVERSAL_CONFIG,...sanitizeSwingProfile(profile).values,profiledSwing:true,flowTraversal:profile.preset === 'friendly' || profile.preset === 'acrobat'};
 }
 
 /** Ghosts and personal bests belong to the same physics, not only the same route. */
 export function swingProfileFingerprint(profile: SavedSwingProfile): string {
   let hash = 2166136261;
   const values = sanitizeSwingProfile(profile).values;
-  const text = SWING_PARAMETERS.map(p => `${p.key}:${values[p.key]}`).join('|');
+  const text = 'traversal-flow-v2|' + profile.preset + '|' + SWING_PARAMETERS.map(p => `${p.key}:${values[p.key]}`).join('|');
   for (const char of text) hash = Math.imul(hash ^ char.charCodeAt(0),16777619);
   return (hash >>> 0).toString(16);
 }

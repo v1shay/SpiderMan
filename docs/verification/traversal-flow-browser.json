@@ -1,0 +1,44 @@
+{
+  "browser": "Chrome headless via Playwright; local development server; Classic Spider-Man",
+  "consoleErrors": [],
+  "street": {
+    "map": "new-york-city",
+    "seconds": 16,
+    "distance": 368,
+    "peakSpeed": 43.1,
+    "peakHeight": 75,
+    "airbornePercent": 98,
+    "attachments": 18,
+    "contactFrames": 0,
+    "penetrationChecks": 72,
+    "penetrations": 0,
+    "penetrationDetails": []
+  },
+  "wall": {
+    "seconds": 7.02,
+    "modes": [
+      "jump",
+      "fall",
+      "wallRun",
+      "wallCrawl",
+      "wallJump",
+      "doubleJump",
+      "land",
+      "idle"
+    ],
+    "clips": [
+      "context:running-takeoff",
+      "context:Jumping (1)-air",
+      "context:wall-run",
+      "context:wall-crawl-fast",
+      "mixamo:Falling",
+      "mixamo:Front Twist Flip",
+      "mixamo:Backflip",
+      "context:Swing To Land-contact",
+      "mixamo:Idle"
+    ],
+    "frames": 327,
+    "penetrations": 0,
+    "wallJumpSpeed": 17.2
+  }
+}

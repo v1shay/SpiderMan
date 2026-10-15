@@ -35,10 +35,13 @@ const [model, pack] = await Promise.all([
   load(suit.animationSource),
 ]);
 const clips = retargetMixamoClips(pack.animations, pack.scene, model.scene);
-assert.equal(clips.length, 63);
+// Imported combat/traversal additions may extend the library. Verify that
+// retargeting preserves every source clip rather than freezing an old count.
+assert.equal(clips.length, pack.animations.length);
+assert.ok(clips.length >= 63);
 assert.equal(
   clips.filter((clip) => clip.name.startsWith('mixamo:')).length,
-  62,
+  pack.animations.filter((clip) => clip.name.startsWith('mixamo:')).length,
 );
 assert.equal(
   clips.filter((clip) => clip.name === 'lobby:dance:miguel').length,

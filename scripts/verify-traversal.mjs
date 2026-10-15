@@ -360,7 +360,8 @@ test('holding swing on a supported floor launches once without requiring jump or
     peakHeight = Math.max(peakHeight, state.position.y);
     if (tick === 0) {
       assert.equal(state.grounded, false);
-      assert.ok(state.velocity.y > 15);
+      assert.ok(state.velocity.y > 5 && state.velocity.y < 9,
+        'ground swing should break contact without fabricating a huge vertical boost');
       assert.ok(state.position.y > 0 && state.position.y < .2, 'launch must integrate, not teleport');
     }
   }
@@ -378,7 +379,7 @@ test('roof hold push-off uses the roof as support and blocked/no anchors cannot 
   const input = { swingHeld: true, cameraForward: v(0, 0, -1) };
   const anchor = { point: v(18, 50, -25), kind: 'facade' };
   const launched = stepTraversal(state, input, { groundY: 0, colliders: [roof], anchorCandidates: [anchor] }, 1 / 120);
-  assert.ok(launched.state.position.y > 10 && launched.state.velocity.y > 15);
+  assert.ok(launched.state.position.y > 10 && launched.state.velocity.y > 5 && launched.state.velocity.y < 9);
   assert.ok(outside(launched.state, roof));
   for (const candidates of [[], [{ ...anchor, lineOfSight: false }]]) {
     const blocked = stepTraversal(state, input, { groundY: 0, colliders: [roof], anchorCandidates: candidates }, 1 / 120);

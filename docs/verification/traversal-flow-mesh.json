@@ -1,0 +1,120 @@
+{
+  "simulationHz": 120,
+  "textureDecoding": false,
+  "maps": [
+    {
+      "map": "new-york-city",
+      "trials": [
+        {
+          "trial": "central-street",
+          "distance": 405.253,
+          "maxHeight": 117.534,
+          "maxSpeed": 49.551,
+          "airtimeSeconds": 16,
+          "swingSeconds": 10.5,
+          "penetrationFrames": 0,
+          "stalledHeldFrames": 0,
+          "immediateDetaches": 0
+        },
+        {
+          "trial": "cross-street",
+          "distance": 103.783,
+          "maxHeight": 11.473,
+          "maxSpeed": 34.956,
+          "airtimeSeconds": 5.425,
+          "swingSeconds": 4.317,
+          "penetrationFrames": 0,
+          "stalledHeldFrames": 0,
+          "immediateDetaches": 0
+        },
+        {
+          "trial": "unrendered-repeat-tile",
+          "distance": 157.123,
+          "maxHeight": 41.021,
+          "maxSpeed": 38.525,
+          "airtimeSeconds": 6,
+          "swingSeconds": 4.517,
+          "penetrationFrames": 0,
+          "stalledHeldFrames": 0,
+          "immediateDetaches": 0
+        }
+      ]
+    },
+    {
+      "map": "cyberpunk-city",
+      "trials": [
+        {
+          "trial": "central-street",
+          "distance": 293.454,
+          "maxHeight": 68.565,
+          "maxSpeed": 33.499,
+          "airtimeSeconds": 16,
+          "swingSeconds": 8.517,
+          "penetrationFrames": 0,
+          "stalledHeldFrames": 23,
+          "immediateDetaches": 0
+        },
+        {
+          "trial": "cross-street",
+          "distance": 150.297,
+          "maxHeight": 39.095,
+          "maxSpeed": 37.274,
+          "airtimeSeconds": 5.892,
+          "swingSeconds": 4.408,
+          "penetrationFrames": 0,
+          "stalledHeldFrames": 27,
+          "immediateDetaches": 0
+        },
+        {
+          "trial": "unrendered-repeat-tile",
+          "distance": 139.363,
+          "maxHeight": 19.492,
+          "maxSpeed": 41.51,
+          "airtimeSeconds": 5.992,
+          "swingSeconds": 4.492,
+          "penetrationFrames": 0,
+          "stalledHeldFrames": 0,
+          "immediateDetaches": 0
+        }
+      ]
+    },
+    {
+      "map": "procedural-city",
+      "trials": [
+        {
+          "trial": "central-street",
+          "distance": 420.697,
+          "maxHeight": 110.661,
+          "maxSpeed": 54.969,
+          "airtimeSeconds": 16,
+          "swingSeconds": 14.208,
+          "penetrationFrames": 0,
+          "stalledHeldFrames": 0,
+          "immediateDetaches": 0
+        },
+        {
+          "trial": "cross-street",
+          "distance": 176.953,
+          "maxHeight": 41.299,
+          "maxSpeed": 48.304,
+          "airtimeSeconds": 6,
+          "swingSeconds": 4.45,
+          "penetrationFrames": 0,
+          "stalledHeldFrames": 0,
+          "immediateDetaches": 0
+        },
+        {
+          "trial": "unrendered-repeat-tile",
+          "distance": 79.481,
+          "maxHeight": 13.715,
+          "maxSpeed": 22.694,
+          "airtimeSeconds": 5.567,
+          "swingSeconds": 4.492,
+          "penetrationFrames": 0,
+          "stalledHeldFrames": 0,
+          "immediateDetaches": 0
+        }
+      ]
+    }
+  ]
+}

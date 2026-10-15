@@ -1,3 +1,4 @@
+import { FLOW, flowSwingPivot, flowCatchVelocity, flowTangent, flowReleaseVelocity, flowWallVelocity, flowSwingSteering } from './traversal-flow.ts';
 import { createAdvancedRuntime, cloneAdvancedRuntime, advancedReleaseVelocity, catchVelocity, glideVelocity, chargedJumpVelocity, slingshotVelocity, pointLaunchVelocity, turnHorizontal, loopAngle, swingPhase, ADVANCED_TUNING, type AdvancedRuntime } from './traversal-advanced.ts';
 import { chargedSwingRelease, steerSwingHeading, arcadeWallRunVelocity, arcadeAirZipVelocity, hasWallRunSupport, AIR_ZIP } from './traversal-feel.ts';
 import { resolveTraversalAssists, type AssistRequest } from './traversal-assist-budget.ts';
@@ -175,6 +176,9 @@ export interface SwingRuntime {
   groundSkimSeconds?: number;
   /** Validated ground push-off takes up initial slack above its support plane. */
   launchRopeLength?: number;
+  /** Entry energy sets a cruise allowance; ordinary holds cannot ratchet speed. */
+  cruiseSpeed?: number;
+  stallSeconds?: number;
 }
 
 export interface ZipRuntime {
@@ -330,6 +334,8 @@ export interface TraversalConfig {
   swingGroundClearance?: number;
   swingAssistBudget?: number;
   advancedTraversal?: boolean;
+  /** Cohesive assisted arc/steering policy used by the game. */
+  flowTraversal?: boolean;
   cameraMotionScale?: number;
   allowSkyFallback?: boolean;
   /** Opt-in assisted policy, enabled by SpiderGame. Legacy tests remain available. */
@@ -355,6 +361,9 @@ export interface TraversalConfig {
   swingReelSpeed: number;
   swingReleaseBoost: number;
   swingReleaseLift: number;
+  /** Persona multipliers for advanced release shaping. */
+  swingReleaseForwardScale?: number;
+  swingReleaseLiftScale?: number;
   zipAcceleration: number;
   zipDamping: number;
   zipMaximumSpeed: number;
@@ -401,6 +410,8 @@ export const DEFAULT_TRAVERSAL_CONFIG: Readonly<TraversalConfig> = Object.freeze
   swingReelSpeed: 9,
   swingReleaseBoost: 13,
   swingReleaseLift: 8.5,
+  swingReleaseForwardScale: 1,
+  swingReleaseLiftScale: 1,
   zipAcceleration: 92,
   zipDamping: 4.8,
   zipMaximumSpeed: 52,
@@ -673,6 +684,10 @@ function chooseSwingAnchor(
     if (config.profiledSwing && candidate.id && candidate.id === state.previousSwingAnchorId && state.elapsed < (state.previousSwingAnchorUntil ?? 0)) continue;
     if ((!config.allowSkyFallback && candidate.id === 'sky-fallback') || candidate.lineOfSight === false) continue;
     const offset = subtract(candidate.point, state.position), range = length(offset);
+    if (config.flowTraversal && dot(horizontal(offset), normalize(horizontal(forward))) < -4) continue;
+    // A tiny line while already rising can recapture the same roof prop.
+    // Supported ground starts remain legal so held traversal cannot get stuck.
+    if (config.flowTraversal && !state.grounded && state.velocity.y > 3 && (offset.y < 3.5 || range < 8)) continue;
     if (range < config.anchorMinimumDistance || range > Math.min(config.anchorMaximumDistance, config.swingMaximumLength)
       || offset.y < minimumAnchorHeight || !traversalLineOfSight(state.position, candidate.point, colliders)) continue;
     const score = dot(aim, normalize(offset)) * 1.8
@@ -718,11 +733,13 @@ function attachSwing(
     state.velocity = scale(normalize(state.velocity, input.cameraForward), Math.max(length(state.velocity), state.wallCarrySpeed ?? 0));
     state.wallCarrySpeed = 0; state.wallCarryUntil = 0;
   }
-  const anchorOffset = subtract(state.position, anchor.point);
+  const entryForward = normalize(horizontal(state.velocity), normalize(horizontal(input.move ?? input.cameraForward ?? vector(0, 0, -1))));
+  const entryPivot = config.flowTraversal ? flowSwingPivot(state.position, anchor.point, entryForward) : anchor.point;
+  const anchorOffset = subtract(state.position, entryPivot);
   // A short amount of catch slack lets the existing heading survive a side
   // attachment. Tension takes it up naturally instead of projecting a fast
   // descent sideways into the anchor's tangent plane on the first frame.
-  const catchSlack = config.arcadeTraversal && !state.grounded
+  const catchSlack = !config.flowTraversal && config.arcadeTraversal && !state.grounded
     ? Math.min(config.swingCatchSlack ?? 2.5, Math.max(0, dot(state.velocity, normalize(anchorOffset))) * .12) : 0;
   const initialLength = clamp(length(anchorOffset) + catchSlack, config.swingMinimumLength, config.swingMaximumLength);
   if (config.advancedTraversal && !config.arcadeTraversal && !state.grounded) {
@@ -733,8 +750,8 @@ function attachSwing(
   state.swing = {
     anchor: copy(anchor.point),
     visualAnchor: copy(anchor.point),
-    simulationPivot: config.arcadeTraversal ? copy(anchor.point) : undefined,
-    pivot: config.arcadeTraversal ? copy(anchor.point) : add(state.position, vector(0, initialLength, 0)),
+    simulationPivot: config.arcadeTraversal ? copy(entryPivot) : undefined,
+    pivot: config.arcadeTraversal ? copy(entryPivot) : add(state.position, vector(0, initialLength, 0)),
     captureStart: config.arcadeTraversal ? undefined : add(state.position, vector(0, initialLength, 0)),
     anchorId: anchor.id,
     ropeLength: initialLength,
@@ -742,6 +759,8 @@ function attachSwing(
     attachedSeconds: 0,
     tension: 0,
     pressure: 0,
+    cruiseSpeed: config.flowTraversal ? Math.max(config.swingCruiseSpeed ?? FLOW.cruiseSpeed,
+      Math.min(78, Math.hypot(state.velocity.x, state.velocity.z, Math.min(0, state.velocity.y) * .75))) : undefined,
   };
   state.zip = null;
   state.groundJump = false;
@@ -781,7 +800,7 @@ function releaseSwing(
 ): void {
   const swing = state.swing;
   if (!swing) return;
-  if (config.profiledSwing) {
+  if (config.profiledSwing && !config.flowTraversal) {
     const held = saturate((swing.attachedSeconds - .06) / (config.swingReleaseChargeSeconds ?? 1.1));
     const upward = saturate(state.velocity.y / 18);
     const lift = config.swingReleaseLift * held * (.2 + upward * .8) + (input.jumpPressed ? (config.swingJumpKick ?? 5) * (.2 + upward * .8) : 0);
@@ -804,12 +823,15 @@ function releaseSwing(
         ? Math.min(ADVANCED_TUNING.chainMaximum, advanced.flow + 1) : 0;
       advanced.lastReleaseAt = state.elapsed;
     }
-    state.velocity = advancedReleaseVelocity(state.velocity, swing.attachedSeconds,
+    state.velocity = config.flowTraversal ? flowReleaseVelocity(state.velocity, swing.attachedSeconds,
+      input.cameraForward ?? input.move ?? vector(0,0,-1), config.maximumSpeed, Boolean(input.jumpPressed),
+      config.swingReleaseForwardScale, config.swingReleaseLiftScale) : advancedReleaseVelocity(state.velocity, swing.attachedSeconds,
       subtract(state.position, swing.anchor), input.cameraForward ?? input.move ?? vector(0, 0, -1),
-      config.maximumSpeed, advanced.flow, Boolean(input.jumpPressed));
+      config.maximumSpeed, advanced.flow, Boolean(input.jumpPressed),
+      config.swingReleaseForwardScale, config.swingReleaseLiftScale);
     advanced.pulse = swing.attachedSeconds > .06 ? 1 : advanced.pulse;
     advanced.loop = null;
-    state.swingReleaseSeconds = .55;
+    state.swingReleaseSeconds = config.flowTraversal && !input.jumpPressed ? .18 : .55;
     state.actionSequence = (state.actionSequence ?? 0) + 1;
     state.swing = null;
     events.push(event('web-released', state, { anchorId: swing.anchorId, strength: swing.tension }));
@@ -951,6 +973,14 @@ function applyGroundMovement(state: TraversalState, move: Vector3Like, config: T
 
 function applyAirMovement(state: TraversalState, move: Vector3Like, config: TraversalConfig, delta: number): void {
   const direction = normalize(horizontal(move));
+  if (config.flowTraversal) {
+    if (lengthSquared(direction) < .01) return;
+    state.velocity = steerSwingHeading(state.velocity, direction, delta, 34);
+    const drive = Math.min(6, Math.max(0, 26 - length(horizontal(state.velocity))) * 2);
+    state.velocity.x += direction.x * drive * delta;
+    state.velocity.z += direction.z * drive * delta;
+    return;
+  }
   state.velocity.x += direction.x * config.airAcceleration * delta;
   state.velocity.z += direction.z * config.airAcceleration * delta;
   const horizontalVelocity = horizontal(state.velocity);
@@ -960,6 +990,76 @@ function applyAirMovement(state: TraversalState, move: Vector3Like, config: Trav
     state.velocity.x = limited.x;
     state.velocity.z = limited.z;
   }
+}
+
+function applyFlowSwing(state: TraversalState, input: TraversalInput, environment: TraversalEnvironment,
+  config: TraversalConfig, delta: number, events: TraversalEvent[]): void {
+  const swing = state.swing!;
+  swing.attachedSeconds += delta;
+  swing.pressure = damp(swing.pressure, saturate(input.pointerPressure ?? .8), 10, delta);
+  const pivot = swing.simulationPivot ?? swing.pivot ?? swing.anchor;
+  const offset = subtract(state.position, pivot), range = Math.max(.01, length(offset));
+  const radial = scale(offset, 1 / range);
+  const loop = Boolean(state.advanced?.loop);
+  swing.stallSeconds = length(state.velocity) < 2 ? (swing.stallSeconds ?? 0) + delta : 0;
+  const reel = clamp(value(input.reel), -1, 1);
+  // Taut catches keep their dip. Inward motion takes up slack rather than
+  // repeatedly paying out the forward arc and eliminating every upswing.
+  swing.ropeLength = clamp(Math.min(swing.ropeLength, range) + reel * config.swingReelSpeed * delta,
+    config.swingMinimumLength, config.swingMaximumLength);
+  swing.maximumLength = Math.max(swing.maximumLength, swing.ropeLength);
+  state.velocity = flowCatchVelocity(state.velocity, radial, delta);
+  const loaded = range >= swing.ropeLength - .2;
+  const gravity = vector(0, -config.gravity * delta, 0);
+  state.velocity = add(state.velocity, loaded ? flowTangent(gravity, radial) : gravity);
+  const wish = normalize(horizontal(input.move ?? vector()),
+    normalize(horizontal(input.cameraForward ?? state.velocity), vector(0,0,-1)));
+  // A held trigger hands off before the line reverses travel. An explicit loop
+  // keeps the same real anchor and spends its earned dive energy instead.
+  if (!loop && ((swing.attachedSeconds > .45 && state.velocity.y > 3 && radial.y > -.68)
+    || (swing.attachedSeconds > .24 && (swing.stallSeconds ?? 0) > .12))) {
+    state.swing = null; state.swingNeedsRelease = false; state.swingRetryAfter = state.elapsed + .06;
+    state.previousSwingAnchorId = swing.anchorId; state.previousSwingAnchorUntil = state.elapsed + .5;
+    state.swingReleaseSeconds = .12;
+    state.preferredAnchorId = undefined;
+    events.push(event('web-released', state, {anchorId:swing.anchorId, reason:'arc-handoff'}));
+    return;
+  }
+  const physical = copy(state.velocity), requests: AssistRequest[] = [];
+  const groundUsed = swing.groundAssistImpulse ?? 0;
+  applyLowSwingGroundAssistance(state, input, environment, config, delta);
+  requests.push({priority:'ground', deltaVelocity:subtract(state.velocity,physical)});
+  state.velocity = physical;
+  const avoidance = environment.predictiveAssistAcceleration;
+  const avoiding = lengthSquared(avoidance ?? vector()) > .01;
+  if (avoidance) requests.push({priority:'collision',deltaVelocity:scale(avoidance,delta)});
+  if (!loop) {
+    // Safety chooses a clear heading before the player's next turn. It does
+    // not leave a competing spring force pulling the player into the facade.
+    const heading = avoiding ? normalize(horizontal(add(physical,scale(avoidance!,delta))),wish) : wish;
+    const steered = flowSwingSteering(physical,heading,radial,swing.attachedSeconds,delta,config.swingSteerAcceleration);
+    requests.push({priority:'steering',deltaVelocity:subtract(steered,physical)});
+    const target = swing.cruiseSpeed ?? FLOW.cruiseSpeed;
+    const speed = length(physical);
+    const tangentWish = normalize(flowTangent(heading,radial),normalize(physical,wish));
+    const forwardArc = dot(normalize(physical,tangentWish),tangentWish) > -.1;
+    if ((forwardArc || speed < 6) && speed < target) requests.push({priority:'comfort',deltaVelocity:scale(
+      speed < 6 ? tangentWish : normalize(flowTangent(physical,radial),tangentWish), Math.min(config.swingPumpAcceleration ?? FLOW.pumpAcceleration,(target-speed)*2.4)*delta)});
+    // Natural descent may exceed cruise; taper gently rather than clipping
+    // momentum each catch. Dives and authored launches have higher allowances.
+    if (speed > target + 12) requests.push({priority:'comfort',deltaVelocity:scale(normalize(physical),
+      -Math.min(18,(speed-target-12)*1.4)*delta)});
+  }
+  if (environment.windAcceleration) requests.push({priority:'comfort',deltaVelocity:scale(flowTangent(environment.windAcceleration,radial),delta)});
+  if (input.aimDirection && config.swingPitchAcceleration && !avoiding && !loop) requests.push({priority:'steering',deltaVelocity:scale(flowTangent(UP,radial),clamp(input.aimDirection.y,-1,1)*config.swingPitchAcceleration*delta)});
+  const assistance=resolveTraversalAssists(requests,delta,config.swingAssistBudget ?? 84);
+  state.assistImpulse=assistance.spent;
+  swing.groundAssistImpulse=groundUsed+assistance.applied.ground;
+  state.velocity=add(physical,assistance.deltaVelocity);
+  state.velocity.x *= Math.exp(-(config.swingHorizontalDrag ?? 0)*delta);
+  state.velocity.z *= Math.exp(-(config.swingHorizontalDrag ?? 0)*delta);
+  state.velocity.y *= Math.exp(-(config.swingVerticalDrag ?? 0)*delta);
+  swing.tension=saturate(lengthSquared(flowTangent(state.velocity,radial))/Math.max(1,swing.ropeLength)/65);
 }
 
 function applySwing(
@@ -972,6 +1072,7 @@ function applySwing(
 ): void {
   const swing = state.swing;
   if (!swing) return;
+  if (config.flowTraversal) { applyFlowSwing(state, input, environment, config, delta, events); return; }
   swing.attachedSeconds += delta;
   if (swing.captureStart) {
     const t = saturate(swing.attachedSeconds / 1.45), eased = t * t * (3 - 2 * t);
@@ -1263,10 +1364,10 @@ function enforceRopeConstraint(
       hasLineOfSight: (origin, target) => traversalLineOfSight(origin, target, boxes) }, input, config, events);
     return null;
   }
-  const constrainedLength = swing.ropeLength * (1 + (config.swingElasticity ?? 0));
+  const constrainedLength = swing.ropeLength * (1 + (config.flowTraversal ? 0 : config.swingElasticity ?? 0));
   if (range <= constrainedLength || range < EPSILON) { if (!environment.externalCollision) swing.obstructionSeconds = 0; return null; }
   const radial = scale(offset, 1 / range), desired = add(pivot, scale(radial, constrainedLength));
-  const assistedHeading = config.arcadeTraversal && !config.profiledSwing && !state.advanced?.loop && !input.diveHeld && !value(input.reel);
+  const assistedHeading = !config.flowTraversal && config.arcadeTraversal && !config.profiledSwing && !state.advanced?.loop && !input.diveHeld && !value(input.reel);
   if (assistedHeading) {
     // A spherical projection used to undo the camera turn every substep and
     // drag the capsule sideways into its anchor building. Preserve the steered
@@ -1300,7 +1401,11 @@ function enforceRopeConstraint(
   if (outwardSpeed > 0) {
     const correction = scale(radial, outwardSpeed);
     if (assistedHeading) { correction.x = 0; correction.z = 0; }
+    const speedBefore = length(state.velocity);
     state.velocity = subtract(state.velocity, correction);
+    if (config.flowTraversal && !collision.blocked && length(state.velocity) > .1) {
+      state.velocity = scale(normalize(state.velocity), Math.min(config.maximumSpeed, speedBefore));
+    }
   }
   return collision;
 }
@@ -1425,6 +1530,15 @@ export function acceptTraversalWallContact(
   state.wallRunActive = !wasZipping && !state.grounded && (wasSwinging || speed >= config.wallRunMinimumSpeed || impact > 10);
   state.wallCrawlActive = !state.wallRunActive;
   state.grounded = false;
+  if (state.wallRunActive && config.flowTraversal) {
+    state.velocity = flowWallVelocity(incoming, normal, input.cameraForward ?? incoming,
+      value(input.wallClimb), value(input.wallStrafe), 0, true);
+    state.wall.runEntrySpeed = length(state.velocity);
+    state.wallCarrySpeed = 0; state.wallCarryUntil = 0;
+    state.actionSequence = (state.actionSequence ?? 0) + 1;
+    if (wasSwinging) state.swingReleaseSeconds = 0;
+    return true;
+  }
   if (state.wallRunActive && config.arcadeTraversal) {
     state.wall.runEntrySpeed = Math.min(config.profiledSwing ? config.maximumSpeed : config.advancedTraversal ? 26 : config.maximumSpeed, length(incoming) * (config.profiledSwing ? config.traversalFlowRetention ?? .9 : 1));
     if (config.advancedTraversal) {
@@ -1464,6 +1578,14 @@ function applyWallTraversal(
   if (config.arcadeTraversal && wall && state.wallRunActive && !state.swing && !state.zip && !state.mantle) {
     if (wall.feetTouching) {
       const normal = normalize(horizontal(wall.normal));
+      if (config.flowTraversal) {
+        const recovering = state.elapsed < (state.advanced?.wallRecoveryUntil ?? 0);
+        state.velocity = flowWallVelocity(state.velocity, normal, input.cameraForward ?? state.velocity,
+          recovering ? 0 : value(input.wallClimb), recovering ? (state.advanced?.wallRecoverySide ?? 1) : value(input.wallStrafe), delta);
+        wall.runEntrySpeed = length(reject(state.velocity, normal));
+        state.grounded = false;
+        return;
+      }
       if (config.advancedTraversal) {
         const side = normalize(cross(UP, normal));
         const strafe = clamp(value(input.wallStrafe), -1, 1), climb = clamp(value(input.wallClimb), -1, 1);
@@ -1708,7 +1830,7 @@ function createContext(state: TraversalState, input: TraversalInput, config: Tra
   const tension = state.swing?.tension ?? 0;
   const wallBlend = state.wall && (state.mode === 'wallRun' || state.mode === 'wallCrawl') ? 1 : 0;
   const launchBlend = saturate(Math.max(state.pointLaunchSeconds, state.swingReleaseSeconds ?? 0) / 0.32);
-  const motionScale = config.advancedTraversal ? clamp(config.cameraMotionScale ?? 1, 0, 1) : 1;
+  const motionScale = config.advancedTraversal ? clamp(config.cameraMotionScale ?? 1, 0, 1.35) : 1;
   const pulse = config.advancedTraversal ? state.advanced?.pulse ?? 0 : 0;
   const speedBlend = saturate(horizontalSpeed / config.maximumSpeed);
   const diveBlend = state.mode === 'dive' ? 1 : 0;
@@ -2161,7 +2283,7 @@ function prepareAdvancedInput(state: TraversalState, input: TraversalInput, envi
   const naturalLoopEnergy = Boolean(state.swing && lengthSquared(reject(state.velocity, loopRadial))
     > config.gravity * loopRadius * (3 - 2 * loopRadial.y) * 1.08);
   const requestedLoop = input.loopHeld && a.diveSpeed >= ADVANCED_TUNING.loopMinimumDiveSpeed && state.elapsed < a.diveUntil;
-  if ((naturalLoopEnergy || requestedLoop) && state.swing && !a.loop
+  if (((!config.flowTraversal && naturalLoopEnergy) || requestedLoop) && state.swing && !a.loop
     && state.elapsed >= a.loopAfter && state.swing.ropeLength > 8) {
     const radial = normalize(subtract(state.position, state.swing.anchor));
     const axis = cross(radial, state.velocity);

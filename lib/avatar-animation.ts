@@ -15,6 +15,7 @@ import { SymbioteAnimationGraph } from './symbiote-animation.ts';
 import { MuaSpiderAnimationGraph } from './mua-spider-animation.ts';
 import { ContextualAnimationGraph } from './contextual-animation.ts';
 import type { PlayerCombatAction } from './combat-system.ts';
+import type { SwingAnimationStyle } from './swing-styles.ts';
 
 const canonical = (name: string) =>
   name.toLowerCase().replace(/[^a-z0-9]/g, '');
@@ -59,6 +60,7 @@ export type AvatarMotion = {
   trickRequest?: number;
   moveForward?: number;
   moveStrafe?: number;
+  swingStyle?: SwingAnimationStyle;
   combat?: {action: PlayerCombatAction; actionElapsed:number;actionDuration:number;activeStart:number;activeEnd:number;comboIndex:number;blocking:boolean};
 };
 

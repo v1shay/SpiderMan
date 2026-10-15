@@ -28,7 +28,7 @@
     "test:scenes": "node --experimental-strip-types scripts/verify-city-scenes.mjs",
     "test:refinements": "node --experimental-strip-types scripts/verify-traversal-refinements.mjs",
     "test:explosive": "node --experimental-strip-types scripts/verify-wall-run-loop.mjs && node --experimental-strip-types scripts/verify-feel-math.mjs && node --experimental-strip-types scripts/verify-feel-integration.mjs && node --experimental-strip-types scripts/verify-advanced-traversal.mjs",
-    "test": "npm run test:traversal && npm run test:2099 && npm run test:wall && npm run test:swing-assistance && npm run test:surfaces && npm run test:integrated && npm run test:scenes && npm run test:explosive && npm run test:refinements && npm run test:city-horizon && npm run test:characters && npm run test:web-strand && npm run test:analytics && npm run test:race-input",
+    "test": "npm run test:flow && npm run test:traversal && npm run test:2099 && npm run test:wall && npm run test:swing-assistance && npm run test:surfaces && npm run test:integrated && npm run test:scenes && npm run test:explosive && npm run test:refinements && npm run test:city-horizon && npm run test:characters && npm run test:web-strand && npm run test:analytics && npm run test:race-input",
     "test:city-horizon": "node --experimental-strip-types scripts/verify-city-horizon.mjs",
     "test:characters": "node --experimental-strip-types scripts/verify-character-lineup.mjs",
     "test:web-strand": "node --experimental-strip-types scripts/verify-web-strand.mjs",
@@ -45,7 +45,8 @@
     "test:swing-profile": "node --experimental-strip-types scripts/verify-swing-profile.mjs && node --experimental-strip-types scripts/verify-profiled-building-avoidance.mjs",
     "test:destination-race": "node --experimental-strip-types scripts/verify-destination-race.mjs",
     "test:race-city": "node --experimental-strip-types scripts/verify-race-city-courses.mjs",
-    "test:video-traversal": "node --experimental-strip-types scripts/verify-video-traversal.mjs"
+    "test:video-traversal": "node --experimental-strip-types scripts/verify-video-traversal.mjs",
+    "test:flow": "node --experimental-strip-types scripts/verify-traversal-flow.mjs && node --experimental-strip-types scripts/verify-camera-swing.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "2.112.4",

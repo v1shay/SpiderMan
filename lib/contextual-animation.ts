@@ -24,6 +24,7 @@ export class ContextualAnimationGraph {
   private idleVariant = 'Idle';
   private idleAfter = 0;
   private lastTrickRequest = -1;
+  private releaseCount = 0;
 
   constructor(clips: readonly THREE.AnimationClip[]) {
     for (const clip of clips)
@@ -188,7 +189,13 @@ export class ContextualAnimationGraph {
       this.active = undefined;
       if (changed)
         this.swingVariant =
-          this.choose(['swing-a', 'swing-b', 'swing-style']) ?? 'swing-a';
+          this.choose([
+            ...(motion.swingStyle?.swingVariants ?? [
+              'swing-a',
+              'swing-b',
+              'swing-style',
+            ]),
+          ]) ?? 'swing-a';
       if (this.stateTime < 0.2) return this.selection('web-catch', 1.6);
       const selection = this.selection(this.swingVariant, 0, THREE.LoopRepeat);
       if (selection)
@@ -296,9 +303,17 @@ export class ContextualAnimationGraph {
       return this.selection(this.idleVariant, 1, THREE.LoopRepeat);
     }
 
+    if (released) this.releaseCount++;
+    const style = motion.swingStyle;
+    const releaseRoll =
+      (Math.imul(this.releaseCount, 2654435761) >>> 0) / 4294967296;
+    const releaseTrick =
+      released && releaseRoll < ((mode === 'jump' && (motion.verticalSpeed ?? 0) > 10)
+        ? .95 : (style?.releaseTrickChance ?? .72));
     if (takeoff || doubleJump || released) {
       this.active = undefined;
-      this.nextTrick = this.clock + 0.35;
+      this.nextTrick =
+        this.clock + Math.max(0.35, (style?.trickInterval ?? 1.4) * 0.55);
     }
     // Whole rotations must fit before the predicted collision plus blend-out.
     // Interrupted by actual wall, web or ground contact above on the same frame.
@@ -326,11 +341,13 @@ export class ContextualAnimationGraph {
     }
     const wantsTrick =
       doubleJump ||
-      released ||
+      releaseTrick ||
       explicitTrick ||
       (this.clock > this.nextTrick && air > 1.7);
     if (!this.active && wantsTrick && clearance && air > 0.78) {
-      const names = ['Backflip', 'Front Flip', 'Front Twist Flip'];
+      const names = [
+        ...(style?.tricks ?? ['Backflip', 'Front Flip', 'Front Twist Flip']),
+      ];
       if (speed > 8 && air > 1.4)
         names.push('Running Forward Flip', 'Run To Flip');
       if (air > 1.8)
@@ -345,7 +362,7 @@ export class ContextualAnimationGraph {
       );
       if (eligible.length) {
         this.commit(eligible, Math.min(1.15, air - 0.22));
-        this.nextTrick = this.activeUntil + 0.22;
+        this.nextTrick = this.activeUntil + Math.max(.45, (style?.trickInterval ?? 1.4) * .65);
       }
     }
     if (!this.active && takeoff)
