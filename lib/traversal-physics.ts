@@ -2024,8 +2024,8 @@ function stepTraversalTick(
   }
   if ((input.swingReleased || input.swingHeld === false) && state.swing) releaseSwing(state, input, config, events);
 
-  const contextualAirZip = Boolean(config.profiledSwing && (config.traversalAirZip ?? 1) && input.jumpPressed && !input.swingHeld && !state.grounded && state.coyoteSeconds <= 0 && !state.swing && !state.zip && !state.wall && !state.mantle && state.perchSeconds <= 0 && state.airSeconds > .08);
-  if (contextualAirZip) { input = {...input,jumpPressed:false,zipPressed:true,zipHeld:true,zipStyle:'air'}; state.jumpBufferSeconds = 0; }
+  const contextualAirZip = Boolean(config.profiledSwing && (config.traversalAirZip ?? 1) && input.zipPressed && !input.swingHeld && !state.grounded && state.coyoteSeconds <= 0 && !state.swing && !state.zip && !state.wall && !state.mantle && state.perchSeconds <= 0 && state.airSeconds > .08);
+  if (contextualAirZip) input = {...input,zipHeld:true,zipStyle:'air'};
   if (input.zipPressed && !state.zip) {
     const target = chooseZipTarget(state, input, environment, config)
       ?? (config.advancedTraversal && !config.profiledSwing && input.zipStyle === 'air'

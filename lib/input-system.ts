@@ -14,7 +14,7 @@ export const ACTION_BINDINGS = {
   moveLeft: ['KeyA'],
   moveRight: ['KeyD'],
   swing: ['Mouse0'],
-  zip: ['Mouse2'],
+  zip: [],
   pointLaunch: ['KeyE'],
   jump: ['Space'],
   aim: ['AltLeft', 'AltRight'],

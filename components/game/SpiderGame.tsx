@@ -2585,7 +2585,6 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(
         renderer.domElement.focus({ preventScroll: true });
         readPointer(event);
         if (event.button === 0 && traversal.zip) traversal.zip = null;
-        if (event.button === 2) pointerZipActive = true;
         if (document.pointerLockElement !== renderer.domElement && !pointerLockPending) {
           pointerLockPending = true;
           try { renderer.domElement.requestPointerLock()?.catch(onPointerLockError); }
@@ -3628,10 +3627,10 @@ export const SpiderGame = forwardRef<SpiderGameHandle, Props>(
             swingHeld &&
             !traversal.swingNeedsRelease &&
             (!traversal.advanced?.gliding || pointerPressed)) ||
-            zipPressed || actions.aim.held || (actions.jump.pressed && !traversal.grounded && !traversal.swing));
+            zipPressed || actions.aim.held);
         const anchorStart = performance.now();
         const anchorCandidates = needsAnchor
-          ? collectAnchorCandidates(targetNdc,actions.jump.pressed && !traversal.grounded && !traversal.swing && !swingHeld ? wish : undefined)
+          ? collectAnchorCandidates(targetNdc,zipPressed && !traversal.grounded && !traversal.swing && !swingHeld ? wish : undefined)
           : [];
         if (needsAnchor) telemetry.record('anchor', performance.now() - anchorStart);
         const aimTarget = actions.aim.held ? chooseZipTarget(traversal,{aimDirection:cameraAim,zipStyle:'point'},{anchorCandidates}, {...SPIDER_TRAVERSAL_FEEL,...swingConfig} as TraversalConfig) : undefined;

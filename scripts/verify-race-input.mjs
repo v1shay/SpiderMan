@@ -169,21 +169,27 @@ test('disabled actions preserve raw buttons and resume without stale charge rele
   assert.equal(action.slingshot.released, false);
 });
 
-test('right mouse zips and E launches without affecting swing', () => {
+test('E alone zips while Space jumps and right mouse does not zip', () => {
   const input = new InputSystem();
   input.setButton(2, true);
   let frame = toTraversalInput(input.sample(), forward);
-  assert.equal(frame.zipPressed, true);
-  assert.equal(frame.swingPressed, false);
-  assert.equal(frame.zipStyle, 'point');
+  assert.equal(frame.zipPressed, false);
+  assert.equal(frame.zipHeld, false);
   input.setKey('KeyE', true);
-  input.setButton(2, false);
   frame = toTraversalInput(input.sample(), forward);
+  assert.equal(frame.zipPressed, true);
   assert.equal(frame.zipHeld, true);
-  assert.equal(frame.zipReleased, false);
+  assert.equal(frame.jumpPressed, false);
+  assert.equal(frame.swingPressed, false);
   input.setKey('KeyE', false);
   frame = toTraversalInput(input.sample(), forward);
   assert.equal(frame.zipReleased, true);
+  input.setKey('Space', true);
+  frame = toTraversalInput(input.sample(), forward);
+  assert.equal(frame.jumpPressed, true);
+  assert.equal(frame.jumpHeld, true);
+  assert.equal(frame.zipPressed, false);
+  assert.equal(frame.zipHeld, false);
 });
 
 test('quick taps are captured once and key repeats do not repeat gameplay edges', () => {

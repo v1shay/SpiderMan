@@ -5,14 +5,20 @@ import {readController,defaultControllerSettings} from '../lib/controller.ts';
 const v=(x=0,y=0,z=0)=>({x,y,z});const config=swingProfileConfig(swingPreset());
 const environment={groundY:0,anchorCandidates:[{id:'front-building',point:v(12,60,-35),kind:'facade'},{id:'back-building',point:v(12,60,35),kind:'facade'}]};
 const air=()=>{const s=createTraversalState(v(0,25,0));s.velocity=v(0,-4,-30);s.airSeconds=.5;return s;};
-let s=air();let out=stepTraversal(s,{jumpPressed:true,move:v(0,0,1),cameraForward:v(0,0,-1)},environment,1/120,config);
+let s=air();let out=stepTraversal(s,{zipPressed:true,move:v(0,0,1),cameraForward:v(0,0,-1)},environment,1/120,config);
 assert.ok(out.state.zip?.airDash && out.state.zip.contextual);assert.equal(out.state.zip.targetId,'back-building');assert.ok(out.state.velocity.z>20,'stick zip must support deliberate U-turn');
 s=out.state;for(let i=0;i<6;i++)s=stepTraversal(s,{zipHeld:false},environment,1/120,config).state;
 assert.ok(s.zip,'one press completes the short zip without holding a separate button');
 for(let i=0;i<45;i++)s=stepTraversal(s,{},environment,1/120,config).state;
 assert.equal(s.zip,null);assert.ok(Math.hypot(s.velocity.x,s.velocity.y,s.velocity.z)<=config.maximumSpeed);
-const noAnchor=stepTraversal(air(),{jumpPressed:true},{groundY:0},1/120,config);assert.equal(noAnchor.state.zip,null);assert.ok(!noAnchor.events.some(e=>e.type==='double-jump'),'empty sky cannot supply a zip');
-const blocked=stepTraversal(air(),{jumpPressed:true},{...environment,hasLineOfSight:()=>false},1/120,config);assert.equal(blocked.state.zip,null);
+const noAnchor=stepTraversal(air(),{zipPressed:true},{groundY:0},1/120,config);assert.equal(noAnchor.state.zip,null);assert.ok(!noAnchor.events.some(e=>e.type==='double-jump'),'zip does not jump in empty sky');
+const blocked=stepTraversal(air(),{zipPressed:true},{...environment,hasLineOfSight:()=>false},1/120,config);assert.equal(blocked.state.zip,null);
+for (const env of [environment,{groundY:0}]) {
+ const jumped=stepTraversal(air(),{jumpPressed:true},env,1/120,config);
+ assert.equal(jumped.state.zip,null,'jump never starts a web zip, even with an anchor');
+ assert.ok(jumped.events.some(e=>e.type==='double-jump'));
+ assert.ok(jumped.state.velocity.y>0);
+}
 assert.ok(stepTraversal(air(),{jumpPressed:true},{groundY:0},1/120,{...config,traversalAirZip:0}).events.some(e=>e.type==='double-jump'));
 function swinging(y){const s=air();s.velocity=v(0,y,-30);s.swing={anchor:v(12,60,-35),anchorId:'front-building',ropeLength:48,maximumLength:48,attachedSeconds:1.3,tension:.5,pressure:1};return s;}
 const low=stepTraversal(swinging(0),{jumpPressed:true,swingHeld:true},environment,1/120,config);const high=stepTraversal(swinging(18),{jumpPressed:true,swingHeld:true},environment,1/120,config);
